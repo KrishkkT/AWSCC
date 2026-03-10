@@ -168,6 +168,34 @@ create table if not exists public.team_members (
 -- 4. ROW LEVEL SECURITY (RLS)
 -- ============================================================================
 
+create table if not exists public.gallery (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  event text,
+  url text not null,
+  created_at timestamp with time zone default now()
+);
+
+-- H. GLOBAL SETTINGS
+create table if not exists public.global_settings (
+  id text primary key default '1',
+  maintenance_mode boolean default false,
+  announcement_banner text,
+  join_link text,
+  instagram_url text,
+  linkedin_url text,
+  updated_at timestamp with time zone default now()
+);
+
+-- Insert default settings if not exists
+insert into public.global_settings (id, maintenance_mode)
+values ('1', false)
+on conflict (id) do nothing;
+
+-- ============================================================================
+-- 4. ROW LEVEL SECURITY (RLS)
+-- ============================================================================
+
 -- Enable RLS on all tables
 alter table public.profiles enable row level security;
 alter table public.events enable row level security;
@@ -179,6 +207,10 @@ alter table public.resources enable row level security;
 alter table public.knowledge_articles enable row level security;
 alter table public.community_topics enable row level security;
 alter table public.team_members enable row level security;
+alter table public.gallery enable row level security;
+alter table public.global_settings enable row level security;
+
+-- ... (skipping to policies)
 
 -- PROFILES POLICIES
 drop policy if exists "Users can read own profile" on profiles;
@@ -221,6 +253,8 @@ drop policy if exists "Articles viewable by everyone" on knowledge_articles;
 create policy "Articles viewable by everyone" on knowledge_articles for select using (is_published = true);
 drop policy if exists "Team viewable by everyone" on team_members;
 create policy "Team viewable by everyone" on team_members for select using (true);
+drop policy if exists "Gallery is viewable by everyone" on gallery;
+create policy "Gallery is viewable by everyone" on gallery for select using (true);
 
 drop policy if exists "Admins can manage content" on resources;
 create policy "Admins can manage content" on resources for all using (public.is_admin(auth.uid()));
@@ -228,22 +262,40 @@ drop policy if exists "Admins can manage articles" on knowledge_articles;
 create policy "Admins can manage articles" on knowledge_articles for all using (public.is_admin(auth.uid()));
 drop policy if exists "Admins can manage team" on team_members;
 create policy "Admins can manage team" on team_members for all using (public.is_admin(auth.uid()));
+drop policy if exists "Admins can manage gallery" on gallery;
+create policy "Admins can manage gallery" on gallery for all using (public.is_admin(auth.uid()));
+
+-- GLOBAL SETTINGS POLICIES
+drop policy if exists "Global settings are viewable by everyone" on global_settings;
+create policy "Global settings are viewable by everyone" on global_settings for select using (true);
+drop policy if exists "Admins can manage global settings" on global_settings;
+create policy "Admins can manage global settings" on global_settings for all using (public.is_admin(auth.uid()));
 
 -- ============================================================================
 -- 5. STORAGE & AUTOMATION
 -- ============================================================================
 
--- Avatars Bucket
+-- Storage Buckets
 insert into storage.buckets (id, name, public)
 select 'avatars', 'avatars', true
 where not exists (select 1 from storage.buckets where id = 'avatars');
 
+insert into storage.buckets (id, name, public)
+select 'gallery', 'gallery', true
+where not exists (select 1 from storage.buckets where id = 'gallery');
+
+insert into storage.buckets (id, name, public)
+select 'event-images', 'event-images', true
+where not exists (select 1 from storage.buckets where id = 'event-images');
+
 -- Storage Policies
 drop policy if exists "Public storage access" on storage.objects;
-create policy "Public storage access" on storage.objects for select using (bucket_id = 'avatars');
+create policy "Public storage access" on storage.objects for select 
+  using (bucket_id in ('avatars', 'gallery', 'event-images'));
+
 drop policy if exists "Admins can manage storage" on storage.objects;
 create policy "Admins can manage storage" on storage.objects for all 
-  using (bucket_id = 'avatars' and public.is_admin(auth.uid()));
+  using (bucket_id in ('avatars', 'gallery', 'event-images') and public.is_admin(auth.uid()));
 
 -- Auth Trigger
 drop trigger if exists on_auth_user_created on auth.users;
@@ -260,6 +312,7 @@ begin
   from public.profiles p where p.id = auth.uid();
 end;
 $$ language plpgsql security definer;
+
 
 -- ============================================================================
 -- 6. PERMISSIONS & CACHE REFRESH

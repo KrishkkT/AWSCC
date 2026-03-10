@@ -57,7 +57,7 @@ export default function Settings() {
         if (profile.role === 'captain') {
             await supabase
                 .from('global_settings')
-                .upsert([globalSettings]);
+                .upsert([{ ...globalSettings, id: '1', updated_at: new Date().toISOString() }]);
         }
 
         if (pError) {
