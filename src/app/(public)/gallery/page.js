@@ -17,11 +17,11 @@ export default function Gallery() {
         async function fetchGallery() {
             setLoading(true);
             const { data, error } = await supabase.from('gallery').select('*').order('created_at', { ascending: false });
-            if (!error && data && data.length > 0) {
+            if (!error && data) {
                 setAllPhotos(data);
-            } else {
-                // Fallback to static photos if table is empty or doesn't exist
-                setAllPhotos(photos);
+            } else if (error) {
+                console.error("Fetch error:", error);
+                setAllPhotos([]);
             }
             setLoading(false);
         }

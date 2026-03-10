@@ -274,7 +274,7 @@ export default function AdminEvents() {
                                         className="flex-grow bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-cyan outline-none font-bold placeholder-white/15"
                                     />
                                     <label className="cursor-pointer shrink-0">
-                                        <div className={`h-full px-4 rounded-xl border border-dashed border-white/20 hover:border-brand-cyan/50 hover:bg-brand-cyan/5 flex items-center justify-center transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        <div className={`px-5 py-3 rounded-xl border border-dashed border-white/20 hover:border-brand-cyan/50 hover:bg-brand-cyan/5 flex items-center justify-center transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
                                             {uploading ? <Loader2 size={16} className="animate-spin text-brand-cyan" /> : <Plus size={16} className="text-white/40" />}
                                         </div>
                                         <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
