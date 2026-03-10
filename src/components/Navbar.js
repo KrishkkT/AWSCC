@@ -23,16 +23,16 @@ export default function Navbar() {
     ];
 
     return (
-        <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 border-gradient-bottom ${scrolled ? "py-4 bg-brand-dark/80 backdrop-blur-md" : "py-6 bg-transparent"}`}>
+        <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 border-gradient-bottom ${scrolled ? "py-2 bg-brand-dark/80 backdrop-blur-md" : "py-4 bg-transparent"}`}>
             <div className="container mx-auto px-6 flex items-center justify-between">
                 {/* Elite Branding */}
-                <Link href="/" className="flex items-center gap-3 group">
-                    <div className="relative h-14 w-52 flex items-center justify-start overflow-visible">
-                        <div className="absolute inset-0 bg-brand-cyan/5 blur-2xl group-hover:bg-brand-cyan/10 transition-all rounded-full scale-150" />
+                <Link href="/" className="flex items-center gap-2 group">
+                    <div className="relative h-14 w-56 flex items-center justify-start overflow-visible">
+                        <div className="absolute inset-0 bg-brand-cyan/5 blur-xl group-hover:bg-brand-cyan/10 transition-all rounded-full scale-125" />
                         <img
                             src="/images/logo.png"
                             alt="AWSCC Logo"
-                            className="h-full w-full object-contain object-left relative z-10 scale-125 origin-left transition-transform group-hover:scale-[1.35]"
+                            className="h-full w-full object-contain object-left relative z-10 scale-125 origin-left transition-transform group-hover:scale-135"
                             onError={(e) => {
                                 e.target.style.display = 'none';
                                 e.target.nextSibling.style.display = 'flex';
@@ -41,18 +41,18 @@ export default function Navbar() {
                     </div>
                 </Link>
 
-                {/* Desktop Navigation - Standard Spacing */}
+                {/* Desktop Navigation - Condensed */}
                 <div className="hidden lg:flex items-center gap-8">
                     {navLinks.map((link) => (
-                        <Link key={link.name} href={link.href} className="nav-link text-sm font-bold uppercase tracking-wider hover:text-brand-cyan transition-colors">
+                        <Link key={link.name} href={link.href} className="nav-link text-xs font-black uppercase tracking-[0.15em] hover:text-brand-cyan transition-colors">
                             {link.name}
                         </Link>
                     ))}
                 </div>
 
-                {/* CTA Button */}
+                {/* CTA Button - Smaller */}
                 <div className="hidden lg:block">
-                    <Link href="/contact" className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-cyan hover:text-brand-dark hover:border-brand-cyan transition-all">
+                    <Link href="/contact" className="px-5 py-2 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] hover:bg-brand-cyan hover:text-brand-dark hover:border-brand-cyan transition-all">
                         Join Community
                     </Link>
                 </div>

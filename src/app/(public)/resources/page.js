@@ -17,8 +17,18 @@ export default function ResourcesPage() {
                 .from('resources')
                 .select('*')
                 .eq('is_active', true)
-                .order('created_at', { ascending: false });
-            if (data) setResources(data);
+                .order('category', { ascending: true });
+            if (data && data.length > 0) {
+                setResources(data);
+            } else {
+                // Fallback / Initial sample data
+                setResources([
+                    { id: 'f1', title: 'AWS Architect Learning Plan', type: 'Path', category: 'Training', description: 'Comprehensive guide to becoming a certified AWS Solutions Architect.', url: 'https://aws.amazon.com/training/learning-paths/architect/' },
+                    { id: 'f2', title: 'Terraform Best Practices', type: 'Code', category: 'IaC', description: 'Mastering infrastructure as code with professional Terraform patterns.', url: 'https://www.terraform.io/docs/cloud/guides/recommended-practices/index.html' },
+                    { id: 'f3', title: 'Cloud Security Fundamentals', type: 'Video', category: 'Security', description: 'Essential security concepts for modern cloud environments.', url: '#' },
+                    { id: 'f4', title: 'DDU Cloud Labs', type: 'Tool', category: 'Internal', description: 'Hands-on laboratory environments specifically for DDU students.', url: '#' }
+                ]);
+            }
             setLoading(false);
         }
         fetchResources();

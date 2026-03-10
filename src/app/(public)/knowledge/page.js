@@ -100,18 +100,11 @@ export default function KnowledgeCenter() {
                         </div>
 
                         <div className="space-y-8">
-                            <div className="glass-card p-8 border-white/5 bg-brand-cyan/5">
-                                <Zap className="text-brand-cyan mb-6" size={24} />
-                                <h3 className="text-xl font-black text-white mb-2">Cloud Clinic</h3>
-                                <p className="text-sm text-white/40 font-medium mb-6">Live troubleshooting and Q&A sessions every Friday at 5 PM.</p>
-                                <button className="btn-primary w-full py-4 text-[10px]">Join Session</button>
-                            </div>
-
                             <div className="glass-card p-8 border-white/5">
                                 <BookOpen className="text-white/20 mb-6" size={24} />
                                 <h3 className="text-xl font-black text-white mb-6">Trending Topics</h3>
                                 <ul className="space-y-4">
-                                    {(trending.length > 0 ? trending : ["Terraform", "AWS Bedrock", "Identity Federation", "Cost Optimization"]).map(topic => (
+                                    {(trending.length > 0 ? trending : ["AWS Cloud", "Serverless", "DevOps", "AI/ML"]).map(topic => (
                                         <li key={topic} className="flex items-center justify-between group cursor-pointer">
                                             <span className="text-sm text-white/50 group-hover:text-white transition-colors">{topic}</span>
                                             <ArrowRight size={14} className="text-white/10 group-hover:text-brand-cyan transition-all" />

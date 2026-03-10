@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
     LayoutDashboard, Users, Calendar, Settings,
-    LogOut, FileText, Activity, Award, Menu, X
+    LogOut, FileText, Activity, Award, Menu, X, Image as ImageIcon
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useState, useEffect } from "react";
@@ -13,19 +13,19 @@ import { useState, useEffect } from "react";
 const ROLE_PERMISSIONS = {
     faculty: {
         sections: ['core', 'management', 'system'],
-        features: ['analytics', 'reports', 'hod_export', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge'],
+        features: ['analytics', 'reports', 'hod_export', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery'],
     },
     captain: {
         sections: ['core', 'management', 'system'],
-        features: ['analytics', 'reports', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge'],
+        features: ['analytics', 'reports', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery'],
     },
     core: {
         sections: ['core', 'management'],
-        features: ['analytics', 'manage_events', 'attendance', 'manage_resources', 'manage_knowledge'],
+        features: ['analytics', 'manage_events', 'attendance', 'manage_resources', 'manage_knowledge', 'manage_gallery'],
     },
     member: {
-        sections: [],
-        features: [],
+        sections: ['core', 'management'],
+        features: ['manage_gallery'],
     },
 };
 
@@ -80,6 +80,7 @@ export default function AdminSidebar() {
                 { name: "Team", href: "/admin/team", icon: Users },
                 { name: "Resources", href: "/admin/resources", icon: FileText },
                 { name: "Knowledge", href: "/admin/knowledge", icon: FileText },
+                { name: "Gallery", href: "/admin/gallery", icon: ImageIcon },
                 ...(perms.features.includes('certificates') ? [{ name: "Certificates", href: "/admin/certificates", icon: Award }] : []),
             ]
         },

@@ -12,6 +12,7 @@ export default function AdminEvents() {
     const [showForm, setShowForm] = useState(false);
     const [editingEvent, setEditingEvent] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [processingId, setProcessingId] = useState(null);
     const [feedback, setFeedback] = useState(null);
     const [formData, setFormData] = useState({
@@ -72,6 +73,48 @@ export default function AdminEvents() {
         setFormData({ title: '', description: '', date: '', start_time: '', end_time: '', location: '', max_participants: 50, status: 'upcoming', image_url: '', registration_link: '', is_visible: true });
         setEditingEvent(null);
         setShowForm(false);
+        setUploading(false);
+    }
+
+    async function handleImageUpload(e) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Basic validation
+        if (!file.type.startsWith('image/')) {
+            showFeedback('Please upload an image file', 'error');
+            return;
+        }
+
+        if (file.size > 2 * 1024 * 1024) {
+            showFeedback('Image must be under 2MB', 'error');
+            return;
+        }
+
+        setUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+            const filePath = `event-banners/${fileName}`;
+
+            const { error: uploadError, data } = await supabase.storage
+                .from('event-images')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('event-images')
+                .getPublicUrl(filePath);
+
+            setFormData({ ...formData, image_url: publicUrl });
+            showFeedback('Image uploaded successfully!');
+        } catch (error) {
+            console.error('Upload error:', error);
+            showFeedback(`Upload failed: ${error.message || 'Check storage permissions'}`, 'error');
+        } finally {
+            setUploading(false);
+        }
     }
 
     async function handleSubmit(e) {
@@ -220,8 +263,36 @@ export default function AdminEvents() {
                             <input type="url" value={formData.registration_link} onChange={e => setFormData({ ...formData, registration_link: e.target.value })} placeholder="https://..." className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-cyan outline-none font-bold placeholder-white/15" />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Event Image URL</label>
-                            <input type="url" value={formData.image_url} onChange={e => setFormData({ ...formData, image_url: e.target.value })} placeholder="https://images.unsplash.com/..." className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-cyan outline-none font-bold placeholder-white/15" />
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Event Image</label>
+                            <div className="flex flex-col gap-3">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={formData.image_url}
+                                        onChange={e => setFormData({ ...formData, image_url: e.target.value })}
+                                        placeholder="Paste image URL..."
+                                        className="flex-grow bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-cyan outline-none font-bold placeholder-white/15"
+                                    />
+                                    <label className="cursor-pointer shrink-0">
+                                        <div className={`h-full px-4 rounded-xl border border-dashed border-white/20 hover:border-brand-cyan/50 hover:bg-brand-cyan/5 flex items-center justify-center transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            {uploading ? <Loader2 size={16} className="animate-spin text-brand-cyan" /> : <Plus size={16} className="text-white/40" />}
+                                        </div>
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
+                                    </label>
+                                </div>
+                                {formData.image_url && (
+                                    <div className="relative group w-32 aspect-video rounded-lg overflow-hidden border border-white/10">
+                                        <img src={formData.image_url} alt="Preview" className="w-full h-full object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, image_url: '' })}
+                                            className="absolute inset-0 bg-brand-dark/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X size={14} className="text-white" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="md:col-span-2 flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 cursor-pointer select-none hover:bg-white/10 transition-all" onClick={() => setFormData({ ...formData, is_visible: !formData.is_visible })}>
                             <div className={`w-10 h-5 rounded-full relative transition-colors ${formData.is_visible ? 'bg-brand-cyan' : 'bg-white/10'}`}>

@@ -24,7 +24,7 @@ export default function CommunityPage() {
                     {[
                         { title: "Collaborate", desc: "Work together on real-world cloud projects.", icon: <Users size={32} /> },
                         { title: "Discuss", desc: "Share ideas in our dedicated Discord channels.", icon: <MessageSquare size={32} /> },
-                        { title: "Learn", desc: "Weekly hands-on workshops and cloud clinics.", icon: <Zap size={32} /> },
+                        { title: "Learn", desc: "Weekly hands-on workshops and technical deep-dives.", icon: <Zap size={32} /> },
                         { title: "Connect", desc: "Network with industry experts and alumni.", icon: <Globe size={32} /> },
                     ].map((feature, i) => (
                         <motion.div

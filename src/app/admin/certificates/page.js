@@ -1,10 +1,11 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Award, Search, Download, Plus, Eye, Trash2, FileText, Loader2 } from "lucide-react";
+import { Award, Search, Download, Plus, Eye, Trash2, FileText, Loader2, X, ShieldCheck } from "lucide-react";
 import Toast from "@/components/Toast";
+import { generateCertificatePDF } from "@/utils/pdfGenerator";
 
 export default function AdminCertificates() {
     const [certificates, setCertificates] = useState([]);
@@ -15,6 +16,8 @@ export default function AdminCertificates() {
     const [submitting, setSubmitting] = useState(false);
     const [processingId, setProcessingId] = useState(null);
     const [feedback, setFeedback] = useState(null);
+    const [showPreview, setShowPreview] = useState(null);
+    const certificateRef = useRef(null);
     const [newCert, setNewCert] = useState({
         recipient_name: '',
         recipient_email: '',
@@ -74,7 +77,9 @@ export default function AdminCertificates() {
                         }
                     })
                 });
-            } catch (err) { }
+            } catch (err) {
+                console.error("Email notification failed:", err);
+            }
 
             setShowModal(false);
             setNewCert({ recipient_name: '', recipient_email: '', event_id: '', certificate_type: 'participation' });
@@ -231,15 +236,24 @@ export default function AdminCertificates() {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <a
-                                    href={`/verify/certs/${cert.id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                <button
+                                    onClick={() => setShowPreview(cert)}
                                     className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-brand-cyan hover:border-brand-cyan/50 transition-all"
-                                    title="Download/View Certificate"
+                                    title="Preview Certificate"
+                                >
+                                    <Eye size={16} />
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        setProcessingId(cert.id);
+                                        setShowPreview(cert);
+                                        setProcessingId(null);
+                                    }}
+                                    className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-brand-cyan hover:border-brand-cyan/50 transition-all"
+                                    title="Download Certificate"
                                 >
                                     <Download size={16} />
-                                </a>
+                                </button>
                                 <button
                                     disabled={processingId === cert.id}
                                     onClick={async () => {
@@ -262,6 +276,87 @@ export default function AdminCertificates() {
                             </div>
                         </motion.div>
                     ))}
+                </div>
+            )}
+
+            {/* Preview & Download Modal */}
+            {showPreview && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                        className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+                        onClick={() => setShowPreview(null)}
+                    />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl shadow-2xl bg-white"
+                    >
+                        {/* Control Bar */}
+                        <div className="absolute top-6 right-6 z-20 flex gap-3">
+                            <button
+                                onClick={() => generateCertificatePDF(certificateRef, showPreview.recipient_name)}
+                                disabled={submitting}
+                                className="bg-brand-cyan text-brand-dark px-8 py-4 flex items-center gap-3 rounded-xl font-black uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_40px_rgba(0,194,255,0.4)]"
+                            >
+                                {submitting ? <Loader2 size={18} className="animate-spin" /> : <Download size={20} />}
+                                Download PDF
+                            </button>
+                            <button onClick={() => setShowPreview(null)} className="w-14 h-14 flex items-center justify-center rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all backdrop-blur-md">
+                                <X size={28} />
+                            </button>
+                        </div>
+
+                        {/* PREMIUM CERTIFICATE UI */}
+                        <div
+                            ref={certificateRef}
+                            className="w-full aspect-[1.414/1] bg-white relative overflow-hidden flex items-center justify-center"
+                            style={{ fontFamily: "'Cinzel', serif" }}
+                        >
+                            {/* Template Background Overlay (Original PNG) */}
+                            <img
+                                src="/templates/attendee_template.png"
+                                className="absolute inset-0 w-full h-full object-contain"
+                                alt="Certificate Template"
+                            />
+
+                            {/* Dynamic Content Overlay */}
+                            <div className="absolute inset-0 z-10 flex flex-col items-center justify-between py-24 text-center">
+                                <div className="space-y-4">
+                                    <p className="text-[#C5A059] font-black uppercase tracking-[0.3em] text-[10px]">Certificate of {showPreview.certificate_type || 'Achievement'}</p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <p className="text-[#666] italic text-lg" style={{ fontFamily: "'Playfair Display', serif" }}>
+                                        This is to certify that
+                                    </p>
+                                    <h1 className="text-[#1A1A1A] text-4xl font-bold tracking-tight border-b-2 border-[#C5A059]/30 inline-block pb-1 px-8">
+                                        {showPreview.recipient_name}
+                                    </h1>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <p className="text-[#444] text-base">
+                                        has successfully completed the workshop on
+                                    </p>
+                                    <h2 className="text-[#C5A059] text-2xl font-black uppercase tracking-[0.2em]">
+                                        {showPreview.event_name}
+                                    </h2>
+                                </div>
+
+                                <div className="grid grid-cols-2 w-full px-20 text-left pt-12">
+                                    <div className="space-y-1">
+                                        <p className="text-[7px] text-[#C5A059] font-black uppercase tracking-widest">Verification ID</p>
+                                        <p className="text-[10px] font-bold text-[#1A1A1A]">{showPreview.id.substring(0, 12).toUpperCase()}</p>
+                                    </div>
+                                    <div className="text-right space-y-1">
+                                        <p className="text-[7px] text-[#C5A059] font-black uppercase tracking-widest">Date of Issue</p>
+                                        <p className="text-[10px] font-bold text-[#1A1A1A]">{new Date(showPreview.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
                 </div>
             )}
         </div>

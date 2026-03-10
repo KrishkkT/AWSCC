@@ -15,7 +15,7 @@ export default function AdminLayout({ children }) {
                 <main className="flex-grow p-6 lg:p-10 relative overflow-y-auto no-scrollbar scroll-smooth">
                     {/* Background Grid */}
                     <div className="absolute inset-0 bg-dot-grid opacity-30 pointer-events-none z-0"></div>
-                    <div className="relative z-10 max-w-7xl mx-auto h-full pb-10">
+                    <div className="relative z-10 max-w-7xl mx-auto h-full pb-24">
                         {children}
                     </div>
                 </main>

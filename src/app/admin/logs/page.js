@@ -15,6 +15,7 @@ export default function AdminLogs() {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterLevel, setFilterLevel] = useState('all');
+    const [filterRole, setFilterRole] = useState('all');
     const supabase = createClient();
 
     useEffect(() => {
@@ -25,14 +26,18 @@ export default function AdminLogs() {
         setLoading(true);
         const { data, error } = await supabase
             .from('audit_logs')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('*, profiles(role, full_name)')
+            .order('timestamp', { ascending: false });
 
         if (!error) setLogs(data || []);
         setLoading(false);
     }
 
-    const filtered = logs.filter(log => filterLevel === 'all' || log.log_level === filterLevel);
+    const filtered = logs.filter(log => {
+        const matchLevel = filterLevel === 'all' || log.level === filterLevel;
+        const matchRole = filterRole === 'all' || log.profiles?.role === filterRole;
+        return matchLevel && matchRole;
+    });
 
     return (
         <div className="space-y-10">
@@ -40,16 +45,32 @@ export default function AdminLogs() {
                 <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-5xl font-black text-white mb-2 tracking-tight">
                     Audit <span className="text-brand-cyan">Logs</span>
                 </motion.h1>
-                <p className="text-white/40 font-medium">Track all system activity and security events.</p>
+                <p className="text-white/40 font-medium font-bold px-4 py-1 bg-white/5 rounded-lg inline-block">Real-time System Intelligence</p>
             </div>
 
             {/* Filters */}
-            <div className="flex gap-2 flex-wrap">
-                {['all', 'info', 'success', 'warning', 'error'].map(level => (
-                    <button key={level} onClick={() => setFilterLevel(level)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${filterLevel === level ? 'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/30' : 'bg-white/5 text-white/30 border-white/10 hover:border-white/20'}`}>
-                        {level}
-                    </button>
-                ))}
+            <div className="flex flex-col gap-6 p-8 glass-card border-white/5 bg-white/[0.02]">
+                <div className="space-y-4">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 ml-1">Severity Filter</label>
+                    <div className="flex gap-2 flex-wrap">
+                        {['all', 'info', 'success', 'warning', 'error'].map(level => (
+                            <button key={level} onClick={() => setFilterLevel(level)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${filterLevel === level ? 'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/30' : 'bg-white/5 text-white/30 border-white/10 hover:border-white/20'}`}>
+                                {level}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 ml-1">Role Authority Filter</label>
+                    <div className="flex gap-2 flex-wrap">
+                        {['all', 'captain', 'admin', 'member'].map(role => (
+                            <button key={role} onClick={() => setFilterRole(role)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${filterRole === role ? 'bg-brand-teal/10 text-brand-teal border-brand-teal/30' : 'bg-white/5 text-white/30 border-white/10 hover:border-white/20'}`}>
+                                {role}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             {/* Log Entries */}
@@ -63,7 +84,7 @@ export default function AdminLogs() {
             ) : (
                 <div className="space-y-3">
                     {filtered.map((log, i) => {
-                        const level = log.log_level || 'info';
+                        const level = log.level || 'info';
                         const config = levelConfig[level] || levelConfig.info;
                         return (
                             <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="glass-card p-5 border-white/5 hover:border-white/10 transition-all">
@@ -76,10 +97,17 @@ export default function AdminLogs() {
                                             <span className="font-bold text-white text-sm">{log.action}</span>
                                             <span className={`text-[10px] font-black uppercase tracking-widest ${config.color}`}>{level}</span>
                                         </div>
-                                        <p className="text-white/60 text-sm mb-2">{log.details}</p>
-                                        <div className="flex items-center gap-4 text-xs text-white/30">
-                                            <span className="flex items-center gap-1"><User size={12} /> {log.user_id}</span>
-                                            <span className="flex items-center gap-1"><Clock size={12} /> {new Date(log.created_at).toLocaleString()}</span>
+                                        <p className="text-white/60 text-sm mb-2 font-medium">{log.details}</p>
+                                        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-white/30">
+                                            <span className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-md text-white/50">
+                                                <User size={10} /> {log.profiles?.full_name || 'System'}
+                                            </span>
+                                            <span className={`flex items-center gap-1.5 px-2 py-1 rounded-md border ${log.profiles?.role === 'captain' ? 'border-brand-cyan/30 text-brand-cyan bg-brand-cyan/5' : 'border-white/10'}`}>
+                                                <Shield size={10} /> {log.profiles?.role || 'Service'}
+                                            </span>
+                                            <span className="flex items-center gap-1.5 text-white/20">
+                                                <Clock size={10} /> {new Date(log.timestamp).toLocaleString()}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>

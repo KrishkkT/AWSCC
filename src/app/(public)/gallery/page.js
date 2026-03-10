@@ -2,23 +2,34 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Maximize2, X, Cloud, Image as ImageIcon } from "lucide-react";
-
-const photos = [
-    { id: 1, event: "AWS Roots", url: "https://images.unsplash.com/photo-1540575861501-7ad060e39fe5?auto=format&fit=crop&q=80&w=800", title: "The Inauguration" },
-    { id: 2, event: "AWS Roots", url: "https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&q=80&w=800", title: "Building Foundation" },
-    { id: 3, event: "Cloud Security", url: "https://images.unsplash.com/photo-1591115765373-520b7a21721b?auto=format&fit=crop&q=80&w=800", title: "Securing the Mesh" },
-    { id: 4, event: "Cloud Security", url: "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&q=80&w=800", title: "Architectural Deep Dive" },
-    { id: 5, event: "Infrastructure Camp", url: "https://images.unsplash.com/photo-1558403194-611308249627?auto=format&fit=crop&q=80&w=800", title: "Lab Sessions" },
-    { id: 6, event: "Infrastructure Camp", url: "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&q=80&w=800", title: "Collaborative Scaling" },
-];
+import { Maximize2, X, Cloud, Image as ImageIcon, Loader2 } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
+import { useEffect } from "react";
 
 export default function Gallery() {
+    const [allPhotos, setAllPhotos] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("All");
     const [selectedImage, setSelectedImage] = useState(null);
+    const supabase = createClient();
 
-    const categories = ["All", ...Array.from(new Set(photos.map(p => p.event)))];
-    const filteredPhotos = filter === "All" ? photos : photos.filter(p => p.event === filter);
+    useEffect(() => {
+        async function fetchGallery() {
+            setLoading(true);
+            const { data, error } = await supabase.from('gallery').select('*').order('created_at', { ascending: false });
+            if (!error && data && data.length > 0) {
+                setAllPhotos(data);
+            } else {
+                // Fallback to static photos if table is empty or doesn't exist
+                setAllPhotos(photos);
+            }
+            setLoading(false);
+        }
+        fetchGallery();
+    }, []);
+
+    const categories = ["All", ...Array.from(new Set(allPhotos.map(p => p.event)))];
+    const filteredPhotos = filter === "All" ? allPhotos : allPhotos.filter(p => p.event === filter);
 
     return (
         <div className="flex flex-col pt-20">
@@ -59,38 +70,47 @@ export default function Gallery() {
             </section>
 
             <section className="py-20 min-h-[60vh] relative z-10">
-                <div className="container mx-auto px-6">
-                    <div className="columns-1 sm:columns-2 lg:columns-3 gap-8 space-y-8">
-                        <AnimatePresence mode="popLayout">
-                            {filteredPhotos.map((photo) => (
-                                <motion.div
-                                    layout
-                                    key={photo.id}
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.9 }}
-                                    className="relative group rounded-[2.5rem] overflow-hidden cursor-pointer border border-white/5 hover:border-brand-cyan/30 transition-all duration-500 hover:shadow-[0_0_50px_rgba(0,194,255,0.1)]"
-                                    onClick={() => setSelectedImage(photo)}
-                                >
-                                    <img
-                                        src={photo.url}
-                                        alt={photo.title}
-                                        className="w-full h-auto object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-1000"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/90 via-brand-dark/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-10">
-                                        <div className="flex items-center gap-3 text-brand-cyan text-[10px] font-black uppercase tracking-widest mb-2">
-                                            <ImageIcon size={14} />
-                                            {photo.event}
+                <div className="container mx-auto px-6 text-center">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-white/20">
+                            <Loader2 size={48} className="animate-spin mb-4" />
+                            <p className="font-black uppercase tracking-[0.3em]">Developing Photos...</p>
+                        </div>
+                    ) : filteredPhotos.length === 0 ? (
+                        <p className="text-white/20 font-black uppercase tracking-[0.2em]">No photos found in this category.</p>
+                    ) : (
+                        <div className="columns-1 sm:columns-2 lg:columns-3 gap-8 space-y-8 text-left">
+                            <AnimatePresence mode="popLayout">
+                                {filteredPhotos.map((photo) => (
+                                    <motion.div
+                                        layout
+                                        key={photo.id}
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                        className="relative group rounded-[2.5rem] overflow-hidden cursor-pointer border border-white/5 hover:border-brand-cyan/30 transition-all duration-500 hover:shadow-[0_0_50px_rgba(0,194,255,0.1)]"
+                                        onClick={() => setSelectedImage(photo)}
+                                    >
+                                        <img
+                                            src={photo.url}
+                                            alt={photo.title}
+                                            className="w-full h-auto object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-1000"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/90 via-brand-dark/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-10">
+                                            <div className="flex items-center gap-3 text-brand-cyan text-[10px] font-black uppercase tracking-widest mb-2">
+                                                <ImageIcon size={14} />
+                                                {photo.event}
+                                            </div>
+                                            <p className="text-white text-2xl font-black tracking-tight mb-4">{photo.title}</p>
+                                            <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 self-end scale-0 group-hover:scale-100 transition-transform duration-500">
+                                                <Maximize2 className="text-white" size={20} />
+                                            </div>
                                         </div>
-                                        <p className="text-white text-2xl font-black tracking-tight mb-4">{photo.title}</p>
-                                        <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 self-end scale-0 group-hover:scale-100 transition-transform duration-500">
-                                            <Maximize2 className="text-white" size={20} />
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
-                    </div>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        </div>
+                    )}
                 </div>
             </section>
 
