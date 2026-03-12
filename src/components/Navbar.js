@@ -19,47 +19,49 @@ export default function Navbar() {
         { name: "Home", href: "/" },
         { name: "Team", href: "/team" },
         { name: "Events", href: "/events" },
+        { name: "About", href: "/about" },
         { name: "Contact", href: "/contact" },
     ];
 
     return (
-        <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 border-gradient-bottom ${scrolled ? "py-2 bg-brand-dark/80 backdrop-blur-md" : "py-4 bg-transparent"}`}>
+        <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled ? "py-4 bg-brand-deep/95 backdrop-blur-xl border-b border-slate-800" : "py-8 bg-transparent"}`}>
             <div className="container mx-auto px-6 flex items-center justify-between">
-                {/* Elite Branding */}
-                <Link href="/" className="flex items-center gap-2 group">
-                    <div className="relative h-14 w-56 flex items-center justify-start overflow-visible">
-                        <div className="absolute inset-0 bg-brand-cyan/5 blur-xl group-hover:bg-brand-cyan/10 transition-all rounded-full scale-125" />
+                <Link href="/" className="flex items-center gap-3 group relative z-10">
+                    <div className="h-10 w-40 flex items-center justify-start overflow-visible">
                         <img
                             src="/images/logo.png"
                             alt="AWSCC Logo"
-                            className="h-full w-full object-contain object-left relative z-10 scale-125 origin-left transition-transform group-hover:scale-135"
+                            className="h-full w-auto object-contain transition-transform group-hover:scale-105"
                             onError={(e) => {
                                 e.target.style.display = 'none';
                                 e.target.nextSibling.style.display = 'flex';
                             }}
                         />
+                        <div className="hidden items-center gap-2" style={{ display: 'none' }}>
+                            <div className="w-8 h-8 bg-brand-aws rounded-md flex items-center justify-center font-display font-bold text-brand-deep">A</div>
+                            <span className="font-display font-bold text-xl tracking-tight text-white">AWS <span className="text-brand-aws">CC</span></span>
+                        </div>
                     </div>
                 </Link>
 
-                {/* Desktop Navigation - Condensed */}
-                <div className="hidden lg:flex items-center gap-8">
+                {/* Desktop Navigation */}
+                <div className="hidden lg:flex items-center gap-10">
                     {navLinks.map((link) => (
-                        <Link key={link.name} href={link.href} className="nav-link text-xs font-black uppercase tracking-[0.15em] hover:text-brand-cyan transition-colors">
+                        <Link key={link.name} href={link.href} className="nav-link font-display text-sm tracking-wide">
                             {link.name}
                         </Link>
                     ))}
                 </div>
 
-                {/* CTA Button - Smaller */}
-                <div className="hidden lg:block">
-                    <Link href="/contact" className="px-5 py-2 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] hover:bg-brand-cyan hover:text-brand-dark hover:border-brand-cyan transition-all">
+                <div className="hidden lg:flex items-center gap-4">
+                    <Link href="/contact" className="btn-aws !py-2.5 !px-8 text-xs">
                         Join Community
                     </Link>
                 </div>
 
                 {/* Mobile Toggle */}
-                <button className="lg:hidden text-white p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-                    {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+                <button className="lg:hidden text-white p-2 relative z-10" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+                    {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
             </div>
 
@@ -67,22 +69,34 @@ export default function Navbar() {
             <AnimatePresence>
                 {isMobileMenuOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="absolute top-full left-0 w-full bg-brand-deep border-b border-white/5 p-8 lg:hidden flex flex-col gap-6"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        className="fixed inset-0 h-screen w-full bg-brand-deep/98 backdrop-blur-xl z-40 p-10 lg:hidden flex flex-col justify-center gap-8"
                     >
-                        {navLinks.map((link) => (
-                            <Link
-                                key={link.name}
-                                href={link.href}
-                                className="text-xl font-black uppercase tracking-widest"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                {link.name}
+                        <div className="flex flex-col gap-6">
+                            {navLinks.map((link, idx) => (
+                                <motion.div
+                                    key={link.name}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                >
+                                    <Link
+                                        href={link.href}
+                                        className="text-3xl font-display font-bold hover:text-brand-aws transition-colors"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        {link.name}
+                                    </Link>
+                                </motion.div>
+                            ))}
+                        </div>
+                        <div className="mt-10 flex flex-col gap-4">
+                            <Link href="/contact" className="btn-aws py-4 text-center font-bold" onClick={() => setIsMobileMenuOpen(false)}>
+                                Join Community
                             </Link>
-                        ))}
-                        <button className="btn-primary w-full mt-4">Join Community</button>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>

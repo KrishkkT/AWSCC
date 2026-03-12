@@ -36,62 +36,74 @@ export default function ResourcesPage() {
 
     const getTypeIcon = (type) => {
         switch (type) {
-            case 'Video': return <Video size={32} />;
-            case 'Tool': return <Wrench size={32} />;
-            case 'Code': return <Code size={32} />;
-            default: return <FileText size={32} />;
+            case 'Video': return <Video size={28} />;
+            case 'Tool': return <Wrench size={28} />;
+            case 'Code': return <Code size={28} />;
+            default: return <FileText size={28} />;
         }
     };
 
     return (
-        <div className="pt-32 pb-20">
-            <div className="container mx-auto px-6">
-                <div className="max-w-4xl mx-auto text-center mb-20">
+        <div className="min-h-screen bg-brand-deep pt-32 pb-24 relative overflow-hidden">
+            <div className="fixed inset-0 bg-slate-grid opacity-30 pointer-events-none"></div>
+
+            <div className="container mx-auto px-6 relative z-10">
+                <div className="flex flex-col items-center text-center max-w-4xl mx-auto mb-20">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="px-4 py-1.5 rounded-full bg-brand-aws/10 border border-brand-aws/20 text-brand-aws text-[10px] font-bold uppercase tracking-widest mb-6"
+                    >
+                        Builder Assets
+                    </motion.div>
                     <motion.h1
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="text-6xl md:text-8xl font-black text-white mb-6 tracking-tight"
+                        className="text-5xl md:text-7xl font-display font-bold text-white mb-8 tracking-tight"
                     >
-                        Cloud <span className="text-brand-cyan">Resources</span>
+                        Technical <span className="text-brand-aws">Resources</span>
                     </motion.h1>
-                    <p className="text-xl text-white/40 font-medium">
-                        Everything you need to master the cloud, all in one place.
+                    <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed max-w-2xl">
+                        A curated collection of documentation, scripts, and learning paths to accelerate your cloud journey.
                     </p>
                 </div>
 
                 {loading ? (
-                    <div className="flex justify-center py-20">
-                        <div className="w-10 h-10 border-4 border-brand-teal/20 border-t-brand-teal rounded-full animate-spin"></div>
+                    <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                        <div className="w-12 h-12 border-4 border-slate-800 border-t-brand-aws rounded-full animate-spin"></div>
+                        <p className="text-slate-500 font-medium animate-pulse">Fetching resources...</p>
                     </div>
                 ) : resources.length === 0 ? (
-                    <div className="text-center py-20 text-white/20 font-bold uppercase tracking-widest text-sm">
-                        No resources found. Check back later!
+                    <div className="text-center py-20 bg-brand-navy/30 rounded-[2.5rem] border border-slate-800 border-dashed max-w-2xl mx-auto">
+                        <FileText size={64} className="mx-auto text-slate-700 mb-6" />
+                        <p className="text-slate-500 font-medium">Vault is currently empty.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {resources.map((resource, i) => (
                             <motion.div
                                 key={resource.id}
                                 initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
                                 transition={{ delay: i * 0.1 }}
-                                className="glass-card p-12 border-white/5 hover:border-brand-cyan/20 transition-all flex items-start gap-8 group"
+                                className="card-professional p-10 flex flex-col sm:flex-row items-start gap-10 group"
                             >
-                                <div className="w-20 h-20 shrink-0 rounded-3xl bg-white/5 flex items-center justify-center text-white/30 group-hover:text-brand-cyan group-hover:bg-brand-cyan/10 transition-all">
+                                <div className="w-20 h-20 shrink-0 rounded-3xl bg-slate-800/50 flex items-center justify-center text-slate-500 group-hover:text-brand-aws group-hover:bg-brand-aws/10 border border-slate-700/50 shadow-inner transition-all duration-300">
                                     {getTypeIcon(resource.type)}
                                 </div>
                                 <div className="flex-grow min-w-0">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-brand-cyan">{resource.category}</span>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/20">· {resource.type}</span>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <span className="px-3 py-1 rounded-lg bg-slate-800 text-[10px] font-bold uppercase tracking-widest text-slate-400 border border-slate-700/50">{resource.category}</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600"> {resource.type}</span>
                                     </div>
-                                    <h3 className="text-3xl font-black text-white mb-4 truncate group-hover:text-brand-cyan transition-colors">{resource.title}</h3>
-                                    <p className="text-white/40 font-medium mb-8 leading-relaxed max-w-sm line-clamp-2">{resource.description}</p>
+                                    <h3 className="text-2xl font-display font-bold text-white mb-4 truncate group-hover:text-brand-aws transition-colors leading-tight">{resource.title}</h3>
+                                    <p className="text-slate-400 font-medium mb-8 leading-relaxed line-clamp-2">{resource.description}</p>
                                     <button
                                         onClick={() => window.open(resource.url, '_blank')}
-                                        className="btn-secondary px-8 py-3 text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
+                                        className="btn-outline w-full sm:w-auto px-10 py-3.5 text-xs font-bold border-slate-800 hover:border-brand-aws flex items-center justify-center gap-2"
                                     >
-                                        Access {resource.type} <ExternalLink size={12} />
+                                        Inspect {resource.type} <ExternalLink size={14} />
                                     </button>
                                 </div>
                             </motion.div>

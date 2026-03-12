@@ -32,34 +32,37 @@ export default function Gallery() {
     const filteredPhotos = filter === "All" ? allPhotos : allPhotos.filter(p => p.event === filter);
 
     return (
-        <div className="flex flex-col pt-20">
-            <section className="py-24 bg-brand-deep relative overflow-hidden">
-                <div className="container mx-auto px-6 relative z-10 text-center">
+        <div className="flex flex-col pt-32 bg-brand-deep min-h-screen relative overflow-hidden">
+            <div className="fixed inset-0 bg-slate-grid opacity-30 pointer-events-none"></div>
+
+            <section className="py-20 relative z-10 text-center">
+                <div className="container mx-auto px-6">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.8 }}
-                        className="inline-block px-4 py-1 rounded-full bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan text-xs font-black uppercase tracking-widest mb-8"
+                        className="inline-block px-4 py-1.5 rounded-full bg-brand-aws/10 border border-brand-aws/20 text-brand-aws text-[10px] font-bold uppercase tracking-widest mb-8"
                     >
-                        Memories in the Cloud
+                        Visual Archive
                     </motion.div>
-                    <h1 className="text-5xl lg:text-8xl font-black mb-6 tracking-tighter">
-                        Visual <span className="text-brand-cyan text-glow-cyan">Gallery</span>
+                    <h1 className="text-5xl lg:text-7xl font-display font-bold mb-8 tracking-tight text-white">
+                        Cloud <span className="text-brand-aws">Gallery</span>
                     </h1>
-                    <p className="text-white/50 text-xl max-w-2xl mx-auto">
-                        Capturing the journey of AWS Cloud Club DDU - from lines of code to large-scale deployments.
+                    <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+                        Capturing moments of innovation, collaboration, and community growth at AWS Cloud Club DDU.
                     </p>
                 </div>
             </section>
 
-            <section className="sticky top-20 z-40 bg-brand-dark/80 backdrop-blur-xl border-y border-white/5 py-4">
+            <section className="sticky top-16 z-40 backdrop-blur-xl border-y border-slate-800/50 py-6 bg-brand-deep/80">
                 <div className="container mx-auto px-6">
-                    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+                    <div className="flex flex-wrap justify-center gap-3">
                         {categories.map((cat) => (
                             <button
                                 key={cat}
                                 onClick={() => setFilter(cat)}
-                                className={`whitespace-nowrap px-8 py-3 rounded-2xl text-sm font-black transition-all border ${filter === cat ? "bg-brand-cyan border-brand-cyan text-brand-dark shadow-[0_0_20px_rgba(0,194,255,0.2)]" : "bg-white/5 border-white/10 text-white/40 hover:text-white"
+                                className={`px-6 py-2 rounded-xl text-xs font-bold transition-all border ${filter === cat
+                                    ? "bg-brand-aws border-brand-aws text-brand-deep shadow-lg shadow-brand-aws/20"
+                                    : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500"
                                     }`}
                             >
                                 {cat}
@@ -69,42 +72,48 @@ export default function Gallery() {
                 </div>
             </section>
 
-            <section className="py-20 min-h-[60vh] relative z-10">
-                <div className="container mx-auto px-6 text-center">
+            <section className="py-20 relative z-10">
+                <div className="container mx-auto px-6">
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-white/20">
-                            <Loader2 size={48} className="animate-spin mb-4" />
-                            <p className="font-black uppercase tracking-[0.3em]">Developing Photos...</p>
+                        <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                            <Loader2 size={48} className="animate-spin text-brand-aws" />
+                            <p className="text-slate-500 font-medium animate-pulse">Synchronizing assets...</p>
                         </div>
                     ) : filteredPhotos.length === 0 ? (
-                        <p className="text-white/20 font-black uppercase tracking-[0.2em]">No photos found in this category.</p>
+                        <div className="text-center py-32 bg-brand-navy/30 rounded-[2.5rem] border border-slate-800 border-dashed">
+                            <ImageIcon size={64} className="mx-auto text-slate-700 mb-6" />
+                            <p className="text-slate-500 font-medium">No snapshots found in this cluster.</p>
+                        </div>
                     ) : (
-                        <div className="columns-1 sm:columns-2 lg:columns-3 gap-8 space-y-8 text-left">
+                        <div className="columns-1 sm:columns-2 lg:columns-3 gap-8 space-y-8">
                             <AnimatePresence mode="popLayout">
-                                {filteredPhotos.map((photo) => (
+                                {filteredPhotos.map((photo, i) => (
                                     <motion.div
                                         layout
                                         key={photo.id}
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.9 }}
-                                        className="relative group rounded-[2.5rem] overflow-hidden cursor-pointer border border-white/5 hover:border-brand-cyan/30 transition-all duration-500 hover:shadow-[0_0_50px_rgba(0,194,255,0.1)]"
+                                        transition={{ delay: i * 0.05 }}
+                                        className="card-professional p-0 overflow-hidden cursor-zoom-in group border-slate-800/50"
                                         onClick={() => setSelectedImage(photo)}
                                     >
-                                        <img
-                                            src={photo.url}
-                                            alt={photo.title}
-                                            className="w-full h-auto object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-1000"
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/90 via-brand-dark/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-10">
-                                            <div className="flex items-center gap-3 text-brand-cyan text-[10px] font-black uppercase tracking-widest mb-2">
-                                                <ImageIcon size={14} />
-                                                {photo.event}
+                                        <div className="relative overflow-hidden aspect-auto">
+                                            <img
+                                                src={photo.url}
+                                                alt={photo.title}
+                                                className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-700"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-brand-deep via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-8">
+                                                <div className="flex items-center gap-2 text-brand-aws text-[10px] font-bold uppercase tracking-widest mb-2">
+                                                    <Maximize2 size={12} />
+                                                    View Fullscale
+                                                </div>
+                                                <p className="text-white text-xl font-display font-bold tracking-tight">{photo.title}</p>
                                             </div>
-                                            <p className="text-white text-2xl font-black tracking-tight mb-4">{photo.title}</p>
-                                            <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 self-end scale-0 group-hover:scale-100 transition-transform duration-500">
-                                                <Maximize2 className="text-white" size={20} />
-                                            </div>
+                                        </div>
+                                        <div className="p-4 bg-slate-900/50 flex items-center justify-between border-t border-slate-800/50">
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{photo.event}</span>
                                         </div>
                                     </motion.div>
                                 ))}
@@ -120,26 +129,29 @@ export default function Gallery() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[100] bg-brand-dark/95 backdrop-blur-2xl flex items-center justify-center p-6 md:p-12"
+                        className="fixed inset-0 z-[100] bg-brand-deep/98 backdrop-blur-2xl flex items-center justify-center p-6"
                         onClick={() => setSelectedImage(null)}
                     >
-                        <button className="absolute top-10 right-10 text-white/40 hover:text-white transition-colors group">
-                            <X size={48} className="group-hover:rotate-90 transition-transform duration-500" />
-                        </button>
+                        <motion.button
+                            className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors"
+                            whileHover={{ rotate: 90 }}
+                        >
+                            <X size={40} />
+                        </motion.button>
                         <motion.div
-                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            className="relative max-w-6xl w-full flex flex-col items-center"
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="relative max-w-5xl w-full flex flex-col items-center"
                             onClick={e => e.stopPropagation()}
                         >
                             <img
                                 src={selectedImage.url}
                                 alt={selectedImage.title}
-                                className="max-w-full max-h-[75vh] object-contain rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/5"
+                                className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-3xl border border-slate-800"
                             />
-                            <div className="mt-12 text-center">
-                                <div className="text-brand-cyan text-xs font-black uppercase tracking-[0.3em] mb-4">{selectedImage.event}</div>
-                                <h3 className="text-4xl lg:text-6xl font-black text-white tracking-tighter">{selectedImage.title}</h3>
+                            <div className="mt-10 text-center">
+                                <div className="text-brand-aws text-[10px] font-bold uppercase tracking-[0.3em] mb-4">{selectedImage.event}</div>
+                                <h3 className="text-3xl md:text-5xl font-display font-bold text-white tracking-tight">{selectedImage.title}</h3>
                             </div>
                         </motion.div>
                     </motion.div>

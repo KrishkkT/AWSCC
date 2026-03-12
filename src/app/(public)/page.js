@@ -10,10 +10,10 @@ import { createClient } from "@/utils/supabase/client";
 
 const ScrollReveal = ({ children, delay = 0 }) => (
     <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.6, delay, ease: "easeOut" }}
+        viewport={{ once: true, margin: "-120px" }}
+        transition={{ duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
     >
         {children}
     </motion.div>
@@ -22,54 +22,12 @@ const ScrollReveal = ({ children, delay = 0 }) => (
 export default function Home() {
     const [mounted, setMounted] = useState(false);
     const [highlights, setHighlights] = useState([]);
-    const heroRef = useRef(null);
-    const titleRef = useRef(null);
-    const badgeRef = useRef(null);
-    const subtitleRef = useRef(null);
-    const ctaRef = useRef(null);
-    const bioRef = useRef(null);
     const supabase = createClient();
 
     useEffect(() => {
         setMounted(true);
         fetchHighlights();
-
-        if (mounted) {
-            const timeline = anime.createTimeline({
-                defaults: {
-                    easing: 'easeOutExpo',
-                    duration: 1000
-                }
-            });
-
-            timeline
-                .add(badgeRef.current, {
-                    opacity: [0, 1],
-                    scale: [0.8, 1],
-                    translateY: [15, 0],
-                    delay: 100
-                })
-                .add(titleRef.current, {
-                    opacity: [0, 1],
-                    translateY: [30, 0],
-                    letterSpacing: ['-0.1em', '-0.02em'],
-                }, '-=700')
-                .add(subtitleRef.current, {
-                    opacity: [0, 1],
-                    translateY: [15, 0],
-                }, '-=800')
-                .add(bioRef.current, {
-                    opacity: [0, 1],
-                    translateY: [15, 0],
-                }, '-=800')
-                .add(ctaRef.current, {
-                    opacity: [0, 1],
-                    translateY: [20, 0],
-                    scale: [0.98, 1],
-                    easing: 'outElastic(1, .8)',
-                }, '-=600');
-        }
-    }, [mounted]);
+    }, []);
 
     async function fetchHighlights() {
         const { data, error } = await supabase
@@ -85,109 +43,95 @@ export default function Home() {
         }
     }
 
-    if (!mounted) return null;
-
     return (
-        <div className="flex flex-col min-h-screen relative overflow-hidden bg-brand-dark">
-            {/* Elite Background Layer */}
-            <div className="fixed inset-0 z-0 pointer-events-none bg-dot-grid opacity-60"></div>
+        <div className="flex flex-col min-h-screen relative overflow-hidden bg-brand-deep">
+            {/* Professional Background Layer */}
+            <div className="fixed inset-0 z-0 pointer-events-none bg-slate-grid opacity-40"></div>
 
-            {/* Animated Gradient Blobs */}
-            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-                <div className="absolute top-[-10%] left-[-10%] w-[30rem] h-[30rem] bg-brand-cyan/5 rounded-full blur-[80px] animate-blob"></div>
-                <div className="absolute top-[20%] right-[-10%] w-[25rem] h-[25rem] bg-brand-teal/5 rounded-full blur-[80px] animate-blob animation-delay-2000"></div>
-                <div className="absolute bottom-[-10%] left-[20%] w-[35rem] h-[35rem] bg-brand-blue/5 rounded-full blur-[80px] animate-blob animation-delay-4000"></div>
-            </div>
-
-            <main className="relative z-10 flex-grow">
-                {/* Elite Hero Section */}
-                <div className="relative min-h-screen flex flex-col items-center justify-center pt-20 overflow-hidden">
+            <main className="relative z-10 flex-grow min-h-screen">
+                {/* Hero Section */}
+                <section className="relative min-h-[95vh] flex flex-col items-center justify-center pt-20 pb-16 overflow-hidden">
                     {/* Background Visuals */}
-                    <div className="absolute inset-0 z-0">
-                        <HeroVisual />
-                        <div className="absolute inset-0 bg-brand-dark/20 backdrop-blur-[2px]" />
+                    <div className="absolute inset-0 z-0 pointer-events-none">
+                        <div className="absolute top-[35%] left-1/4 w-96 h-96 bg-brand-aws/5 rounded-full blur-[120px] animate-pulse-slow"></div>
+                        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand-blue/5 rounded-full blur-[120px] animate-pulse-slow delay-1000"></div>
                     </div>
 
                     <div className="container relative z-10 px-6 flex flex-col items-center text-center">
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-brand-cyan/30 bg-brand-cyan/5 backdrop-blur-md mb-8"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-brand-aws/20 bg-brand-aws/5 backdrop-blur-md mb-10 shadow-lg shadow-brand-aws/5"
                         >
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-cyan opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-cyan"></span>
-                            </span>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-cyan">
-                                Empowering the next generation of cloud developers
+                            <span className="flex h-2 w-2 rounded-full bg-brand-aws animate-pulse"></span>
+                            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-brand-aws">
+                                Official AWS Cloud Club @ Dharmsinh Desai University
                             </span>
                         </motion.div>
 
-                        <div className="relative mb-6">
-                            <motion.h1
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="text-7xl md:text-9xl font-black text-white tracking-tighter leading-none"
-                            >
-                                AWS <span className="text-brand-cyan drop-shadow-[0_0_30px_rgba(0,194,255,0.8)]">Cloud Club</span>
-                            </motion.h1>
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.4 }}
-                                className="text-4xl md:text-6xl font-light text-white/90 tracking-[0.4em] uppercase mt-4 mb-8"
-                                style={{ fontFamily: "'Cinzel', serif" }}
-                            >
-                                DDU Nadiad
-                            </motion.div>
-                        </div>
+                        <motion.h1
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                            className="text-6xl md:text-8xl lg:text-9xl font-display font-bold text-white tracking-tight mb-8 leading-[0.85]"
+                        >
+                            AWS Cloud Club <br />
+                            <span className="text-aws-gradient">DDU Nadiad</span>
+                        </motion.h1>
 
                         <motion.p
-                            initial={{ opacity: 0, y: 10 }}
+                            initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.5 }}
-                            className="text-lg md:text-xl text-white/60 font-medium max-w-2xl mb-12 leading-relaxed"
+                            transition={{ delay: 0.2, duration: 0.8 }}
+                            className="text-lg md:text-2xl text-slate-400 max-w-3xl mb-14 leading-relaxed font-sans font-medium"
                         >
-                            Join our community of passionate developers and cloud enthusiasts. Learn, grow, and build amazing things together.
+                            Empowering the next generation of cloud builders through hands-on architecture, serverless systems, and global community collaboration.
                         </motion.p>
 
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.6 }}
+                            transition={{ delay: 0.4, duration: 0.8 }}
                             className="flex flex-col sm:flex-row items-center gap-6"
                         >
                             <Link
                                 href="https://www.meetup.com/awscc-at-dharmsinh-desai-university/"
                                 target="_blank"
-                                className="px-10 py-5 bg-brand-cyan text-brand-dark rounded-xl font-black uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_40px_rgba(0,194,255,0.4)] flex items-center gap-3"
+                                className="btn-aws !px-12 !py-5 text-lg flex items-center gap-3 group relative overflow-hidden"
                             >
-                                Join Our Club <ArrowRight size={20} />
+                                <span className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
+                                <span className="relative flex items-center gap-2">
+                                    Join Community <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                                </span>
                             </Link>
-                            <Link href="/about" className="px-10 py-5 bg-white/5 border border-white/10 rounded-xl font-black uppercase tracking-widest hover:bg-white/10 transition-all text-white backdrop-blur-md">
-                                Learn More
+                            <Link href="/events" className="btn-outline !px-12 !py-5 text-lg hover:shadow-xl hover:shadow-white/5 transition-all">
+                                Explore Events
                             </Link>
                         </motion.div>
                     </div>
-                </div>
+                </section>
 
-                {/* Featured Highlights Section */}
-                <section className="py-12 z-10 relative border-t border-white/5 bg-brand-deep/20">
+                {/* Technology Focus Section */}
+                <section className="py-24 bg-brand-navy/20 border-y border-slate-800/50">
                     <div className="container mx-auto px-6">
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="flex flex-col items-center text-center mb-16">
+                            <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">Our Technology <span className="text-brand-aws">Stack</span></h2>
+                            <p className="text-slate-500 max-w-2xl">We focus on industry-leading cloud technologies and modern development practices to prepare students for the global tech landscape.</p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             {[
-                                { title: "Cloud Workshops", desc: "Expert-led technical sessions", icon: <Cpu size={20} />, color: "cyan" },
-                                { title: "Hands-on Labs", desc: "Practical AWS infrastructure", icon: <Zap size={20} />, color: "teal" },
-                                { title: "Certifications", desc: "Cloud career roadmap", icon: <Trophy size={20} />, color: "white" },
-                                { title: "Community", desc: "Network with builders", icon: <Users size={20} />, color: "cyan" }
-                            ].map((feat, i) => (
+                                { title: "Cloud Architecture", desc: "Master AWS Well-Architected frameworks and scalable infrastructure design.", icon: <Cloud size={24} /> },
+                                { title: "DevOps & CI/CD", desc: "Automate delivery pipelines and implement infrastructure as code (IaC).", icon: <Zap size={24} /> },
+                                { title: "Serverless Computing", desc: "Build highly available applications without the overhead of server management.", icon: <Cpu size={24} /> },
+                                { title: "Applied AI/ML", desc: "Integrate intelligent services and machine learning models into cloud platforms.", icon: <Rocket size={24} /> }
+                            ].map((focus, i) => (
                                 <ScrollReveal key={i} delay={i * 0.1}>
-                                    <div className="glass-card p-5 group flex flex-col items-center text-center">
-                                        <div className={`w-10 h-10 rounded-xl bg-brand-${feat.color}/10 flex items-center justify-center text-brand-${feat.color} mb-4 group-hover:scale-110 transition-transform`}>
-                                            {feat.icon}
+                                    <div className="group h-full p-8 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:border-brand-aws/40 hover:bg-brand-aws/[0.02] transition-all duration-500 flex flex-col items-center text-center">
+                                        <div className="w-14 h-14 rounded-xl bg-brand-aws/10 flex items-center justify-center text-brand-aws mb-6 group-hover:scale-110 transition-transform">
+                                            {focus.icon}
                                         </div>
-                                        <h4 className="text-xs font-black uppercase tracking-wider mb-2">{feat.title}</h4>
-                                        <p className="text-[10px] text-white/40 font-medium">{feat.desc}</p>
+                                        <h3 className="text-xl font-display font-bold text-white mb-3">{focus.title}</h3>
+                                        <p className="text-sm text-slate-500 leading-relaxed font-sans">{focus.desc}</p>
                                     </div>
                                 </ScrollReveal>
                             ))}
@@ -195,138 +139,129 @@ export default function Home() {
                     </div>
                 </section>
 
-                {/* Latest Events Section */}
-                <section className="py-20 z-10 relative">
+                {/* Latest Highlights */}
+                <section className="py-24">
                     <div className="container mx-auto px-6">
-                        <div className="flex items-end justify-between mb-12">
-                            <div className="space-y-2">
-                                <h2 className="text-3xl lg:text-4xl font-black tracking-tight">Latest <span className="text-white">Highlights</span></h2>
+                        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+                            <div className="space-y-3">
+                                <h2 className="text-4xl md:text-5xl font-display font-bold">Latest <span className="text-brand-aws">Events</span></h2>
+                                <p className="text-slate-500 max-w-xl">Stay updated with our most recent workshops, hackathons, and community meetups.</p>
                             </div>
-                            <Link href="/events" className="hidden md:flex items-center gap-2 text-xs font-black uppercase tracking-widest text-white/40 hover:text-brand-cyan transition-colors">
-                                View All Events <ArrowRight size={14} />
+                            <Link href="/events" className="btn-outline !py-2 !px-6 flex items-center gap-2 group">
+                                View Archive <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                             </Link>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                             {highlights.length > 0 ? (
                                 highlights.map((event, i) => (
                                     <ScrollReveal key={i} delay={i * 0.1}>
-                                        <div className="glass-card p-0 overflow-hidden group">
-                                            <div className="aspect-[16/9] bg-white/5 relative bg-mesh overflow-hidden">
+                                        <div className="card-professional group h-full flex flex-col p-0 overflow-hidden">
+                                            <div className="aspect-[16/9] bg-slate-800 relative overflow-hidden">
                                                 {event.image_url ? (
-                                                    <img src={event.image_url} alt={event.title} className="absolute inset-0 w-full h-full object-cover opacity-20 group-hover:opacity-40 transition-opacity" />
+                                                    <img src={event.image_url} alt={event.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                                 ) : (
-                                                    <div className="absolute inset-0 flex items-center justify-center opacity-20 group-hover:opacity-40 transition-opacity">
-                                                        <Cloud size={64} className="text-brand-cyan" />
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-brand-navy">
+                                                        <Box className="w-16 h-16 text-slate-700" />
                                                     </div>
                                                 )}
                                                 <div className="absolute top-4 left-4">
-                                                    <span className="px-3 py-1 bg-brand-cyan text-brand-dark text-[8px] font-black uppercase tracking-widest rounded-full">
-                                                        {event.status === 'upcoming' ? 'Soon' : event.status}
+                                                    <span className="px-3 py-1 bg-brand-deep/80 backdrop-blur-md text-brand-aws text-[10px] font-bold uppercase tracking-widest border border-brand-aws/30 rounded-md">
+                                                        {event.status || 'Upcoming'}
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className="p-6 space-y-3">
-                                                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-[#B8C5D6]/40">
-                                                    <Calendar size={12} /> {new Date(event.date || event.start_time).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            <div className="p-8 flex flex-col flex-grow">
+                                                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-4 uppercase tracking-tighter">
+                                                    <Calendar size={14} className="text-brand-aws" />
+                                                    {new Date(event.date || event.start_time).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
                                                 </div>
-                                                <h3 className="text-lg font-black tracking-tight group-hover:text-brand-cyan transition-colors line-clamp-1">{event.title}</h3>
-                                                <p className="text-[11px] text-[#B8C5D6]/50 line-clamp-2 leading-relaxed">{event.description || `Join us for an immersive session on ${event.title.toLowerCase()}.`}</p>
-                                                <Link href="/events" className="pt-2 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-brand-cyan opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
-                                                    Learn More <ArrowRight size={12} />
+                                                <h3 className="text-xl font-display font-bold group-hover:text-brand-aws transition-colors mb-4 line-clamp-1">{event.title}</h3>
+                                                <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed mb-6">{event.description || `Join us for an immersive session on ${event.title.toLowerCase()}.`}</p>
+                                                <Link href={`/events?id=${event.id}`} className="mt-auto flex items-center gap-2 text-sm font-bold text-brand-aws group/link">
+                                                    Event Details <ArrowRight size={16} className="group-hover/link:translate-x-1 transition-transform" />
                                                 </Link>
                                             </div>
                                         </div>
                                     </ScrollReveal>
                                 ))
                             ) : (
-                                <div className="col-span-full py-10 text-center opacity-40">
-                                    <p className="text-xs font-black uppercase tracking-widest">More exciting events coming soon</p>
+                                <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-800 rounded-3xl">
+                                    <p className="text-slate-500 font-medium">New events are being planned. Stay tuned!</p>
                                 </div>
                             )}
                         </div>
                     </div>
                 </section>
 
-                {/* Core Pillars Section - Condensed */}
-                <section className="py-20 relative z-10 border-y border-white/5 bg-brand-deep/30">
+                {/* Core Pillars */}
+                <section className="py-24 bg-brand-navy/30 relative">
                     <div className="container mx-auto px-6">
-                        <div className="text-center max-w-4xl mx-auto mb-16">
-                            <h2 className="text-3xl lg:text-4xl font-black mb-6 tracking-tighter">
-                                The <span className="text-gradient-elite">Future</span> is Distributed
-                            </h2>
-                            <p className="text-[#B8C5D6]/80 text-sm lg:text-base leading-relaxed font-medium">
-                                We provide the infrastructure and community for students to master the world's most comprehensive cloud platform.
-                            </p>
+                        <div className="max-w-3xl mx-auto text-center mb-20 space-y-6">
+                            <h2 className="text-4xl md:text-5xl font-display font-bold">Why Join <span className="text-brand-aws">AWS Cloud Club</span>?</h2>
+                            <p className="text-slate-400 text-lg">We bridge the gap between academic theory and industry practice through the power of cloud computing.</p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                             {[
                                 {
-                                    title: "Build",
-                                    desc: "Get hands-on with AWS through real-world projects and architect-led learning paths.",
-                                    icon: <Rocket className="text-brand-cyan" size={24} />
+                                    title: "Industry Ready",
+                                    desc: "Learn real-world AWS architecting, DevOps, and Serverless from those who build on it daily.",
+                                    icon: <Zap className="text-brand-aws" size={28} />
                                 },
                                 {
-                                    title: "Scale",
-                                    desc: "Understand global infrastructure and how to deploy applications that serve millions of users.",
-                                    icon: <Globe className="text-brand-teal" size={24} />
+                                    title: "Global Network",
+                                    desc: "Connect with a global community of AWS builders and enthusiasts across various Cloud Clubs.",
+                                    icon: <Globe className="text-brand-aws" size={28} />
                                 },
                                 {
-                                    title: "Connect",
-                                    desc: "Join a global network of AWS Cloud Clubs and industry leaders at DDU.",
-                                    icon: <BookOpen className="text-white" size={24} />
+                                    title: "Career Growth",
+                                    desc: "Access exclusive community resources, certification guidance, and networking opportunities.",
+                                    icon: <BookOpen className="text-brand-aws" size={28} />
                                 }
                             ].map((pillar, i) => (
-                                <motion.div
-                                    key={i}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    viewport={{ once: true }}
-                                    transition={{ delay: i * 0.15 }}
-                                    className={`glass-card p-8 group border-white/5 relative overflow-hidden`}
-                                >
-                                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-brand-cyan to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                    <div className="mb-6 w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-brand-cyan group-hover:text-brand-dark transition-all duration-700">
-                                        {pillar.icon}
+                                <ScrollReveal key={i} delay={i * 0.1}>
+                                    <div className="card-professional h-full flex flex-col group p-10">
+                                        <div className="mb-8 w-14 h-14 rounded-2xl bg-brand-aws/10 flex items-center justify-center group-hover:bg-brand-aws group-hover:text-brand-deep transition-all duration-300">
+                                            {pillar.icon}
+                                        </div>
+                                        <h3 className="text-2xl font-display font-bold mb-4 tracking-tight">
+                                            {pillar.title}
+                                        </h3>
+                                        <p className="text-slate-400 leading-relaxed font-sans -tracking-tight">
+                                            {pillar.desc}
+                                        </p>
                                     </div>
-                                    <h3 className="text-xl font-black mb-3 tracking-tight group-hover:translate-x-1 transition-transform">
-                                        {pillar.title}
-                                    </h3>
-                                    <p className="text-[#B8C5D6]/50 leading-relaxed font-medium text-[12px]">
-                                        {pillar.desc}
-                                    </p>
-                                </motion.div>
+                                </ScrollReveal>
                             ))}
                         </div>
                     </div>
                 </section>
 
-                {/* Big Cyan Call to Action - Smaller */}
-                <section className="py-20 z-10 relative">
-                    <div className="container mx-auto px-6">
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            className="relative rounded-[1.5rem] overflow-hidden p-8 lg:p-12 bg-brand-cyan text-brand-dark group shadow-[0_0_60px_rgba(0,194,255,0.15)]"
-                        >
-                            <div className="absolute top-0 right-0 w-[20rem] h-[20rem] bg-white/20 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/3"></div>
+                {/* Final CTA */}
+                <section className="py-24 relative overflow-hidden">
+                    <div className="container mx-auto px-6 relative z-10">
+                        <div className="bg-gradient-to-br from-brand-aws to-brand-blue rounded-[2.5rem] p-12 md:p-20 text-center relative overflow-hidden shadow-2xl">
+                            <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 blur-[100px] rounded-full translate-x-1/2 -translate-y-1/2"></div>
+                            <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 blur-[80px] rounded-full -translate-x-1/2 translate-y-1/2"></div>
 
-                            <div className="relative z-10 max-w-2xl mx-auto text-center">
-                                <h2 className="text-2xl lg:text-3xl font-black mb-4 leading-tight tracking-tight">
-                                    Ready to Join the Community?
+                            <div className="relative z-10 space-y-8 max-w-3xl mx-auto">
+                                <h2 className="text-4xl md:text-6xl font-display font-bold text-white leading-tight">
+                                    Embark on your <br /> cloud journey today.
                                 </h2>
-                                <p className="text-brand-dark/80 text-xs lg:text-sm mb-6 max-w-lg mx-auto font-bold">
-                                    Empower your journey with the world's most innovative cloud community at DDU.
+                                <p className="text-white/80 text-lg md:text-xl font-medium max-w-xl mx-auto">
+                                    Join the most active developer community at Dharmsinh Desai University and start building for the future.
                                 </p>
-                                <div className="flex flex-wrap justify-center gap-4">
-                                    <button className="px-6 py-2.5 bg-brand-dark text-white rounded-xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl">
-                                        Join Our Community
-                                    </button>
+                                <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
+                                    <Link href="https://www.meetup.com/awscc-at-dharmsinh-desai-university/" target="_blank" className="btn-aws !bg-brand-deep !text-white !px-12 !py-4 text-base shadow-xl">
+                                        Register via Meetup
+                                    </Link>
+                                    <Link href="/contact" className="btn-outline !border-white/30 !text-white !hover:bg-white/10 !px-12 !py-4 text-base">
+                                        Partner with Us
+                                    </Link>
                                 </div>
                             </div>
-                        </motion.div>
+                        </div>
                     </div>
                 </section>
             </main>

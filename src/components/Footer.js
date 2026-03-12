@@ -7,39 +7,37 @@ export default function Footer() {
     const currentYear = new Date().getFullYear();
 
     return (
-        <footer className="bg-brand-deep text-white border-t border-brand-cyan/20 pt-32 pb-20 relative overflow-hidden">
-            {/* Subtle Glow at the top of footer */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-brand-cyan to-transparent shadow-[0_0_20px_rgba(0,194,255,0.5)]"></div>
-
-            <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 border-b border-white/5 pb-24 mb-16 relative z-10">
+        <footer className="bg-brand-deep text-slate-300 pt-24 pb-12 relative overflow-hidden border-t border-slate-800">
+            <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16 relative z-10 font-sans">
                 {/* Branding & Logo Section */}
-                <div className="lg:col-span-1 space-y-8">
-                    <Link href="/" className="flex items-center gap-3 group">
-                        <div className="relative h-16 w-64 flex items-center justify-start overflow-visible">
-                            <div className="absolute inset-0 bg-brand-cyan/5 blur-xl group-hover:bg-brand-cyan/10 transition-all rounded-full scale-125" />
-                            <img
-                                src="/images/logo.png"
-                                alt="AWSCC Logo"
-                                className="h-full w-full object-contain object-left relative z-10 scale-125 origin-left transition-transform group-hover:scale-135"
-                                onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
-                                }}
-                            />
+                <div className="lg:col-span-1 space-y-6">
+                    <Link href="/" className="flex items-center gap-3">
+                        <img
+                            src="/images/logo.png"
+                            alt="AWSCC Logo"
+                            className="h-12 w-auto object-contain"
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                            }}
+                        />
+                        <div className="hidden items-center gap-2" style={{ display: 'none' }}>
+                            <div className="w-8 h-8 bg-brand-aws rounded-md flex items-center justify-center font-display font-bold text-brand-deep">A</div>
+                            <span className="font-display font-bold text-xl tracking-tight text-white">AWS <span className="text-brand-aws">CC</span></span>
                         </div>
                     </Link>
-                    <p className="text-[#B8C5D6]/60 leading-relaxed font-medium text-sm max-w-xs">
-                        Empowering students with cloud technology and innovation through hands-on learning and industry expertise at DDU Nadiad.
+                    <p className="text-slate-400 leading-relaxed text-sm max-w-xs">
+                        The official AWS Cloud Club at Dharmsinh Desai University. Empowering students with industry-leading cloud technology and hands-on learning.
                     </p>
-                    <div className="flex gap-4">
+                    <div className="flex gap-3">
                         {[
-                            { icon: <Mail size={18} />, href: "mailto:awscloudclub@ddu.ac.in" },
-                            { icon: <Instagram size={18} />, href: "#" },
-                            { icon: <Linkedin size={18} />, href: "#" },
-                            { icon: <Github size={18} />, href: "#" },
-                            { icon: <Twitter size={18} />, href: "#" }
+                            { icon: <Mail size={16} />, href: "mailto:awscloudclub@ddu.ac.in" },
+                            { icon: <Instagram size={16} />, href: "#" },
+                            { icon: <Linkedin size={16} />, href: "#" },
+                            { icon: <Github size={16} />, href: "#" },
+                            { icon: <Twitter size={16} />, href: "#" }
                         ].map((social, idx) => (
-                            <a key={idx} href={social.href} className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:bg-brand-cyan hover:text-brand-dark hover:border-brand-cyan transition-all duration-300">
+                            <a key={idx} href={social.href} className="w-9 h-9 rounded-full bg-slate-800/50 border border-slate-700 flex items-center justify-center text-slate-400 hover:bg-brand-aws hover:text-brand-deep hover:border-brand-aws transition-all duration-300">
                                 {social.icon}
                             </a>
                         ))}
@@ -47,57 +45,45 @@ export default function Footer() {
                 </div>
 
                 {/* Navigation Column */}
-                <div className="space-y-8 lg:pl-10">
-                    <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-brand-cyan">Club</h4>
-                    <ul className="space-y-4 text-white/50 font-medium text-sm">
-                        <li><Link href="/" className="hover:text-white transition-colors">Home</Link></li>
-                        <li><Link href="/about" className="hover:text-white transition-colors">About Us</Link></li>
-                        <li><Link href="/team" className="hover:text-white transition-colors">Our Team</Link></li>
-                        <li><Link href="/events" className="hover:text-white transition-colors">Latest Events</Link></li>
-                        <li><Link href="/gallery" className="hover:text-white transition-colors">Gallery</Link></li>
+                <div className="lg:pl-8">
+                    <h4 className="font-display font-bold text-white mb-6 tracking-wide">Resources</h4>
+                    <ul className="space-y-3 text-sm">
+                        <li><Link href="/" className="hover:text-brand-aws transition-colors">Home</Link></li>
+                        <li><Link href="/about" className="hover:text-brand-aws transition-colors">About Us</Link></li>
+                        <li><Link href="/team" className="hover:text-brand-aws transition-colors">Our Team</Link></li>
+                        <li><Link href="/events" className="hover:text-brand-aws transition-colors">Events</Link></li>
+                        <li><Link href="/gallery" className="hover:text-brand-aws transition-colors">Gallery</Link></li>
                     </ul>
                 </div>
 
                 {/* Community Column */}
-                <div className="space-y-8 lg:pl-10">
-                    <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-brand-teal">Community</h4>
-                    <ul className="space-y-4 text-white/50 font-medium text-sm">
-                        <li><Link href="/community" className="hover:text-white transition-colors">Member Hub</Link></li>
-                        <li><Link href="/resources" className="hover:text-white transition-colors">Resources</Link></li>
-                        <li><Link href="/contact" className="hover:text-white transition-colors">Contact Us</Link></li>
+                <div>
+                    <h4 className="font-display font-bold text-white mb-6 tracking-wide">Community</h4>
+                    <ul className="space-y-3 text-sm">
+                        <li><Link href="/community" className="hover:text-brand-aws transition-colors">Member Hub</Link></li>
+                        <li><Link href="/resources" className="hover:text-brand-aws transition-colors">Cloud Resources</Link></li>
+                        <li><Link href="/contact" className="hover:text-brand-aws transition-colors">Support</Link></li>
                     </ul>
                 </div>
 
                 {/* Get In Touch Column */}
-                <div className="space-y-8 lg:pl-10">
-                    <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white">Get In Touch</h4>
-                    <ul className="space-y-5">
-                        <li className="flex items-center gap-3 group">
-                            <div className="text-brand-cyan group-hover:scale-110 transition-transform"><Mail size={18} /></div>
-                            <span className="text-white/60 font-medium text-sm">awscloudclub@ddu.ac.in</span>
+                <div>
+                    <h4 className="font-display font-bold text-white mb-6 tracking-wide">Contact</h4>
+                    <ul className="space-y-4">
+                        <li className="flex items-start gap-3 group">
+                            <Mail size={18} className="text-brand-aws mt-0.5" />
+                            <span className="text-slate-400 text-sm break-all">awscloudclub@ddu.ac.in</span>
                         </li>
-                        <li className="flex items-center gap-3 group">
-                            <div className="text-brand-teal group-hover:scale-110 transition-transform"><MapPin size={18} /></div>
-                            <span className="text-white/60 font-medium text-sm">DDU Campus, Nadiad</span>
-                        </li>
-                        <li className="pt-2">
-                            <button className="px-8 py-3 bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan rounded-lg font-black text-xs uppercase tracking-widest hover:bg-brand-cyan hover:text-brand-dark transition-all">
-                                Join Our Club
-                            </button>
+                        <li className="flex items-start gap-3 group">
+                            <MapPin size={18} className="text-brand-aws mt-0.5" />
+                            <span className="text-slate-400 text-sm">DDU Campus, Nadiad, Gujarat</span>
                         </li>
                     </ul>
                 </div>
             </div>
 
-            <div className="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-white/20 relative z-10">
+            <div className="container mx-auto px-6 pt-8 border-t border-slate-800 flex flex-col items-center justify-center text-center gap-6 text-xs text-slate-500 font-medium">
                 <p>© {currentYear} AWS Cloud Club DDU. All rights reserved.</p>
-                <p className="flex items-center gap-2">
-                    Made with <span className="text-brand-cyan">💙</span> by our dev team
-                </p>
-            </div>
-
-            <div className="absolute bottom-[-10%] right-[-10%] opacity-5 pointer-events-none rotate-12">
-                <Cloud size={500} />
             </div>
         </footer>
     );

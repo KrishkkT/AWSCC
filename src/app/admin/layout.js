@@ -1,5 +1,6 @@
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminTopBar from "@/components/admin/AdminTopBar";
+import AdminLayoutClient from "@/components/admin/AdminLayoutClient";
 
 export const metadata = {
     title: "Admin Portal | AWS Cloud Club",
@@ -8,19 +9,27 @@ export const metadata = {
 
 export default function AdminLayout({ children }) {
     return (
-        <div className="h-screen bg-brand-dark flex overflow-hidden">
+        <div className="min-h-screen bg-brand-dark flex overflow-hidden">
+            {/* Sidebar (Desktop) */}
             <AdminSidebar />
-            <div className="flex-grow flex flex-col h-screen lg:ml-[72px] transition-all duration-300 relative overflow-hidden">
+
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col min-w-0 relative lg:ml-[72px]">
+                {/* Background Animation Layers */}
+                <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+                    <div className="absolute top-[10%] left-[10%] w-[500px] h-[500px] bg-brand-aws/5 rounded-full blur-[120px] animate-pulse-slow"></div>
+                    <div className="absolute bottom-[10%] right-[10%] w-[500px] h-[500px] bg-brand-blue/5 rounded-full blur-[120px] animate-pulse-slow delay-700"></div>
+                    <div className="absolute inset-0 bg-slate-grid opacity-[0.03]"></div>
+                </div>
+
                 <AdminTopBar />
-                <main className="flex-grow p-6 lg:p-10 relative overflow-y-auto no-scrollbar scroll-smooth">
-                    {/* Background Grid */}
-                    <div className="absolute inset-0 bg-dot-grid opacity-30 pointer-events-none z-0"></div>
-                    <div className="relative z-10 max-w-7xl mx-auto h-full pb-24">
+
+                <main className="flex-1 p-6 lg:p-12 relative z-10">
+                    <AdminLayoutClient>
                         {children}
-                    </div>
+                    </AdminLayoutClient>
                 </main>
             </div>
         </div>
     );
 }
-

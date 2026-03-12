@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Role Permission Map ───────────────────────────────────────
 const ROLE_PERMISSIONS = {
@@ -54,6 +55,13 @@ export default function AdminSidebar() {
 
     // Close mobile menu on route change
     useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+    // Handle mobile menu via custom event for AdminTopBar integration
+    useEffect(() => {
+        const handleOpen = () => setMobileOpen(true);
+        document.addEventListener('open-admin-mobile-menu', handleOpen);
+        return () => document.removeEventListener('open-admin-mobile-menu', handleOpen);
+    }, []);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -111,17 +119,25 @@ export default function AdminSidebar() {
 
     // Sidebar content (shared between desktop and mobile)
     const SidebarContent = ({ isMobile = false }) => (
-        <div className={`h-full flex flex-col bg-brand-dark border-r border-white/5 ${isMobile ? 'w-72' : ''}`}>
-            {/* Logo */}
-            <div className={`h-20 flex items-center ${expanded || isMobile ? 'px-6' : 'justify-center'} border-b border-white/5 shrink-0`}>
-                <div className="w-10 h-10 bg-brand-cyan rounded-xl flex items-center justify-center font-black text-brand-dark shadow-[0_0_20px_rgba(0,194,255,0.3)] shrink-0">
+        <div className={`h-full flex flex-col bg-brand-dark/80 backdrop-blur-2xl border-r border-white/5 ${isMobile ? 'w-full max-w-[280px]' : ''}`}>
+            {/* Logo Section */}
+            <div className={`h-24 flex items-center ${expanded || isMobile ? 'px-8' : 'justify-center'} shrink-0 relative overflow-hidden`}>
+                <div className="absolute inset-0 bg-gradient-to-b from-brand-aws/5 to-transparent pointer-events-none"></div>
+                <div className="w-10 h-10 bg-gradient-to-br from-brand-aws to-brand-blue rounded-xl flex items-center justify-center font-black text-white shadow-xl shadow-brand-aws/20 shrink-0 ring-1 ring-white/20">
                     A
                 </div>
                 {(expanded || isMobile) && (
-                    <div className="ml-3 overflow-hidden">
-                        <span className="font-black text-white text-base tracking-tight block whitespace-nowrap">AWS CC</span>
-                        <span className="text-[9px] text-white/40 uppercase tracking-widest font-bold whitespace-nowrap">Admin Portal</span>
-                    </div>
+                    <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="ml-4 overflow-hidden"
+                    >
+                        <span className="font-black text-white text-lg tracking-tighter block whitespace-nowrap leading-none mb-1">AWS CC</span>
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-1 h-1 rounded-full bg-brand-aws animate-pulse"></div>
+                            <span className="text-[9px] text-slate-500 uppercase tracking-[0.2em] font-black whitespace-nowrap">Control Node</span>
+                        </div>
+                    </motion.div>
                 )}
             </div>
 
@@ -130,7 +146,7 @@ export default function AdminSidebar() {
                 {sections.map((section, idx) => (
                     <div key={idx} className="space-y-1">
                         {(expanded || isMobile) && (
-                            <h4 className="px-3 text-[9px] font-black uppercase tracking-[0.2em] text-white/15 mb-3">
+                            <h4 className="px-3 text-[9px] font-black uppercase tracking-[0.2em] text-white/40 mb-3">
                                 {section.title}
                             </h4>
                         )}
@@ -142,10 +158,10 @@ export default function AdminSidebar() {
                                     href={item.href}
                                     className={`flex items-center ${expanded || isMobile ? 'px-3' : 'justify-center'} py-2.5 rounded-xl transition-all duration-200 group relative ${isActive
                                         ? 'bg-brand-cyan text-brand-dark shadow-[0_0_20px_rgba(0,194,255,0.15)]'
-                                        : 'text-white/40 hover:bg-white/5 hover:text-white'
+                                        : 'text-white/60 hover:bg-white/5 hover:text-white'
                                         }`}
                                 >
-                                    <item.icon size={20} className={`shrink-0 ${isActive ? 'text-brand-dark' : 'text-white/40 group-hover:text-white'}`} />
+                                    <item.icon size={20} className={`shrink-0 ${isActive ? 'text-brand-dark' : 'text-white/60 group-hover:text-white'}`} />
                                     {(expanded || isMobile) && (
                                         <span className={`ml-3 font-bold text-sm whitespace-nowrap ${isActive ? 'text-brand-dark' : ''}`}>
                                             {item.name}
@@ -186,26 +202,32 @@ export default function AdminSidebar() {
 
     return (
         <>
-            {/* Mobile Toggle Button */}
-            <button
-                onClick={() => setMobileOpen(true)}
-                className="lg:hidden fixed top-5 left-4 z-[60] w-10 h-10 bg-brand-dark border border-white/10 rounded-xl flex items-center justify-center text-white/60 hover:text-brand-cyan transition-all"
-            >
-                <Menu size={20} />
-            </button>
-
             {/* Mobile Overlay */}
-            {mobileOpen && (
-                <div className="lg:hidden fixed inset-0 z-[70]">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-                    <div className="relative h-full w-72 shadow-2xl">
-                        <button onClick={() => setMobileOpen(false)} className="absolute top-5 right-4 z-10 w-8 h-8 flex items-center justify-center text-white/40 hover:text-white">
-                            <X size={20} />
-                        </button>
-                        <SidebarContent isMobile />
+            <AnimatePresence>
+                {mobileOpen && (
+                    <div className="lg:hidden fixed inset-0 z-[70]">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                            onClick={() => setMobileOpen(false)}
+                        />
+                        <motion.div
+                            initial={{ x: -280 }}
+                            animate={{ x: 0 }}
+                            exit={{ x: -280 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            className="relative h-full w-[280px] shadow-2xl"
+                        >
+                            <button onClick={() => setMobileOpen(false)} className="absolute top-6 right-[-48px] z-10 w-10 h-10 flex items-center justify-center bg-brand-dark border border-white/10 rounded-xl text-white/40 hover:text-white">
+                                <X size={24} />
+                            </button>
+                            <SidebarContent isMobile />
+                        </motion.div>
                     </div>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
 
             {/* Desktop Sidebar */}
             <aside

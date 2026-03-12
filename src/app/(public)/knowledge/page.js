@@ -38,79 +38,108 @@ export default function KnowledgeCenter() {
     );
 
     return (
-        <div className="pt-32 pb-20">
-            <div className="container mx-auto px-6">
-                <div className="flex flex-col md:flex-row justify-between items-end gap-10 mb-20">
+        <div className="min-h-screen bg-brand-deep pt-32 pb-24 relative overflow-hidden">
+            <div className="fixed inset-0 bg-slate-grid opacity-30 pointer-events-none"></div>
+
+            <div className="container mx-auto px-6 relative z-10">
+                <div className="flex flex-col md:flex-row justify-between items-end gap-10 mb-20 border-b border-slate-800/50 pb-16">
                     <div className="max-w-2xl">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="inline-block px-4 py-1.5 rounded-full bg-brand-aws/10 border border-brand-aws/20 text-brand-aws text-[10px] font-bold uppercase tracking-widest mb-6"
+                        >
+                            Documentation & Insights
+                        </motion.div>
                         <motion.h1
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="text-6xl font-black text-white mb-6 tracking-tight"
+                            className="text-5xl md:text-7xl font-display font-bold text-white mb-8 tracking-tight"
                         >
-                            Knowledge <span className="text-brand-cyan">Center</span>
+                            Knowledge <span className="text-brand-aws">Vault</span>
                         </motion.h1>
-                        <p className="text-xl text-white/40 font-medium">
-                            Explore articles, deep-dives, and insights into the future of cloud computing.
+                        <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed">
+                            Deep-dives, architecture reviews, and technical perspectives from the edge of cloud technology.
                         </p>
                     </div>
                     <div className="w-full md:w-96 relative group">
-                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-brand-cyan transition-colors" size={20} />
+                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-brand-aws transition-colors" size={20} />
                         <input
                             type="text"
-                            placeholder="Search topics..."
+                            placeholder="Index search..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-white outline-none focus:border-brand-cyan/50 transition-all font-bold"
+                            className="w-full pl-16 pr-8 py-5"
                         />
                     </div>
                 </div>
 
                 {loading ? (
-                    <div className="flex justify-center py-20">
-                        <Loader2 className="w-10 h-10 text-brand-cyan animate-spin" />
+                    <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                        <Loader2 className="w-12 h-12 text-brand-aws animate-spin" />
+                        <p className="text-slate-500 font-medium">Indexing archives...</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2 space-y-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                        <div className="lg:col-span-2 space-y-10">
                             {filteredArticles.length === 0 ? (
-                                <div className="text-center py-20 text-white/20 font-black uppercase tracking-widest">No articles found</div>
+                                <div className="text-center py-20 bg-brand-navy/30 rounded-[2.5rem] border border-slate-800 border-dashed">
+                                    <BookOpen size={64} className="mx-auto text-slate-700 mb-6" />
+                                    <p className="text-slate-500 font-medium">No manuscript matches your query.</p>
+                                </div>
                             ) : (
                                 filteredArticles.map((article, i) => (
                                     <motion.div
                                         key={article.id}
                                         initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
+                                        whileInView={{ opacity: 1, x: 0 }}
+                                        viewport={{ once: true }}
                                         transition={{ delay: i * 0.1 }}
-                                        className="glass-card p-10 border-white/5 group border-l-4 border-l-brand-cyan/20 hover:border-l-brand-cyan transition-all"
+                                        className="card-professional p-12 group border-slate-800/50 hover:border-brand-aws/20"
                                     >
                                         <div className="flex items-center gap-4 mb-6">
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-cyan bg-brand-cyan/10 px-3 py-1 rounded-full">{article.category}</span>
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">
-                                                {new Date(article.created_at).toLocaleDateString()}
+                                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-aws bg-brand-aws/10 px-4 py-1.5 rounded-lg border border-brand-aws/20">{article.category}</span>
+                                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">
+                                                {new Date(article.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
                                             </span>
                                         </div>
-                                        <h2 className="text-3xl font-black text-white mb-4 group-hover:text-brand-cyan transition-colors">{article.title}</h2>
-                                        <p className="text-white/40 font-medium mb-8 leading-relaxed max-w-xl">{article.excerpt || article.content.substring(0, 150) + "..."}</p>
-                                        <button className="flex items-center gap-2 text-white font-black uppercase tracking-widest text-xs">
-                                            Read Article <ArrowRight size={16} />
+                                        <h2 className="text-3xl font-display font-bold text-white mb-6 group-hover:text-brand-aws transition-colors leading-tight">{article.title}</h2>
+                                        <p className="text-slate-400 font-medium mb-10 leading-relaxed max-w-2xl line-clamp-3">
+                                            {article.excerpt || article.content.substring(0, 180) + "..."}
+                                        </p>
+                                        <button className="flex items-center gap-3 text-white font-bold uppercase tracking-widest text-[10px] group/btn">
+                                            Read Manuscript
+                                            <ArrowRight size={18} className="text-brand-aws group-hover/btn:translate-x-2 transition-transform" />
                                         </button>
                                     </motion.div>
                                 ))
                             )}
                         </div>
 
-                        <div className="space-y-8">
-                            <div className="glass-card p-8 border-white/5">
-                                <BookOpen className="text-white/20 mb-6" size={24} />
-                                <h3 className="text-xl font-black text-white mb-6">Trending Topics</h3>
-                                <ul className="space-y-4">
-                                    {(trending.length > 0 ? trending : ["AWS Cloud", "Serverless", "DevOps", "AI/ML"]).map(topic => (
-                                        <li key={topic} className="flex items-center justify-between group cursor-pointer">
-                                            <span className="text-sm text-white/50 group-hover:text-white transition-colors">{topic}</span>
-                                            <ArrowRight size={14} className="text-white/10 group-hover:text-brand-cyan transition-all" />
+                        <div className="space-y-10 lg:sticky lg:top-36 h-fit">
+                            <div className="card-professional p-10 border-slate-800/50 bg-brand-navy/20">
+                                <div className="flex items-center gap-3 mb-8">
+                                    <Zap className="text-brand-aws" size={24} />
+                                    <h3 className="text-xl font-display font-bold text-white">Trending Specs</h3>
+                                </div>
+                                <ul className="space-y-6">
+                                    {(trending.length > 0 ? trending : ["AWS CDK v2", "Serverless LLMs", "Edge Networking", "IAM Security"]).map(topic => (
+                                        <li key={topic} className="flex items-center justify-between group cursor-pointer border-b border-slate-800/50 pb-4 last:border-0 last:pb-0">
+                                            <span className="text-sm font-semibold text-slate-400 group-hover:text-white transition-colors">{topic}</span>
+                                            <ArrowRight size={16} className="text-slate-800 group-hover:text-brand-aws transition-all transform group-hover:translate-x-1" />
                                         </li>
                                     ))}
                                 </ul>
+                            </div>
+
+                            <div className="card-professional p-10 bg-brand-aws shadow-2xl shadow-brand-aws/20">
+                                <h3 className="text-xl font-display font-bold text-brand-deep mb-4">Interested in contributing?</h3>
+                                <p className="text-brand-deep/70 text-sm font-medium mb-8 leading-relaxed">
+                                    Our knowledge vault is community-driven. Share your insights with the club.
+                                </p>
+                                <button className="w-full py-4 bg-brand-deep text-white font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-colors shadow-lg">
+                                    Submit Article
+                                </button>
                             </div>
                         </div>
                     </div>

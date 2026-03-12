@@ -26,44 +26,57 @@ export default function Team() {
         fetchTeam();
     }, []);
 
-    const TeamSection = ({ title, members, isCaptain = false }) => {
+    const TeamSection = ({ title, members }) => {
         if (members.length === 0) return null;
 
         return (
             <div className="space-y-12">
-                <div className="flex items-center gap-6">
-                    <h2 className="text-3xl font-black text-white whitespace-nowrap">{title}</h2>
-                    <div className="h-px bg-white/5 w-full"></div>
+                <div className="flex flex-col items-center gap-4 text-center">
+                    <h2 className="text-3xl font-display font-bold text-white tracking-tight">{title}</h2>
+                    <div className="h-1 w-20 bg-brand-aws rounded-full"></div>
                 </div>
-                <div className="flex flex-wrap justify-center gap-8">
+                <div className="flex flex-wrap justify-center gap-10">
                     {members.map((member, i) => (
                         <motion.div
                             key={member.id}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
+                            initial={{ opacity: 0, y: 30 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
                             transition={{ delay: i * 0.1 }}
-                            className="glass-card p-6 text-center group border-white/5 hover:border-brand-cyan/20 relative mx-auto w-full max-w-[400px]"
+                            className="card-professional p-8 text-center group border-slate-800/50 hover:border-brand-aws/30 relative max-w-[320px] w-full"
                         >
-                            <div className="w-32 h-32 mx-auto mb-6 rounded-full p-1 bg-gradient-to-tr from-brand-cyan via-brand-purple to-brand-teal relative">
-                                <div className="w-full h-full rounded-full overflow-hidden bg-brand-dark">
+                            <div className="w-32 h-32 mx-auto mb-8 rounded-2xl p-0.5 bg-slate-800 relative group-hover:bg-brand-aws transition-colors duration-500 overflow-hidden">
+                                <div className="w-full h-full rounded-2xl overflow-hidden bg-brand-deep">
                                     <img
-                                        src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.full_name}&background=0A0A0A&color=fff`}
+                                        src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.full_name}&background=111111&color=fff`}
                                         alt={member.full_name}
-                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                        className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700"
                                     />
                                 </div>
                             </div>
 
-                            <h3 className="text-xl font-bold text-white mb-1 group-hover:text-brand-cyan transition-colors">{member.full_name}</h3>
-                            <div className="text-xs font-bold uppercase tracking-widest text-white/40 mb-6 border-b border-white/5 pb-4">
+                            <h3 className="text-xl font-display font-bold text-white mb-2 group-hover:text-brand-aws transition-colors">{member.full_name}</h3>
+                            <div className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 mb-8 pb-6 border-b border-slate-800/50">
                                 {member.role_title}
                             </div>
 
                             {/* Social Links */}
-                            <div className="flex justify-center gap-4 text-white/40">
-                                {member.github_url && <a href={member.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><Github size={18} /></a>}
-                                {member.linkedin_url && <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-blue transition-colors"><Linkedin size={18} /></a>}
-                                {member.instagram_url && <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="hover:text-pink-500 transition-colors"><Instagram size={18} /></a>}
+                            <div className="flex justify-center gap-6 text-slate-500">
+                                {member.github_url && (
+                                    <a href={member.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-all transform hover:-translate-y-1">
+                                        <Github size={20} />
+                                    </a>
+                                )}
+                                {member.linkedin_url && (
+                                    <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-blue transition-all transform hover:-translate-y-1">
+                                        <Linkedin size={20} />
+                                    </a>
+                                )}
+                                {member.instagram_url && (
+                                    <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-aws transition-all transform hover:-translate-y-1">
+                                        <Instagram size={20} />
+                                    </a>
+                                )}
                             </div>
                         </motion.div>
                     ))}
@@ -73,43 +86,53 @@ export default function Team() {
     };
 
     return (
-        <div className="min-h-screen bg-brand-dark pt-32 pb-20 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-teal/10 rounded-full blur-[100px] pointer-events-none"></div>
+        <div className="min-h-screen bg-brand-deep pt-32 pb-24 relative overflow-hidden">
+            <div className="fixed inset-0 bg-slate-grid opacity-30 pointer-events-none"></div>
 
             <div className="container mx-auto px-6 relative z-10">
-                <div className="text-center max-w-3xl mx-auto mb-20">
-                    <h1 className="text-5xl font-black mb-6">Meet the <span className="text-brand-cyan">Team</span></h1>
-                    <p className="text-white/60 text-xl font-medium">
-                        The passionate individuals driving the cloud revolution at DDU.
+                <div className="flex flex-col items-center text-center max-w-3xl mx-auto mb-20">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="px-4 py-1.5 rounded-full bg-brand-aws/10 border border-brand-aws/20 text-brand-aws text-[10px] font-bold uppercase tracking-widest mb-6"
+                    >
+                        Council & Core
+                    </motion.div>
+                    <h1 className="text-5xl md:text-6xl font-display font-bold text-white mb-8 tracking-tight">
+                        Meet the <span className="text-brand-aws">Architects</span>
+                    </h1>
+                    <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed">
+                        A dedicated assembly of cloud-native builders pushing the boundaries of technology at DDU.
                     </p>
                 </div>
 
                 {loading ? (
-                    <div className="flex justify-center py-20">
-                        <div className="w-10 h-10 border-4 border-brand-teal/20 border-t-brand-teal rounded-full animate-spin"></div>
+                    <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                        <div className="w-12 h-12 border-4 border-slate-800 border-t-brand-aws rounded-full animate-spin"></div>
+                        <p className="text-slate-500 font-medium animate-pulse">Initializing crew...</p>
                     </div>
                 ) : team.length === 0 ? (
-                    <div className="text-center py-20">
-                        <p className="text-white/30 text-lg">No team members found.</p>
+                    <div className="text-center py-20 bg-brand-navy/30 rounded-[2.5rem] border border-slate-800 border-dashed max-w-2xl mx-auto">
+                        <Users size={64} className="mx-auto text-slate-700 mb-6" />
+                        <h3 className="text-2xl font-display font-bold text-slate-400">No architects active!</h3>
                     </div>
                 ) : (
-                    <div className="space-y-24">
+                    <div className="space-y-32">
                         {/* 1. Mentors Section */}
                         <TeamSection
-                            title="Mentors"
+                            title="Academic Mentors"
                             members={team.filter(m => m.category === 'Mentor')}
                         />
 
                         {/* 2. Captain Section */}
                         <TeamSection
-                            title="Captain"
+                            title="Club Captains"
                             members={team.filter(m => m.category === 'Captain')}
-                            isCaptain
                         />
 
                         {/* 3. Core Team Section */}
                         <TeamSection
-                            title="Team"
+                            title="Core Committee"
                             members={team.filter(m => m.category === 'Team')}
                         />
                     </div>

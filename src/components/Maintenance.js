@@ -1,50 +1,47 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Hammer, Cloud } from "lucide-react";
+import { Wrench, Cloud } from "lucide-react";
 
 export default function Maintenance() {
     return (
-        <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-            {/* Background Effects */}
-            <div className="absolute top-0 left-0 w-full h-full bg-dot-grid opacity-20 pointer-events-none" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-brand-cyan/10 blur-[120px] rounded-full animate-pulse" />
+        <div className="min-h-screen bg-brand-deep flex flex-col items-center justify-center p-6 text-center relative overflow-hidden font-sans">
+            <div className="fixed inset-0 bg-slate-grid opacity-30 pointer-events-none"></div>
 
             <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="relative z-10 space-y-8 max-w-2xl"
+                className="relative z-10 space-y-10 max-w-2xl px-8 py-16 card-professional bg-brand-navy/30 border-slate-800/50"
             >
                 <div className="flex justify-center">
-                    <div className="w-24 h-24 bg-brand-cyan/10 border border-brand-cyan/20 rounded-[2rem] flex items-center justify-center text-brand-cyan shadow-[0_0_50px_rgba(0,194,255,0.2)]">
-                        <Hammer size={48} className="animate-bounce" />
+                    <div className="w-20 h-20 bg-brand-aws/10 border border-brand-aws/20 rounded-2xl flex items-center justify-center text-brand-aws shadow-2xl shadow-brand-aws/20">
+                        <Wrench size={40} className="animate-pulse" />
                     </div>
                 </div>
 
                 <div className="space-y-4">
-                    <h1 className="text-5xl lg:text-7xl font-black text-white tracking-widest uppercase">
-                        Under <span className="text-brand-cyan">Construction</span>
+                    <h1 className="text-4xl lg:text-6xl font-display font-bold text-white tracking-tight">
+                        Under <span className="text-brand-aws">Optimization</span>
                     </h1>
-                    <div className="h-1 w-24 bg-brand-cyan mx-auto" />
+                    <div className="h-1 w-20 bg-brand-aws mx-auto rounded-full" />
                 </div>
 
-                <p className="text-white/40 text-lg lg:text-xl font-medium leading-relaxed">
-                    Our digital hub is currently undergoing an elite technical upgrade.
-                    The Cloud Club experience will return shortly with enhanced capabilities.
+                <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-lg mx-auto">
+                    The Cloud Club headquarters is currently undergoing a structural upgrade to better serve our builder community.
                 </p>
 
-                <div className="pt-8">
-                    <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-brand-cyan text-sm font-black uppercase tracking-widest">
-                        <Cloud size={18} />
+                <div className="pt-4">
+                    <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                        <Cloud size={16} className="text-brand-aws" />
                         AWS Cloud Club DDU
                     </div>
                 </div>
             </motion.div>
 
-            {/* Footer */}
-            <div className="absolute bottom-10 left-0 w-full flex justify-center opacity-20">
-                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white">
-                    Synchronizing Systems...
+            {/* Bottom Indicator */}
+            <div className="absolute bottom-12 left-0 w-full flex flex-col items-center gap-4 opacity-40">
+                <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-slate-500 animate-pulse">
+                    Deploying Enhancements...
                 </span>
             </div>
         </div>
