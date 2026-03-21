@@ -22,21 +22,57 @@ export default function AdminEvents() {
     });
     const [issuing, setIssuing] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // Bulk Import State
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [selectedEventForImport, setSelectedEventForImport] = useState(null);
+    const [importData, setImportData] = useState([]);
+    const [importing, setImporting] = useState(false);
+    const [importFile, setImportFile] = useState(null);
+    const [isDragging, setIsDragging] = useState(false);
+
+    // Participant Management State
+    const [eventParticipants, setEventParticipants] = useState([]);
+    const [loadingParticipants, setLoadingParticipants] = useState(false);
+    const [showParticipantsList, setShowParticipantsList] = useState(false);
+
     const supabase = createClient();
 
     useEffect(() => { fetchEvents(); }, []);
 
     async function fetchEvents() {
         setLoading(true);
-        const { data, error } = await supabase
+        const { data: rawEvents, error } = await supabase
             .from('events')
             .select('*')
             .order('date', { ascending: false });
+        
         if (error) {
             console.error('Fetch events error:', error);
             showFeedback('Failed to load events', 'error');
-        } else {
-            setEvents(data || []);
+        } else if (rawEvents) {
+            const now = new Date();
+            const toComplete = rawEvents.filter(e => 
+                (e.status === 'upcoming' || e.status === 'active') && 
+                e.end_time && 
+                new Date(e.end_time) < now
+            ).map(e => e.id);
+
+            if (toComplete.length > 0) {
+                await supabase
+                    .from('events')
+                    .update({ status: 'completed' })
+                    .in('id', toComplete);
+                
+                // Refresh data to show updated statuses
+                const { data: updatedEvents } = await supabase
+                    .from('events')
+                    .select('*')
+                    .order('date', { ascending: false });
+                setEvents(updatedEvents || []);
+            } else {
+                setEvents(rawEvents);
+            }
         }
         setLoading(false);
     }
@@ -69,9 +105,182 @@ export default function AdminEvents() {
         }
     }
 
+    const processFile = (file) => {
+        if (!file) return;
+        setImportFile(file);
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const content = event.target.result;
+            try {
+                let parsed = [];
+                if (file.name.endsWith('.json')) {
+                    parsed = JSON.parse(content);
+                } else {
+                    const lines = content.split('\n');
+                    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+                    parsed = lines.slice(1).filter(l => l.trim()).map(line => {
+                        const values = line.split(',').map(v => v.trim());
+                        const obj = {};
+                        headers.forEach((h, i) => {
+                            if (h.includes('name')) obj.name = values[i];
+                            if (h.includes('email')) obj.email = values[i];
+                        });
+                        return obj;
+                    });
+                }
+                setImportData(parsed.filter(p => p.email));
+            } catch (err) {
+                showFeedback('Failed to parse file', 'error');
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    const handleFileSelect = (e) => {
+        processFile(e.target.files?.[0]);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        processFile(e.dataTransfer.files?.[0]);
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleBulkImport = async () => {
+        if (!selectedEventForImport || importData.length === 0) return;
+        setImporting(true);
+        try {
+            const response = await fetch('/api/bulk-import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eventId: selectedEventForImport.id,
+                    participants: importData
+                })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                showFeedback(result.message);
+                setShowImportModal(false);
+                setImportData([]);
+                setImportFile(null);
+            } else {
+                showFeedback(result.error || 'Import failed', 'error');
+            }
+        } catch (err) {
+            showFeedback('Server error during import', 'error');
+        } finally {
+            setImporting(false);
+        }
+    };
+
+    async function fetchParticipants(eventId) {
+        setLoadingParticipants(true);
+        const { data, error } = await supabase
+            .from('event_registrations')
+            .select('*')
+            .eq('event_id', eventId)
+            .order('created_at', { ascending: false });
+        if (error) {
+            console.error('Fetch participants error:', error);
+        } else {
+            setEventParticipants(data || []);
+        }
+        setLoadingParticipants(false);
+    }
+
+    async function handleIndividualIssue(participant) {
+        if (!confirm(`Issue certificate to ${participant.full_name}?`)) return;
+        setIssuing(participant.id);
+        try {
+            const { data: cert, error: certError } = await supabase
+                .from('certificates')
+                .insert([{
+                    recipient_name: participant.full_name,
+                    recipient_email: participant.email,
+                    event_id: participant.event_id,
+                    event_name: editingEvent?.title || 'Event',
+                    certificate_type: 'participation',
+                    status: 'verified'
+                }])
+                .select()
+                .single();
+
+            if (certError) throw certError;
+
+            await fetch('/api/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: participant.email,
+                    type: 'certificateissued',
+                    data: {
+                        name: participant.full_name,
+                        eventName: editingEvent?.title || 'Event',
+                        certId: cert.id
+                    }
+                })
+            });
+
+            await supabase
+                .from('event_registrations')
+                .update({ certificate_issued: true })
+                .eq('id', participant.id);
+
+            showFeedback(`Certificate issued to ${participant.full_name}!`);
+            fetchParticipants(participant.event_id);
+        } catch (err) {
+            console.error('Issuance error:', err);
+            showFeedback('Failed to issue certificate', 'error');
+        } finally {
+            setIssuing(null);
+        }
+    }
+
+    async function handleDeleteParticipant(participantId) {
+        if (!confirm('Are you sure you want to remove this participant?')) return;
+        const { error } = await supabase
+            .from('event_registrations')
+            .delete()
+            .eq('id', participantId);
+        
+        if (error) {
+            showFeedback('Failed to delete participant', 'error');
+        } else {
+            showFeedback('Participant removed.');
+            fetchParticipants(editingEvent.id);
+        }
+    }
+
+    async function handleDeleteAllParticipants(eventId) {
+        if (!confirm('CRITICAL: This will remove ALL registered participants for this event. This action cannot be undone. Proceed?')) return;
+        const { error } = await supabase
+            .from('event_registrations')
+            .delete()
+            .eq('event_id', eventId);
+        
+        if (error) {
+            showFeedback('Failed to clear participants', 'error');
+        } else {
+            showFeedback('All registrations cleared.');
+            fetchParticipants(eventId);
+        }
+    }
+
     function resetForm() {
         setFormData({ title: '', description: '', date: '', start_time: '', end_time: '', location: '', max_participants: 50, status: 'upcoming', image_url: '', registration_link: '', is_visible: true });
         setEditingEvent(null);
+        setShowParticipantsList(false);
         setShowForm(false);
         setUploading(false);
     }
@@ -182,6 +391,7 @@ export default function AdminEvents() {
             registration_link: event.registration_link || '',
             is_visible: event.is_visible !== false
         });
+        fetchParticipants(event.id);
         setShowForm(true);
     }
 
@@ -305,6 +515,109 @@ export default function AdminEvents() {
                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Description</label>
                         <textarea rows={3} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="What's this event about?" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-cyan outline-none font-bold resize-none placeholder-white/15" />
                     </div>
+
+                    {/* Participants Section in Edit Mode */}
+                    {editingEvent && (
+                        <div className="pt-4 space-y-4 border-t border-white/5">
+                            <button 
+                                type="button"
+                                onClick={() => setShowParticipantsList(!showParticipantsList)}
+                                className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Users size={16} className="text-brand-cyan" />
+                                    <span className="text-xs font-black uppercase tracking-widest text-white">
+                                        Registered Participants ({eventParticipants.length})
+                                    </span>
+                                </div>
+                                <motion.div animate={{ rotate: showParticipantsList ? 180 : 0 }}>
+                                    <Plus size={16} className={`text-white/30 transform transition-transform ${showParticipantsList ? 'rotate-45' : ''}`} />
+                                </motion.div>
+                            </button>
+
+                            {showParticipantsList && (
+                                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-4">
+                                    <div className="flex items-center justify-between px-2">
+                                        <div className="flex items-center gap-3">
+                                            <button 
+                                                type="button" 
+                                                onClick={() => fetchParticipants(editingEvent.id)} 
+                                                className="text-[10px] text-brand-cyan font-black uppercase tracking-widest hover:underline flex items-center gap-1"
+                                            >
+                                                <Loader2 size={10} className={loadingParticipants ? 'animate-spin' : ''} /> Refresh
+                                            </button>
+                                        </div>
+                                        {eventParticipants.length > 0 && (
+                                            <button 
+                                                type="button" 
+                                                onClick={() => handleDeleteAllParticipants(editingEvent.id)}
+                                                className="text-[10px] text-red-400 font-black uppercase tracking-widest hover:underline flex items-center gap-1"
+                                            >
+                                                <Trash2 size={10} /> Clear All
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="max-h-60 overflow-y-auto border border-white/10 rounded-xl overflow-hidden glass-card !bg-white/5">
+                                        {loadingParticipants && eventParticipants.length === 0 ? (
+                                            <div className="p-10 text-center"><Loader2 size={16} className="animate-spin text-white/20 mx-auto" /></div>
+                                        ) : eventParticipants.length === 0 ? (
+                                            <div className="p-10 text-center text-white/20 text-xs font-bold italic">No participants registered yet.</div>
+                                        ) : (
+                                            <table className="w-full text-left text-xs border-collapse">
+                                                <thead className="sticky top-0 bg-brand-dark border-b border-white/10">
+                                                    <tr>
+                                                        <th className="px-4 py-2 text-white/40 font-black uppercase tracking-widest text-[10px]">Name</th>
+                                                        <th className="px-4 py-2 text-white/40 font-black uppercase tracking-widest text-[10px]">Email</th>
+                                                        <th className="px-4 py-2 text-white/40 font-black uppercase tracking-widest text-[10px]">Status</th>
+                                                        <th className="px-4 py-2 text-white/40 font-black uppercase tracking-widest text-[10px] text-right">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {eventParticipants.map((p, i) => (
+                                                        <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors group/row">
+                                                            <td className="px-4 py-2.5 text-white font-medium">{p.full_name}</td>
+                                                            <td className="px-4 py-2.5 text-white/40">{p.email}</td>
+                                                            <td className="px-4 py-2.5">
+                                                                {p.certificate_issued ? (
+                                                                    <span className="text-green-400 flex items-center gap-1 font-bold">
+                                                                        <Check size={10} /> Issued
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-white/20 italic">Pending</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-right">
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    {!p.certificate_issued && (
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => handleIndividualIssue(p)}
+                                                                            disabled={issuing === p.id}
+                                                                            className="px-2 py-1 rounded bg-brand-cyan/20 text-brand-cyan text-[9px] font-black uppercase tracking-widest hover:bg-brand-cyan hover:text-brand-dark transition-all disabled:opacity-50"
+                                                                        >
+                                                                            {issuing === p.id ? <Loader2 size={10} className="animate-spin" /> : 'Issue'}
+                                                                        </button>
+                                                                    )}
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => handleDeleteParticipant(p.id)}
+                                                                        className="p-1.5 text-white/10 hover:text-red-400 hover:bg-red-400/10 rounded transition-all"
+                                                                    >
+                                                                        <Trash2 size={12} />
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </div>
+                    )}
                     <div className="flex gap-3 pt-2">
                         <button type="submit" disabled={saving} className="btn-primary px-6 py-3 text-sm flex items-center gap-2 disabled:opacity-50">
                             {saving ? 'Saving...' : (editingEvent ? 'Update Event' : 'Create Event')}
@@ -347,23 +660,33 @@ export default function AdminEvents() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
-                                    {event.status === 'completed' && (
-                                        <button
-                                            onClick={() => handleBatchIssue(event.id)}
-                                            disabled={issuing === event.id}
-                                            className="px-3 py-2 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan text-[10px] font-black uppercase tracking-widest hover:bg-brand-cyan hover:text-brand-dark transition-all disabled:opacity-50"
-                                        >
-                                            {issuing === event.id ? <Loader2 size={12} className="animate-spin" /> : 'Issue All'}
-                                        </button>
+                                    {(event.status === 'completed' || event.status === 'active') && (
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => { setSelectedEventForImport(event); setShowImportModal(true); }}
+                                                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center gap-1.5"
+                                            >
+                                                <Plus size={12} /> Import
+                                            </button>
+                                            {event.status === 'completed' && (
+                                                <button
+                                                    onClick={() => handleBatchIssue(event.id)}
+                                                    disabled={issuing === event.id}
+                                                    className="px-3 py-2 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan text-[10px] font-black uppercase tracking-widest hover:bg-brand-cyan hover:text-brand-dark transition-all disabled:opacity-50"
+                                                >
+                                                    {issuing === event.id ? <Loader2 size={12} className="animate-spin" /> : 'Issue All'}
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
-                                    <button onClick={() => startEdit(event)} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-brand-cyan hover:border-brand-cyan/50 transition-all" title="Edit">
+                                    <button onClick={() => startEdit(event)} className="btn-crud-edit" title="Edit Event">
                                         <Edit2 size={15} />
                                     </button>
                                     <button
                                         disabled={processingId === event.id}
                                         onClick={() => handleDelete(event.id)}
-                                        className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-red-400 hover:border-red-500/50 transition-all disabled:opacity-50"
-                                        title="Delete"
+                                        className="btn-crud-delete disabled:opacity-50"
+                                        title="Delete Event"
                                     >
                                         {processingId === event.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                                     </button>
@@ -371,6 +694,86 @@ export default function AdminEvents() {
                             </div>
                         </motion.div>
                     ))}
+                </div>
+            )}
+            {/* Bulk Import Modal */}
+            {showImportModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setShowImportModal(false)} className="absolute inset-0 bg-brand-dark/80 backdrop-blur-sm" />
+                    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full max-w-2xl bg-brand-dark border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-black text-white">Bulk <span className="text-brand-cyan">Import</span></h2>
+                                <p className="text-xs text-white/40 mt-1">Import participants for {selectedEventForImport?.title}</p>
+                            </div>
+                            <button onClick={() => setShowImportModal(false)} className="text-white/30 hover:text-white transition-colors"><X size={20} /></button>
+                        </div>
+                        
+                        <div className="p-8 space-y-6">
+                            {/* Dropzone */}
+                            <label 
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                                className={`block border-2 border-dashed rounded-xl p-10 text-center transition-all cursor-pointer ${isDragging ? 'border-brand-cyan bg-brand-cyan/10 scale-[1.02]' : importFile ? 'border-brand-cyan/50 bg-brand-cyan/5' : 'border-white/10 hover:border-brand-cyan/30 hover:bg-white/5'}`}
+                            >
+                                <input type="file" accept=".csv,.json" onChange={handleFileSelect} className="hidden" />
+                                <div className="space-y-2 pointer-events-none">
+                                    <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Plus size={24} className={importFile || isDragging ? 'text-brand-cyan' : 'text-white/20'} />
+                                    </div>
+                                    <p className="text-sm font-bold text-white">
+                                        {importFile ? importFile.name : 'Click to select or drag CSV/JSON file'}
+                                    </p>
+                                    <p className="text-[10px] text-white/30 uppercase tracking-widest font-black">Expected format: Name, Email</p>
+                                </div>
+                            </label>
+
+                            {/* Preview */}
+                            {importData.length > 0 && (
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30">Preview ({importData.length} records)</h4>
+                                    </div>
+                                    <div className="max-h-40 overflow-y-auto border border-white/10 rounded-xl">
+                                        <table className="w-full text-left text-xs border-collapse">
+                                            <thead className="sticky top-0 bg-brand-dark border-b border-white/10">
+                                                <tr>
+                                                    <th className="px-4 py-2 text-white/40 font-black uppercase tracking-widest">Name</th>
+                                                    <th className="px-4 py-2 text-white/40 font-black uppercase tracking-widest">Email</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {importData.slice(0, 10).map((p, i) => (
+                                                    <tr key={i} className="border-b border-white/5">
+                                                        <td className="px-4 py-2 text-white font-medium">{p.name || '-'}</td>
+                                                        <td className="px-4 py-2 text-white/60">{p.email}</td>
+                                                    </tr>
+                                                ))}
+                                                {importData.length > 10 && (
+                                                    <tr>
+                                                        <td colSpan={2} className="px-4 py-2 text-white/20 text-center italic">And {importData.length - 10} more...</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    onClick={handleBulkImport}
+                                    disabled={importing || importData.length === 0}
+                                    className="btn-primary flex-grow py-4 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {importing ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                                    {importing ? 'Importing...' : 'Confirm Import'}
+                                </button>
+                                <button onClick={() => setShowImportModal(false)} className="px-8 py-4 bg-white/5 border border-white/10 rounded-xl text-white font-black uppercase tracking-widest text-sm hover:bg-white/10 transition-all">Cancel</button>
+                            </div>
+                        </div>
+                    </motion.div>
                 </div>
             )}
         </div>

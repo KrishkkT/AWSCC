@@ -147,11 +147,11 @@ export default function AdminKnowledge() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => openModal(article)} className="p-3 rounded-xl bg-white/5 text-white/40 hover:text-white transition-all">
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => openModal(article)} className="btn-crud-edit" title="Edit Article">
                                     <Edit2 size={16} />
                                 </button>
-                                <button onClick={() => handleDelete(article.id)} className="p-3 rounded-xl bg-red-500/10 text-red-500/40 hover:bg-red-500 hover:text-white transition-all">
+                                <button onClick={() => handleDelete(article.id)} className="btn-crud-delete" title="Delete Article">
                                     <Trash2 size={16} />
                                 </button>
                             </div>
@@ -199,7 +199,7 @@ export default function AdminKnowledge() {
                                     </div>
                                     <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
                                         <label className="flex items-center gap-3 cursor-pointer group">
-                                            <div className={`w-12 h-6 rounded-full transition-all relative ${formData.is_published ? 'bg-brand-cyan' : 'bg-white/10'}`}>
+                                            <div className={`w-12 h-6 rounded-full transition-all relative ${formData.is_published ? 'bg-green-500' : 'bg-white/10'}`}>
                                                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.is_published ? 'left-7' : 'left-1'}`} />
                                             </div>
                                             <input type="checkbox" className="hidden" checked={formData.is_published} onChange={e => setFormData({ ...formData, is_published: e.target.checked })} />

@@ -174,9 +174,9 @@ export default function AdminTeam() {
                             <div className="flex-grow min-w-0">
                                 <h3 className="text-white font-black truncate">{member.full_name}</h3>
                                 <p className="text-xs text-brand-cyan font-bold mb-3">{member.role_title}</p>
-                                <div className="flex gap-2">
-                                    <button onClick={() => openModal(member)} className="p-2 rounded-lg bg-white/5 text-white/40 hover:text-white transition-all"><Edit2 size={14} /></button>
-                                    <button onClick={() => handleDelete(member.id)} className="p-2 rounded-lg bg-red-500/10 text-red-500/40 hover:bg-red-500 hover:text-white transition-all"><Trash2 size={14} /></button>
+                                <div className="flex gap-3">
+                                    <button onClick={() => openModal(member)} className="btn-crud-edit" title="Edit Member"><Edit2 size={14} /></button>
+                                    <button onClick={() => handleDelete(member.id)} className="btn-crud-delete" title="Remove Member"><Trash2 size={14} /></button>
                                 </div>
                             </div>
                         </motion.div>

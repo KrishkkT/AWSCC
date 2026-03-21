@@ -238,7 +238,7 @@ export default function AdminCertificates() {
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => setShowPreview(cert)}
-                                    className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-brand-cyan hover:border-brand-cyan/50 transition-all"
+                                    className="btn-crud-edit"
                                     title="Preview Certificate"
                                 >
                                     <Eye size={16} />
@@ -249,7 +249,7 @@ export default function AdminCertificates() {
                                         setShowPreview(cert);
                                         setProcessingId(null);
                                     }}
-                                    className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-brand-cyan hover:border-brand-cyan/50 transition-all"
+                                    className="btn-crud-edit"
                                     title="Download Certificate"
                                 >
                                     <Download size={16} />
@@ -269,7 +269,7 @@ export default function AdminCertificates() {
                                             setProcessingId(null);
                                         }
                                     }}
-                                    className="w-9 h-9 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500 hover:text-white transition-all disabled:opacity-50"
+                                    className="btn-crud-delete disabled:opacity-50"
                                 >
                                     {processingId === cert.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                                 </button>
@@ -295,23 +295,22 @@ export default function AdminCertificates() {
                         {/* Control Bar */}
                         <div className="absolute top-6 right-6 z-20 flex gap-3">
                             <button
-                                onClick={() => generateCertificatePDF(certificateRef, showPreview.recipient_name)}
+                                onClick={() => generateCertificatePDF(showPreview)}
                                 disabled={submitting}
                                 className="bg-brand-cyan text-brand-dark px-8 py-4 flex items-center gap-3 rounded-xl font-black uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_40px_rgba(0,194,255,0.4)]"
                             >
                                 {submitting ? <Loader2 size={18} className="animate-spin" /> : <Download size={20} />}
                                 Download PDF
                             </button>
-                            <button onClick={() => setShowPreview(null)} className="w-14 h-14 flex items-center justify-center rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all backdrop-blur-md">
-                                <X size={28} />
+                            <button onClick={() => setShowPreview(null)} className="w-12 h-12 flex items-center justify-center rounded-xl bg-white shadow-xl text-brand-dark hover:scale-105 transition-all border border-border/50">
+                                <X size={24} />
                             </button>
                         </div>
 
                         {/* PREMIUM CERTIFICATE UI */}
                         <div
-                            ref={certificateRef}
-                            className="w-full aspect-[1.414/1] bg-white relative overflow-hidden flex items-center justify-center"
-                            style={{ fontFamily: "'Cinzel', serif" }}
+                            className="w-full aspect-[1.414/1] bg-white relative overflow-hidden flex items-center justify-center text-brand-dark"
+                            style={{ fontFamily: "var(--font-playfair), serif" }}
                         >
                             {/* Template Background Overlay (Original PNG) */}
                             <img
@@ -320,38 +319,31 @@ export default function AdminCertificates() {
                                 alt="Certificate Template"
                             />
 
-                            {/* Dynamic Content Overlay */}
-                            <div className="absolute inset-0 z-10 flex flex-col items-center justify-between py-24 text-center">
-                                <div className="space-y-4">
-                                    <p className="text-[#C5A059] font-black uppercase tracking-[0.3em] text-[10px]">Certificate of {showPreview.certificate_type || 'Achievement'}</p>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <p className="text-[#666] italic text-lg" style={{ fontFamily: "'Playfair Display', serif" }}>
-                                        This is to certify that
-                                    </p>
-                                    <h1 className="text-[#1A1A1A] text-4xl font-bold tracking-tight border-b-2 border-[#C5A059]/30 inline-block pb-1 px-8">
+                            {/* Dynamic Content Overlay - Precision Alignment */}
+                            <div className="absolute inset-0 z-10 font-serif text-brand-dark">
+                                {/* Recipient Name - Precision Spacing */}
+                                <div className="absolute top-[42%] left-0 w-full text-center">
+                                    <h1 className="text-[#C5A059] text-5xl font-black tracking-tight px-8" style={{ fontFamily: "var(--font-cinzel), serif" }}>
                                         {showPreview.recipient_name}
                                     </h1>
                                 </div>
 
-                                <div className="space-y-4">
-                                    <p className="text-[#444] text-base">
-                                        has successfully completed the workshop on
-                                    </p>
-                                    <h2 className="text-[#C5A059] text-2xl font-black uppercase tracking-[0.2em]">
-                                        {showPreview.event_name}
+                                {/* Event Name - Precision Spacing */}
+                                <div className="absolute top-[60%] left-0 w-full text-center px-20">
+                                    <h2 className="text-[#8B7355] text-sm md:text-lg font-black uppercase tracking-[0.15em] leading-relaxed" style={{ fontFamily: "var(--font-cinzel), serif" }}>
+                                        {showPreview.event_name || showPreview.events?.title}
                                     </h2>
                                 </div>
 
-                                <div className="grid grid-cols-2 w-full px-20 text-left pt-12">
-                                    <div className="space-y-1">
-                                        <p className="text-[7px] text-[#C5A059] font-black uppercase tracking-widest">Verification ID</p>
-                                        <p className="text-[10px] font-bold text-[#1A1A1A]">{showPreview.id.substring(0, 12).toUpperCase()}</p>
+                                {/* Verification Info - Shifted slightly for balance */}
+                                <div className="absolute bottom-[10%] right-[8%] text-right flex flex-col items-end gap-1 text-brand-dark">
+                                    <div className="space-y-0.5">
+                                        <p className="text-[7px] text-[#C5A059] font-black uppercase tracking-widest leading-none">Date of Issue</p>
+                                        <p className="text-[10px] font-bold leading-tight">{new Date(showPreview.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                                     </div>
-                                    <div className="text-right space-y-1">
-                                        <p className="text-[7px] text-[#C5A059] font-black uppercase tracking-widest">Date of Issue</p>
-                                        <p className="text-[10px] font-bold text-[#1A1A1A]">{new Date(showPreview.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                                    <div className="space-y-0.5">
+                                        <p className="text-[7px] text-[#C5A059] font-black uppercase tracking-widest leading-none">Verification ID</p>
+                                        <p className="text-[10px] font-bold leading-tight">{showPreview.id.substring(0, 12).toUpperCase()}</p>
                                     </div>
                                 </div>
                             </div>

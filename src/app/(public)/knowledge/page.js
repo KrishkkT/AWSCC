@@ -38,11 +38,11 @@ export default function KnowledgeCenter() {
     );
 
     return (
-        <div className="min-h-screen bg-brand-deep pt-32 pb-24 relative overflow-hidden">
-            <div className="fixed inset-0 bg-slate-grid opacity-30 pointer-events-none"></div>
+        <div className="min-h-screen bg-background pt-32 pb-24 relative overflow-hidden">
+            <div className="fixed inset-0 bg-slate-grid pointer-events-none"></div>
 
             <div className="container mx-auto px-6 relative z-10">
-                <div className="flex flex-col md:flex-row justify-between items-end gap-10 mb-20 border-b border-slate-800/50 pb-16">
+                <div className="flex flex-col md:flex-row justify-between items-end gap-10 mb-20 border-b border-border pb-16">
                     <div className="max-w-2xl">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
@@ -54,22 +54,22 @@ export default function KnowledgeCenter() {
                         <motion.h1
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="text-5xl md:text-7xl font-display font-bold text-white mb-8 tracking-tight"
+                            className="text-5xl md:text-7xl font-display font-bold text-foreground mb-8 tracking-tight"
                         >
                             Knowledge <span className="text-brand-aws">Vault</span>
                         </motion.h1>
-                        <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed">
+                        <p className="text-muted-foreground text-lg md:text-xl font-medium leading-relaxed">
                             Deep-dives, architecture reviews, and technical perspectives from the edge of cloud technology.
                         </p>
                     </div>
                     <div className="w-full md:w-96 relative group">
-                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-brand-aws transition-colors" size={20} />
+                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-brand-aws transition-colors" size={20} />
                         <input
                             type="text"
                             placeholder="Index search..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-16 pr-8 py-5"
+                            className="w-full pl-16 pr-8 py-5 bg-secondary/50 border-border focus:bg-background transition-all"
                         />
                     </div>
                 </div>
@@ -77,15 +77,15 @@ export default function KnowledgeCenter() {
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-32 space-y-4">
                         <Loader2 className="w-12 h-12 text-brand-aws animate-spin" />
-                        <p className="text-slate-500 font-medium">Indexing archives...</p>
+                        <p className="text-muted-foreground font-medium">Indexing archives...</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                         <div className="lg:col-span-2 space-y-10">
                             {filteredArticles.length === 0 ? (
-                                <div className="text-center py-20 bg-brand-navy/30 rounded-[2.5rem] border border-slate-800 border-dashed">
-                                    <BookOpen size={64} className="mx-auto text-slate-700 mb-6" />
-                                    <p className="text-slate-500 font-medium">No manuscript matches your query.</p>
+                                <div className="text-center py-20 bg-secondary/30 rounded-[2.5rem] border border-border border-dashed">
+                                    <BookOpen size={64} className="mx-auto text-muted-foreground/20 mb-6" />
+                                    <p className="text-muted-foreground font-medium">No manuscript matches your query.</p>
                                 </div>
                             ) : (
                                 filteredArticles.map((article, i) => (
@@ -95,19 +95,19 @@ export default function KnowledgeCenter() {
                                         whileInView={{ opacity: 1, x: 0 }}
                                         viewport={{ once: true }}
                                         transition={{ delay: i * 0.1 }}
-                                        className="card-professional p-12 group border-slate-800/50 hover:border-brand-aws/20"
+                                        className="card-professional p-12 group border-border hover:border-brand-aws/20 shadow-sm"
                                     >
                                         <div className="flex items-center gap-4 mb-6">
                                             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-aws bg-brand-aws/10 px-4 py-1.5 rounded-lg border border-brand-aws/20">{article.category}</span>
-                                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">
+                                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
                                                 {new Date(article.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
                                             </span>
                                         </div>
-                                        <h2 className="text-3xl font-display font-bold text-white mb-6 group-hover:text-brand-aws transition-colors leading-tight">{article.title}</h2>
-                                        <p className="text-slate-400 font-medium mb-10 leading-relaxed max-w-2xl line-clamp-3">
+                                        <h2 className="text-3xl font-display font-bold text-foreground mb-6 group-hover:text-brand-aws transition-colors leading-tight">{article.title}</h2>
+                                        <p className="text-muted-foreground font-medium mb-10 leading-relaxed max-w-2xl line-clamp-3">
                                             {article.excerpt || article.content.substring(0, 180) + "..."}
                                         </p>
-                                        <button className="flex items-center gap-3 text-white font-bold uppercase tracking-widest text-[10px] group/btn">
+                                        <button className="flex items-center gap-3 text-foreground font-bold uppercase tracking-widest text-[10px] group/btn">
                                             Read Manuscript
                                             <ArrowRight size={18} className="text-brand-aws group-hover/btn:translate-x-2 transition-transform" />
                                         </button>
@@ -117,27 +117,27 @@ export default function KnowledgeCenter() {
                         </div>
 
                         <div className="space-y-10 lg:sticky lg:top-36 h-fit">
-                            <div className="card-professional p-10 border-slate-800/50 bg-brand-navy/20">
+                            <div className="card-professional p-10 border-border bg-secondary/20 shadow-sm">
                                 <div className="flex items-center gap-3 mb-8">
                                     <Zap className="text-brand-aws" size={24} />
-                                    <h3 className="text-xl font-display font-bold text-white">Trending Specs</h3>
+                                    <h3 className="text-xl font-display font-bold text-foreground">Trending Specs</h3>
                                 </div>
                                 <ul className="space-y-6">
                                     {(trending.length > 0 ? trending : ["AWS CDK v2", "Serverless LLMs", "Edge Networking", "IAM Security"]).map(topic => (
-                                        <li key={topic} className="flex items-center justify-between group cursor-pointer border-b border-slate-800/50 pb-4 last:border-0 last:pb-0">
-                                            <span className="text-sm font-semibold text-slate-400 group-hover:text-white transition-colors">{topic}</span>
-                                            <ArrowRight size={16} className="text-slate-800 group-hover:text-brand-aws transition-all transform group-hover:translate-x-1" />
+                                        <li key={topic} className="flex items-center justify-between group cursor-pointer border-b border-border pb-4 last:border-0 last:pb-0">
+                                            <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground transition-colors">{topic}</span>
+                                            <ArrowRight size={16} className="text-muted-foreground/20 group-hover:text-brand-aws transition-all transform group-hover:translate-x-1" />
                                         </li>
                                     ))}
                                 </ul>
                             </div>
 
                             <div className="card-professional p-10 bg-brand-aws shadow-2xl shadow-brand-aws/20">
-                                <h3 className="text-xl font-display font-bold text-brand-deep mb-4">Interested in contributing?</h3>
-                                <p className="text-brand-deep/70 text-sm font-medium mb-8 leading-relaxed">
+                                <h3 className="text-xl font-display font-bold text-white mb-4">Interested in contributing?</h3>
+                                <p className="text-white/70 text-sm font-medium mb-8 leading-relaxed">
                                     Our knowledge vault is community-driven. Share your insights with the club.
                                 </p>
-                                <button className="w-full py-4 bg-brand-deep text-white font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-colors shadow-lg">
+                                <button className="w-full py-4 bg-background text-foreground font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-secondary transition-colors shadow-lg">
                                     Submit Article
                                 </button>
                             </div>

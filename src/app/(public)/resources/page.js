@@ -44,8 +44,8 @@ export default function ResourcesPage() {
     };
 
     return (
-        <div className="min-h-screen bg-brand-deep pt-32 pb-24 relative overflow-hidden">
-            <div className="fixed inset-0 bg-slate-grid opacity-30 pointer-events-none"></div>
+        <div className="min-h-screen bg-background pt-32 pb-24 relative overflow-hidden">
+            <div className="fixed inset-0 bg-slate-grid pointer-events-none"></div>
 
             <div className="container mx-auto px-6 relative z-10">
                 <div className="flex flex-col items-center text-center max-w-4xl mx-auto mb-20">
@@ -59,24 +59,24 @@ export default function ResourcesPage() {
                     <motion.h1
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="text-5xl md:text-7xl font-display font-bold text-white mb-8 tracking-tight"
+                        className="text-5xl md:text-7xl font-display font-bold text-foreground mb-8 tracking-tight"
                     >
                         Technical <span className="text-brand-aws">Resources</span>
                     </motion.h1>
-                    <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed max-w-2xl">
+                    <p className="text-muted-foreground text-lg md:text-xl font-medium leading-relaxed max-w-2xl">
                         A curated collection of documentation, scripts, and learning paths to accelerate your cloud journey.
                     </p>
                 </div>
 
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                        <div className="w-12 h-12 border-4 border-slate-800 border-t-brand-aws rounded-full animate-spin"></div>
-                        <p className="text-slate-500 font-medium animate-pulse">Fetching resources...</p>
+                        <div className="w-12 h-12 border-4 border-secondary border-t-brand-aws rounded-full animate-spin"></div>
+                        <p className="text-muted-foreground font-medium animate-pulse">Fetching resources...</p>
                     </div>
                 ) : resources.length === 0 ? (
-                    <div className="text-center py-20 bg-brand-navy/30 rounded-[2.5rem] border border-slate-800 border-dashed max-w-2xl mx-auto">
-                        <FileText size={64} className="mx-auto text-slate-700 mb-6" />
-                        <p className="text-slate-500 font-medium">Vault is currently empty.</p>
+                    <div className="text-center py-20 bg-secondary/30 rounded-[2.5rem] border border-border border-dashed max-w-2xl mx-auto">
+                        <FileText size={64} className="mx-auto text-muted-foreground/20 mb-6" />
+                        <p className="text-muted-foreground font-medium">Vault is currently empty.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -87,21 +87,21 @@ export default function ResourcesPage() {
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
                                 transition={{ delay: i * 0.1 }}
-                                className="card-professional p-10 flex flex-col sm:flex-row items-start gap-10 group"
+                                className="card-professional p-10 flex flex-col sm:flex-row items-start gap-10 group shadow-sm border-border hover:border-brand-aws/20"
                             >
-                                <div className="w-20 h-20 shrink-0 rounded-3xl bg-slate-800/50 flex items-center justify-center text-slate-500 group-hover:text-brand-aws group-hover:bg-brand-aws/10 border border-slate-700/50 shadow-inner transition-all duration-300">
+                                <div className="w-20 h-20 shrink-0 rounded-3xl bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-brand-aws group-hover:bg-brand-aws/10 border border-border/50 shadow-inner transition-all duration-300">
                                     {getTypeIcon(resource.type)}
                                 </div>
                                 <div className="flex-grow min-w-0">
                                     <div className="flex items-center gap-3 mb-4">
-                                        <span className="px-3 py-1 rounded-lg bg-slate-800 text-[10px] font-bold uppercase tracking-widest text-slate-400 border border-slate-700/50">{resource.category}</span>
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600"> {resource.type}</span>
+                                        <span className="px-3 py-1 rounded-lg bg-secondary text-[10px] font-bold uppercase tracking-widest text-muted-foreground border border-border/50">{resource.category}</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40"> {resource.type}</span>
                                     </div>
-                                    <h3 className="text-2xl font-display font-bold text-white mb-4 truncate group-hover:text-brand-aws transition-colors leading-tight">{resource.title}</h3>
-                                    <p className="text-slate-400 font-medium mb-8 leading-relaxed line-clamp-2">{resource.description}</p>
+                                    <h3 className="text-2xl font-display font-bold text-foreground mb-4 truncate group-hover:text-brand-aws transition-colors leading-tight">{resource.title}</h3>
+                                    <p className="text-muted-foreground font-medium mb-8 leading-relaxed line-clamp-2">{resource.description}</p>
                                     <button
                                         onClick={() => window.open(resource.url, '_blank')}
-                                        className="btn-outline w-full sm:w-auto px-10 py-3.5 text-xs font-bold border-slate-800 hover:border-brand-aws flex items-center justify-center gap-2"
+                                        className="btn-outline w-full sm:w-auto px-10 py-3.5 text-xs font-bold border-border hover:border-brand-aws flex items-center justify-center gap-2"
                                     >
                                         Inspect {resource.type} <ExternalLink size={14} />
                                     </button>

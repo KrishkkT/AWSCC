@@ -7,6 +7,7 @@ import { useEffect, useState, useRef } from "react";
 import HeroVisual from "@/components/HeroVisual";
 import * as anime from "animejs";
 import { createClient } from "@/utils/supabase/client";
+import CloudBackground from "@/components/CloudBackground";
 
 const ScrollReveal = ({ children, delay = 0 }) => (
     <motion.div
@@ -35,7 +36,7 @@ export default function Home() {
             .select('*')
             .eq('is_visible', true)
             .neq('status', 'draft')
-            .order('date', { ascending: true })
+            .order('date', { ascending: false })
             .limit(3);
 
         if (!error && data) {
@@ -44,36 +45,20 @@ export default function Home() {
     }
 
     return (
-        <div className="flex flex-col min-h-screen relative overflow-hidden bg-brand-deep">
-            {/* Professional Background Layer */}
-            <div className="fixed inset-0 z-0 pointer-events-none bg-slate-grid opacity-40"></div>
+        <div className="flex flex-col min-h-screen relative overflow-hidden bg-transparent">
+            {/* Cinematic Floating Cloud Background */}
+            <CloudBackground />
 
             <main className="relative z-10 flex-grow min-h-screen">
                 {/* Hero Section */}
                 <section className="relative min-h-[95vh] flex flex-col items-center justify-center pt-20 pb-16 overflow-hidden">
-                    {/* Background Visuals */}
-                    <div className="absolute inset-0 z-0 pointer-events-none">
-                        <div className="absolute top-[35%] left-1/4 w-96 h-96 bg-brand-aws/5 rounded-full blur-[120px] animate-pulse-slow"></div>
-                        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand-blue/5 rounded-full blur-[120px] animate-pulse-slow delay-1000"></div>
-                    </div>
 
                     <div className="container relative z-10 px-6 flex flex-col items-center text-center">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-brand-aws/20 bg-brand-aws/5 backdrop-blur-md mb-10 shadow-lg shadow-brand-aws/5"
-                        >
-                            <span className="flex h-2 w-2 rounded-full bg-brand-aws animate-pulse"></span>
-                            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-brand-aws">
-                                Official AWS Cloud Club @ Dharmsinh Desai University
-                            </span>
-                        </motion.div>
-
                         <motion.h1
                             initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-6xl md:text-8xl lg:text-9xl font-display font-bold text-white tracking-tight mb-8 leading-[0.85]"
+                            className="text-5xl sm:text-6xl md:text-8xl lg:text-9xl font-display font-bold tracking-tight mb-8 leading-[0.85] text-foreground"
                         >
                             AWS Cloud Club <br />
                             <span className="text-aws-gradient">DDU Nadiad</span>
@@ -83,7 +68,7 @@ export default function Home() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2, duration: 0.8 }}
-                            className="text-lg md:text-2xl text-slate-400 max-w-3xl mb-14 leading-relaxed font-sans font-medium"
+                            className="text-lg md:text-2xl text-muted-foreground max-w-3xl mb-14 leading-relaxed font-sans font-medium"
                         >
                             Empowering the next generation of cloud builders through hands-on architecture, serverless systems, and global community collaboration.
                         </motion.p>
@@ -112,11 +97,11 @@ export default function Home() {
                 </section>
 
                 {/* Technology Focus Section */}
-                <section className="py-24 bg-brand-navy/20 border-y border-slate-800/50">
+                <section className="py-24 bg-secondary/30 backdrop-blur-sm border-y border-border/50">
                     <div className="container mx-auto px-6">
                         <div className="flex flex-col items-center text-center mb-16">
-                            <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">Our Technology <span className="text-brand-aws">Stack</span></h2>
-                            <p className="text-slate-500 max-w-2xl">We focus on industry-leading cloud technologies and modern development practices to prepare students for the global tech landscape.</p>
+                            <h2 className="text-3xl md:text-4xl font-display font-bold mb-4 text-foreground">Our Technology <span className="text-brand-aws">Stack</span></h2>
+                            <p className="text-muted-foreground max-w-2xl">We focus on industry-leading cloud technologies and modern development practices to prepare students for the global tech landscape.</p>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             {[
@@ -126,12 +111,12 @@ export default function Home() {
                                 { title: "Applied AI/ML", desc: "Integrate intelligent services and machine learning models into cloud platforms.", icon: <Rocket size={24} /> }
                             ].map((focus, i) => (
                                 <ScrollReveal key={i} delay={i * 0.1}>
-                                    <div className="group h-full p-8 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:border-brand-aws/40 hover:bg-brand-aws/[0.02] transition-all duration-500 flex flex-col items-center text-center">
+                                    <div className="group h-full p-8 rounded-2xl bg-card/50 backdrop-blur-md border border-border/50 hover:border-brand-aws/40 hover:bg-brand-aws/5 transition-all duration-500 flex flex-col items-center text-center shadow-sm hover:shadow-md">
                                         <div className="w-14 h-14 rounded-xl bg-brand-aws/10 flex items-center justify-center text-brand-aws mb-6 group-hover:scale-110 transition-transform">
                                             {focus.icon}
                                         </div>
-                                        <h3 className="text-xl font-display font-bold text-white mb-3">{focus.title}</h3>
-                                        <p className="text-sm text-slate-500 leading-relaxed font-sans">{focus.desc}</p>
+                                        <h3 className="text-xl font-display font-bold text-card-foreground mb-3">{focus.title}</h3>
+                                        <p className="text-sm text-muted-foreground leading-relaxed font-sans">{focus.desc}</p>
                                     </div>
                                 </ScrollReveal>
                             ))}
@@ -144,8 +129,8 @@ export default function Home() {
                     <div className="container mx-auto px-6">
                         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
                             <div className="space-y-3">
-                                <h2 className="text-4xl md:text-5xl font-display font-bold">Latest <span className="text-brand-aws">Events</span></h2>
-                                <p className="text-slate-500 max-w-xl">Stay updated with our most recent workshops, hackathons, and community meetups.</p>
+                                <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground">Latest <span className="text-brand-aws">Events</span></h2>
+                                <p className="text-muted-foreground max-w-xl">Stay updated with our most recent workshops, hackathons, and community meetups.</p>
                             </div>
                             <Link href="/events" className="btn-outline !py-2 !px-6 flex items-center gap-2 group">
                                 View Archive <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
@@ -172,12 +157,12 @@ export default function Home() {
                                                 </div>
                                             </div>
                                             <div className="p-8 flex flex-col flex-grow">
-                                                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-4 uppercase tracking-tighter">
+                                                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground mb-4 uppercase tracking-tighter">
                                                     <Calendar size={14} className="text-brand-aws" />
                                                     {new Date(event.date || event.start_time).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
                                                 </div>
-                                                <h3 className="text-xl font-display font-bold group-hover:text-brand-aws transition-colors mb-4 line-clamp-1">{event.title}</h3>
-                                                <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed mb-6">{event.description || `Join us for an immersive session on ${event.title.toLowerCase()}.`}</p>
+                                                <h3 className="text-xl font-display font-bold text-card-foreground group-hover:text-brand-aws transition-colors mb-4 line-clamp-1">{event.title}</h3>
+                                                <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-6">{event.description || `Join us for an immersive session on ${event.title.toLowerCase()}.`}</p>
                                                 <Link href={`/events?id=${event.id}`} className="mt-auto flex items-center gap-2 text-sm font-bold text-brand-aws group/link">
                                                     Event Details <ArrowRight size={16} className="group-hover/link:translate-x-1 transition-transform" />
                                                 </Link>
@@ -186,8 +171,8 @@ export default function Home() {
                                     </ScrollReveal>
                                 ))
                             ) : (
-                                <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-800 rounded-3xl">
-                                    <p className="text-slate-500 font-medium">New events are being planned. Stay tuned!</p>
+                                <div className="col-span-full py-20 text-center border-2 border-dashed border-border/50 rounded-3xl">
+                                    <p className="text-muted-foreground font-medium">New events are being planned. Stay tuned!</p>
                                 </div>
                             )}
                         </div>
@@ -195,11 +180,11 @@ export default function Home() {
                 </section>
 
                 {/* Core Pillars */}
-                <section className="py-24 bg-brand-navy/30 relative">
+                <section className="py-24 bg-secondary/20 backdrop-blur-sm relative border-y border-border/50">
                     <div className="container mx-auto px-6">
                         <div className="max-w-3xl mx-auto text-center mb-20 space-y-6">
-                            <h2 className="text-4xl md:text-5xl font-display font-bold">Why Join <span className="text-brand-aws">AWS Cloud Club</span>?</h2>
-                            <p className="text-slate-400 text-lg">We bridge the gap between academic theory and industry practice through the power of cloud computing.</p>
+                            <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground">Why Join <span className="text-brand-aws">AWS Cloud Club</span>?</h2>
+                            <p className="text-muted-foreground text-lg">We bridge the gap between academic theory and industry practice through the power of cloud computing.</p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -225,10 +210,10 @@ export default function Home() {
                                         <div className="mb-8 w-14 h-14 rounded-2xl bg-brand-aws/10 flex items-center justify-center group-hover:bg-brand-aws group-hover:text-brand-deep transition-all duration-300">
                                             {pillar.icon}
                                         </div>
-                                        <h3 className="text-2xl font-display font-bold mb-4 tracking-tight">
+                                        <h3 className="text-2xl font-display font-bold mb-4 tracking-tight text-card-foreground">
                                             {pillar.title}
                                         </h3>
-                                        <p className="text-slate-400 leading-relaxed font-sans -tracking-tight">
+                                        <p className="text-muted-foreground leading-relaxed font-sans -tracking-tight">
                                             {pillar.desc}
                                         </p>
                                     </div>
@@ -253,7 +238,7 @@ export default function Home() {
                                     Join the most active developer community at Dharmsinh Desai University and start building for the future.
                                 </p>
                                 <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
-                                    <Link href="https://www.meetup.com/awscc-at-dharmsinh-desai-university/" target="_blank" className="btn-aws !bg-brand-deep !text-white !px-12 !py-4 text-base shadow-xl">
+                                    <Link href="https://www.meetup.com/awscc-at-dharmsinh-desai-university/" target="_blank" className="btn-aws !text-white !px-12 !py-4 text-base shadow-xl">
                                         Register via Meetup
                                     </Link>
                                     <Link href="/contact" className="btn-outline !border-white/30 !text-white !hover:bg-white/10 !px-12 !py-4 text-base">

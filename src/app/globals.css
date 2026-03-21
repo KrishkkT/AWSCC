@@ -3,58 +3,105 @@
 @tailwind utilities;
 
 :root {
+    --background: #ffffff;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: #f1f5f9;
+    --accent-foreground: #0f172a;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: #3b82f6;
+    --radius: 0.5rem;
+    
     --brand-dark: #020b17;
     --brand-aws: #3b82f6;
     --brand-blue: #2563eb;
+    --brand-cyan: #00c2ff;
+    --brand-deep: #f8fafc;
+}
+
+.dark {
+    --background: #020617;
+    --foreground: #f8fafc;
+    --card: #020b17;
+    --card-foreground: #f8fafc;
+    --popover: #020b17;
+    --popover-foreground: #f8fafc;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --secondary: #1e293b;
+    --secondary-foreground: #f8fafc;
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+    --accent: #1e293b;
+    --accent-foreground: #f8fafc;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #1e293b;
+    --input: #1e293b;
+    --ring: #3b82f6;
+    
+    --brand-dark: #020b17;
+    --brand-aws: #3b82f6;
+    --brand-blue: #2563eb;
+    --brand-cyan: #00c2ff;
     --brand-deep: #020617;
 }
 
 @layer base {
     body {
-        @apply bg-brand-deep text-slate-200 antialiased selection:bg-brand-aws/30 selection:text-white bg-slate-grid;
+        @apply antialiased;
+        background-color: var(--background);
+        color: var(--foreground);
     }
 
-    h1 {
-        @apply text-4xl sm:text-5xl lg:text-7xl;
+    ::selection {
+        background-color: rgba(59, 130, 246, 0.3);
+        color: white;
     }
 
-    h2 {
-        @apply text-3xl sm:text-4xl lg:text-5xl;
-    }
-
-    h3 {
-        @apply text-xl sm:text-2xl;
-    }
-
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6 {
-        @apply font-display font-bold tracking-tight text-white;
+    h1, h2, h3, h4, h5, h6 {
+        @apply font-display font-bold tracking-tight text-foreground;
+        color: var(--foreground);
     }
 }
 
 /* Glass Card Utility */
 .glass-card {
-    @apply bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden;
+    @apply backdrop-blur-xl border rounded-3xl overflow-hidden shadow-lg;
+    background-color: color-mix(in srgb, var(--card) 40%, transparent);
+    border-color: color-mix(in srgb, var(--border) 50%, transparent);
 }
 
 @layer components {
     .card-professional {
-        @apply bg-brand-navy/40 backdrop-blur-md border border-slate-800 rounded-2xl p-6 transition-all duration-300 relative overflow-hidden;
-        box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.3);
+        @apply bg-card backdrop-blur-md border rounded-2xl p-6 transition-all duration-300 relative overflow-hidden;
+        border-color: var(--border);
+        box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.1);
     }
 
     .card-professional:hover {
-        @apply border-brand-aws/30 bg-brand-navy/60 -translate-y-1;
-        box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.15);
+        @apply -translate-y-1;
+        background-color: color-mix(in srgb, var(--card) 80%, transparent);
+        border-color: color-mix(in srgb, var(--brand-aws) 40%, transparent);
+        box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.1);
     }
 
     .card-professional::before {
         content: '';
-        @apply absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-aws/20 to-transparent -translate-x-full transition-transform duration-700;
+        @apply absolute top-0 left-0 w-full h-1 -translate-x-full transition-transform duration-700;
+        background-image: linear-gradient(to right, transparent, color-mix(in srgb, var(--brand-aws) 20%, transparent), transparent);
     }
 
     .card-professional:hover::before {
@@ -62,11 +109,37 @@
     }
 
     .btn-aws {
-        @apply px-6 py-2.5 bg-brand-aws text-white font-bold rounded-lg transition-all duration-300 text-sm tracking-wide hover:shadow-lg hover:shadow-brand-aws/30 active:scale-95 flex items-center justify-center gap-2;
+        @apply px-6 py-2.5 bg-brand-aws text-white font-bold rounded-lg transition-all duration-300 text-sm tracking-wide active:scale-95 flex items-center justify-center gap-2;
+    }
+
+    .btn-aws:hover {
+        box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--brand-aws) 30%, transparent), 0 4px 6px -4px color-mix(in srgb, var(--brand-aws) 30%, transparent);
     }
 
     .btn-outline {
-        @apply px-6 py-2.5 bg-transparent text-white font-bold rounded-lg border border-slate-700 transition-all duration-300 text-sm tracking-wide hover:bg-white/5 hover:border-slate-500 active:scale-95 flex items-center justify-center gap-2;
+        @apply px-6 py-2.5 bg-transparent text-foreground font-bold rounded-lg border transition-all duration-300 text-sm tracking-wide active:scale-95 flex items-center justify-center gap-2;
+        border-color: var(--border);
+    }
+
+    .btn-outline:hover {
+        background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+        border-color: color-mix(in srgb, var(--foreground) 20%, transparent);
+    }
+
+    .btn-crud {
+        @apply p-2.5 rounded-xl border transition-all focus:outline-none flex items-center justify-center gap-2 font-bold active:scale-95;
+    }
+
+    .btn-crud-edit {
+        @apply btn-crud bg-blue-500/10 border-blue-500/20 text-blue-500 hover:bg-blue-500 hover:text-white focus:ring-2 focus:ring-blue-500/50;
+    }
+
+    .btn-crud-delete {
+        @apply btn-crud bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white focus:ring-2 focus:ring-red-500/50;
+    }
+    
+    .btn-crud-add {
+        @apply btn-crud bg-green-500/10 border-green-500/20 text-green-500 hover:bg-green-500 hover:text-white focus:ring-2 focus:ring-green-500/50;
     }
 
     .text-aws-gradient {
@@ -74,12 +147,13 @@
     }
 
     .bg-slate-grid {
-        background-image: radial-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+        background-image: radial-gradient(var(--foreground), transparent 1px);
         background-size: 32px 32px;
+        opacity: 0.05;
     }
 
     .nav-link {
-        @apply text-slate-400 text-sm font-medium transition-colors hover:text-brand-aws relative py-1;
+        @apply text-muted-foreground text-sm font-medium transition-colors hover:text-brand-aws relative py-1;
     }
 
     .nav-link-active {
@@ -96,33 +170,52 @@
     }
 
     .glass-panel {
-        @apply bg-white/[0.02] backdrop-blur-xl border border-white/10;
+        @apply backdrop-blur-xl border;
+        border-color: var(--border);
+        background-color: color-mix(in srgb, var(--card) 30%, transparent);
     }
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    @apply bg-brand-deep;
+    background-color: var(--background);
 }
 
 ::-webkit-scrollbar-thumb {
-    @apply bg-slate-800 rounded-full border-2 border-brand-deep hover:bg-slate-700;
+    @apply rounded-full;
+    background-color: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
 }
 
 /* Form Elements */
 input,
 select,
 textarea {
-    @apply bg-brand-navy/60 border border-slate-800 rounded-lg p-3 text-slate-200 focus:outline-none focus:border-brand-aws/50 transition-colors;
+    @apply border rounded-lg p-3 text-foreground focus:outline-none transition-colors;
+    background-color: var(--background);
+    border-color: var(--border);
+}
+
+option {
+    color: #000000 !important;
+    background-color: #ffffff !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: color-mix(in srgb, var(--brand-aws) 50%, transparent);
 }
 
 /* Animations */
 @keyframes float {
-
     0%,
     100% {
         transform: translateY(0);

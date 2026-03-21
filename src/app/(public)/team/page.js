@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Github, Linkedin, Instagram } from "lucide-react";
+import { Github, Linkedin, Instagram, Users } from "lucide-react";
 
 export default function Team() {
     const [team, setTeam] = useState([]);
@@ -32,7 +32,7 @@ export default function Team() {
         return (
             <div className="space-y-12">
                 <div className="flex flex-col items-center gap-4 text-center">
-                    <h2 className="text-3xl font-display font-bold text-white tracking-tight">{title}</h2>
+                    <h2 className="text-3xl font-display font-bold text-foreground tracking-tight">{title}</h2>
                     <div className="h-1 w-20 bg-brand-aws rounded-full"></div>
                 </div>
                 <div className="flex flex-wrap justify-center gap-10">
@@ -43,10 +43,10 @@ export default function Team() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ delay: i * 0.1 }}
-                            className="card-professional p-8 text-center group border-slate-800/50 hover:border-brand-aws/30 relative max-w-[320px] w-full"
+                            className="card-professional p-8 text-center group border-border relative max-w-[320px] w-full"
                         >
-                            <div className="w-32 h-32 mx-auto mb-8 rounded-2xl p-0.5 bg-slate-800 relative group-hover:bg-brand-aws transition-colors duration-500 overflow-hidden">
-                                <div className="w-full h-full rounded-2xl overflow-hidden bg-brand-deep">
+                            <div className="w-32 h-32 mx-auto mb-8 rounded-2xl p-0.5 bg-secondary relative group-hover:bg-brand-aws transition-colors duration-500 overflow-hidden">
+                                <div className="w-full h-full rounded-2xl overflow-hidden bg-background">
                                     <img
                                         src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.full_name}&background=111111&color=fff`}
                                         alt={member.full_name}
@@ -55,15 +55,15 @@ export default function Team() {
                                 </div>
                             </div>
 
-                            <h3 className="text-xl font-display font-bold text-white mb-2 group-hover:text-brand-aws transition-colors">{member.full_name}</h3>
-                            <div className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 mb-8 pb-6 border-b border-slate-800/50">
+                            <h3 className="text-xl font-display font-bold text-foreground mb-2 group-hover:text-brand-aws transition-colors">{member.full_name}</h3>
+                            <div className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-8 pb-6 border-b border-border">
                                 {member.role_title}
                             </div>
 
                             {/* Social Links */}
-                            <div className="flex justify-center gap-6 text-slate-500">
+                            <div className="flex justify-center gap-6 text-muted-foreground">
                                 {member.github_url && (
-                                    <a href={member.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-all transform hover:-translate-y-1">
+                                    <a href={member.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-all transform hover:-translate-y-1">
                                         <Github size={20} />
                                     </a>
                                 )}
@@ -86,8 +86,8 @@ export default function Team() {
     };
 
     return (
-        <div className="min-h-screen bg-brand-deep pt-32 pb-24 relative overflow-hidden">
-            <div className="fixed inset-0 bg-slate-grid opacity-30 pointer-events-none"></div>
+        <div className="min-h-screen bg-background pt-32 pb-24 relative overflow-hidden">
+            <div className="fixed inset-0 bg-slate-grid pointer-events-none"></div>
 
             <div className="container mx-auto px-6 relative z-10">
                 <div className="flex flex-col items-center text-center max-w-3xl mx-auto mb-20">
@@ -98,23 +98,23 @@ export default function Team() {
                     >
                         Council & Core
                     </motion.div>
-                    <h1 className="text-5xl md:text-6xl font-display font-bold text-white mb-8 tracking-tight">
+                    <h1 className="text-5xl md:text-6xl font-display font-bold text-foreground mb-8 tracking-tight">
                         Meet the <span className="text-brand-aws">Architects</span>
                     </h1>
-                    <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed">
+                    <p className="text-muted-foreground text-lg md:text-xl font-medium leading-relaxed">
                         A dedicated assembly of cloud-native builders pushing the boundaries of technology at DDU.
                     </p>
                 </div>
 
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                        <div className="w-12 h-12 border-4 border-slate-800 border-t-brand-aws rounded-full animate-spin"></div>
-                        <p className="text-slate-500 font-medium animate-pulse">Initializing crew...</p>
+                        <div className="w-12 h-12 border-4 border-secondary border-t-brand-aws rounded-full animate-spin"></div>
+                        <p className="text-muted-foreground font-medium animate-pulse">Initializing crew...</p>
                     </div>
                 ) : team.length === 0 ? (
-                    <div className="text-center py-20 bg-brand-navy/30 rounded-[2.5rem] border border-slate-800 border-dashed max-w-2xl mx-auto">
-                        <Users size={64} className="mx-auto text-slate-700 mb-6" />
-                        <h3 className="text-2xl font-display font-bold text-slate-400">No architects active!</h3>
+                    <div className="text-center py-20 bg-secondary/30 rounded-[2.5rem] border border-border border-dashed max-w-2xl mx-auto">
+                        <Users size={64} className="mx-auto text-muted-foreground/20 mb-6" />
+                        <h3 className="text-2xl font-display font-bold text-muted-foreground">No architects active!</h3>
                     </div>
                 ) : (
                     <div className="space-y-32">

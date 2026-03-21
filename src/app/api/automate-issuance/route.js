@@ -3,7 +3,7 @@ import { sendEmail, emailTemplates } from "@/lib/emailService";
 
 export async function POST(req) {
     try {
-        const supabase = createClient();
+        const supabase = await createClient();
         const { eventId } = await req.json();
 
         // 1. Verify Authorization

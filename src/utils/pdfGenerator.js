@@ -1,5 +1,4 @@
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 export const generateProfessionalReport = async (data, title = "System Report") => {
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -73,19 +72,105 @@ export const generateProfessionalReport = async (data, title = "System Report") 
     doc.save(`${title.replace(/\s+/g, '_')}_${Date.now()}.pdf`);
 };
 
-export const generateCertificatePDF = async (certElement, fileName = "certificate.pdf") => {
-    const canvas = await html2canvas(certElement, {
-        scale: 4, // Higher scale for print quality
-        useCORS: true,
-        backgroundColor: null
-    });
+/**
+ * Generates a high-quality certificate PDF by stamping data onto a template.
+ * @param {Object} certData - Certificate data (recipient_name, event_name, etc.)
+ */
+export const generateCertificatePDF = async (certData) => {
+    if (!certData) return;
 
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('l', 'mm', 'a4'); // Landscape
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    try {
+        // 1. Fetch the template PDF
+        const response = await fetch('/templates/attendee_template.pdf');
+        if (!response.ok) throw new Error("Template not found");
+        const existingPdfBytes = await response.arrayBuffer();
 
-    pdf.addImage(imgData, 'PNG', 0, (pdf.internal.pageSize.getHeight() - pdfHeight) / 2, pdfWidth, pdfHeight);
-    pdf.save(fileName);
+        // 2. Load the PDF
+        const pdfDoc = await PDFDocument.load(existingPdfBytes);
+        const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
+        const { width, height } = firstPage.getSize();
+
+        // 3. Draw Dynamic Text - FINAL CALIBRATION
+        // Coordinates restored to better matching positions based on user feedback
+
+        // Recipient Name - UPPERCASE & BOLD
+        const recipientName = (certData.recipient_name || "Recipient").toUpperCase();
+        const nameFontSize = 38;
+        const nameTextWidth = font.widthOfTextAtSize(recipientName, nameFontSize);
+        firstPage.drawText(recipientName, {
+            x: (width - nameTextWidth) / 2,
+            y: height * 0.52, // Positioned at ~46% from top
+            size: nameFontSize,
+            font: font,
+            color: rgb(0.77, 0.63, 0.35), // Authentic Gold #C5A059
+        });
+
+        // Event Title - Centering & Positioning
+        const eventTitle = certData.event_name || certData.events?.title || "AWS Event";
+        const eventFontSize = 18;
+        const eventTextWidth = font.widthOfTextAtSize(eventTitle, eventFontSize);
+        firstPage.drawText(eventTitle, {
+            x: (width - eventTextWidth) / 2,
+            y: height * 0.38, // Positioned at ~62% from top
+            size: eventFontSize,
+            font: font,
+            color: rgb(0.54, 0.45, 0.33), // Muted Gold #8B7355
+        });
+
+        // Date of Issue Label
+        firstPage.drawText("DATE OF ISSUE", {
+            x: width * 0.85,
+            y: height * 0.20,
+            size: 7,
+            font: font,
+            color: rgb(0.77, 0.63, 0.35), // Gold label
+        });
+
+        // Date Value
+        const eventDate = certData.events?.start_time || certData.events?.date || certData.created_at || Date.now();
+        const dateStr = new Date(eventDate).toLocaleDateString('en-US', {
+            day: 'numeric', month: 'long', year: 'numeric'
+        });
+        firstPage.drawText(dateStr, {
+            x: width * 0.84,
+            y: height * 0.18,
+            size: 10,
+            font: font,
+            color: rgb(0.1, 0.1, 0.1),
+        });
+
+        // Verification ID Label
+        firstPage.drawText("VERIFICATION ID", {
+            x: width * 0.85,
+            y: height * 0.15,
+            size: 7,
+            font: font,
+            color: rgb(0.77, 0.63, 0.35),
+        });
+
+        // Verification ID Value
+        const certId = (certData.id || "VERIFY-ID").substring(0, 12).toUpperCase();
+        firstPage.drawText(certId, {
+            x: width * 0.85,
+            y: height * 0.13,
+            size: 8,
+            font: font,
+            color: rgb(0.1, 0.1, 0.1),
+        });
+
+        // 4. Save and Download
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Certificate-${(certData.recipient_name || "Credential").replace(/\s+/g, '_')}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        console.error("Advanced PDF Generation failed:", err);
+        throw err;
+    }
 };

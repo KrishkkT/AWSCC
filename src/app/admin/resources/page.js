@@ -148,9 +148,9 @@ export default function AdminResources() {
                                 <h3 className="text-xl font-black text-white mb-2 truncate group-hover:text-brand-cyan transition-colors">{res.title}</h3>
                                 <p className="text-sm text-white/40 font-medium mb-6 line-clamp-2">{res.description}</p>
                                 <div className="flex gap-3">
-                                    <a href={res.url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-white/5 text-white/20 hover:text-white transition-all"><LinkIcon size={14} /></a>
-                                    <button onClick={() => openModal(res)} className="p-2 rounded-lg bg-white/5 text-white/20 hover:text-white transition-all"><Edit2 size={14} /></button>
-                                    <button onClick={() => handleDelete(res.id)} className="p-2 rounded-lg bg-red-500/10 text-red-500/40 hover:bg-red-500 hover:text-white transition-all"><Trash2 size={14} /></button>
+                                    <a href={res.url} target="_blank" rel="noopener noreferrer" className="btn-crud hover:bg-white/10 hover:border-white/20 text-white/40 hover:text-white" title="Open Resource"><LinkIcon size={14} /></a>
+                                    <button onClick={() => openModal(res)} className="btn-crud-edit" title="Edit Resource"><Edit2 size={14} /></button>
+                                    <button onClick={() => handleDelete(res.id)} className="btn-crud-delete" title="Delete Resource"><Trash2 size={14} /></button>
                                 </div>
                             </div>
                         </motion.div>

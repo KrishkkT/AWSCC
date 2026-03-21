@@ -14,15 +14,15 @@ import { motion, AnimatePresence } from "framer-motion";
 const ROLE_PERMISSIONS = {
     faculty: {
         sections: ['core', 'management', 'system'],
-        features: ['analytics', 'reports', 'hod_export', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery'],
+        features: ['analytics', 'reports', 'hod_export', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
     },
     captain: {
         sections: ['core', 'management', 'system'],
-        features: ['analytics', 'reports', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery'],
+        features: ['analytics', 'reports', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
     },
     core: {
         sections: ['core', 'management'],
-        features: ['analytics', 'manage_events', 'attendance', 'manage_resources', 'manage_knowledge', 'manage_gallery'],
+        features: ['analytics', 'manage_events', 'attendance', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
     },
     member: {
         sections: ['core', 'management'],
@@ -85,6 +85,7 @@ export default function AdminSidebar() {
             title: "Management",
             items: [
                 { name: "Events", href: "/admin/events", icon: Calendar },
+                ...(perms.features.includes('manage_community_day') ? [{ name: "Community Day", href: "/admin/community-day", icon: Award }] : []),
                 { name: "Team", href: "/admin/team", icon: Users },
                 { name: "Resources", href: "/admin/resources", icon: FileText },
                 { name: "Knowledge", href: "/admin/knowledge", icon: FileText },
@@ -119,10 +120,10 @@ export default function AdminSidebar() {
 
     // Sidebar content (shared between desktop and mobile)
     const SidebarContent = ({ isMobile = false }) => (
-        <div className={`h-full flex flex-col bg-brand-dark/80 backdrop-blur-2xl border-r border-white/5 ${isMobile ? 'w-full max-w-[280px]' : ''}`}>
+        <div className={`h-full flex flex-col bg-[#05080f] shadow-[10px_0_30px_rgba(0,0,0,0.5)] border-r border-white/10 ${isMobile ? 'w-full max-w-[280px]' : ''}`}>
             {/* Logo Section */}
-            <div className={`h-24 flex items-center ${expanded || isMobile ? 'px-8' : 'justify-center'} shrink-0 relative overflow-hidden`}>
-                <div className="absolute inset-0 bg-gradient-to-b from-brand-aws/5 to-transparent pointer-events-none"></div>
+            <div className={`h-24 flex items-center ${expanded || isMobile ? 'px-8' : 'justify-center'} shrink-0 relative overflow-hidden border-b border-white/5`}>
+                <div className="absolute inset-0 bg-gradient-to-b from-brand-aws/10 to-transparent pointer-events-none"></div>
                 <div className="w-10 h-10 bg-gradient-to-br from-brand-aws to-brand-blue rounded-xl flex items-center justify-center font-black text-white shadow-xl shadow-brand-aws/20 shrink-0 ring-1 ring-white/20">
                     A
                 </div>
@@ -134,8 +135,8 @@ export default function AdminSidebar() {
                     >
                         <span className="font-black text-white text-lg tracking-tighter block whitespace-nowrap leading-none mb-1">AWS CC</span>
                         <div className="flex items-center gap-1.5">
-                            <div className="w-1 h-1 rounded-full bg-brand-aws animate-pulse"></div>
-                            <span className="text-[9px] text-slate-500 uppercase tracking-[0.2em] font-black whitespace-nowrap">Control Node</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-brand-aws animate-pulse"></div>
+                            <span className="text-[10px] text-white/60 uppercase tracking-[0.2em] font-black whitespace-nowrap">Control Node</span>
                         </div>
                     </motion.div>
                 )}
@@ -157,19 +158,19 @@ export default function AdminSidebar() {
                                     key={item.href}
                                     href={item.href}
                                     className={`flex items-center ${expanded || isMobile ? 'px-3' : 'justify-center'} py-2.5 rounded-xl transition-all duration-200 group relative ${isActive
-                                        ? 'bg-brand-cyan text-brand-dark shadow-[0_0_20px_rgba(0,194,255,0.15)]'
-                                        : 'text-white/60 hover:bg-white/5 hover:text-white'
+                                        ? 'bg-brand-cyan text-white shadow-[0_0_20px_rgba(0,194,255,0.15)]'
+                                        : 'text-white/80 hover:bg-white/10 hover:text-white'
                                         }`}
                                 >
-                                    <item.icon size={20} className={`shrink-0 ${isActive ? 'text-brand-dark' : 'text-white/60 group-hover:text-white'}`} />
+                                    <item.icon size={20} className={`shrink-0 ${isActive ? 'text-white' : 'text-white/80 group-hover:text-white'}`} />
                                     {(expanded || isMobile) && (
-                                        <span className={`ml-3 font-bold text-sm whitespace-nowrap ${isActive ? 'text-brand-dark' : ''}`}>
+                                        <span className={`ml-3 font-bold text-sm whitespace-nowrap ${isActive ? 'text-white' : ''}`}>
                                             {item.name}
                                         </span>
                                     )}
                                     {/* Tooltip for collapsed state */}
                                     {!expanded && !isMobile && (
-                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-brand-dark border border-white/10 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-[60] whitespace-nowrap pointer-events-none shadow-xl">
+                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-[#05080f] border border-white/10 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-[60] whitespace-nowrap pointer-events-none shadow-xl">
                                             {item.name}
                                         </div>
                                     )}

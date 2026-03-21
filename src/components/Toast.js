@@ -13,21 +13,21 @@ export default function Toast({ message, type = 'success', onClose, duration = 4
     }, [onClose, duration]);
 
     const icons = {
-        success: <Check size={18} className="text-brand-dark" />,
+        success: <Check size={18} className="text-white" />,
         error: <X size={18} className="text-white" />,
         warning: <AlertCircle size={18} className="text-white" />,
         info: <Info size={18} className="text-white" />
     };
 
     const backgrounds = {
-        success: "bg-brand-cyan shadow-[0_0_30px_rgba(0,194,255,0.3)]",
+        success: "bg-green-500 shadow-[0_0_30px_rgba(34,197,94,0.3)]",
         error: "bg-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]",
         warning: "bg-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.3)]",
         info: "bg-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.3)]"
     };
 
     const textColors = {
-        success: "text-brand-dark",
+        success: "text-white",
         error: "text-white",
         warning: "text-white",
         info: "text-white"

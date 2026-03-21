@@ -155,10 +155,10 @@ export default function AdminGallery() {
                             <div className="aspect-video relative overflow-hidden">
                                 <img src={photo.url} alt={photo.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                 <div className="absolute inset-0 bg-brand-dark/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                                    <button onClick={() => { setEditingPhoto(photo); setFormData(photo); setShowModal(true); }} className="p-3 bg-white/10 hover:bg-brand-cyan hover:text-brand-dark rounded-xl transition-all text-white">
+                                    <button onClick={() => { setEditingPhoto(photo); setFormData(photo); setShowModal(true); }} className="btn-crud-edit" title="Edit Photo">
                                         <Edit2 size={18} />
                                     </button>
-                                    <button onClick={() => handleDelete(photo.id)} className="p-3 bg-red-500/10 hover:bg-red-500 rounded-xl transition-all text-red-500 hover:text-white">
+                                    <button onClick={() => handleDelete(photo.id)} className="btn-crud-delete" title="Delete Photo">
                                         <Trash2 size={18} />
                                     </button>
                                 </div>
