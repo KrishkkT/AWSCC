@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Calendar, MapPin, ExternalLink, Clock, Check, ArrowRight, Cloud, Zap } from "lucide-react";
@@ -18,15 +18,7 @@ export default function Events() {
     const [regSuccess, setRegSuccess] = useState(false);
     const [communityEvent, setCommunityEvent] = useState(null);
 
-    useEffect(() => {
-        const fetchAll = async () => {
-            await fetchEvents();
-            await fetchCommunityEvent();
-        };
-        fetchAll();
-    }, [filter, fetchEvents, fetchCommunityEvent]);
-
-    async function fetchCommunityEvent() {
+    const fetchCommunityEvent = useCallback(async () => {
         const { data, error } = await supabase
             .from('community_events')
             .select('*')
@@ -38,41 +30,54 @@ export default function Events() {
         if (!error && data) {
             setCommunityEvent(data);
         }
-    }
+    }, [supabase]);
 
-    async function fetchEvents() {
+    const fetchEvents = useCallback(async () => {
         setLoading(true);
-        const now = new Date().toISOString();
-        
-        // 1. First, check if any upcoming/active events should be completed
-        const { data: overdue } = await supabase
-            .from('events')
-            .select('id')
-            .or('status.eq.upcoming,status.eq.active')
-            .lt('end_time', now);
-        
-        if (overdue && overdue.length > 0) {
-            await supabase
+        try {
+            const now = new Date().toISOString();
+            
+            // 1. First, check if any upcoming/active events should be completed
+            const { data: overdue } = await supabase
                 .from('events')
-                .update({ status: 'completed' })
-                .in('id', overdue.map(e => e.id));
+                .select('id')
+                .or('status.eq.upcoming,status.eq.active')
+                .lt('end_time', now);
+            
+            if (overdue && overdue.length > 0) {
+                await supabase
+                    .from('events')
+                    .update({ status: 'completed' })
+                    .in('id', overdue.map(e => e.id));
+            }
+
+            // 2. Now fetch based on filter
+            let query = supabase.from('events').select('*');
+
+            if (filter === 'upcoming') {
+                query = query.gte('end_time', now).order('start_time', { ascending: true });
+            } else {
+                query = query.lt('end_time', now).order('end_time', { ascending: false });
+            }
+
+            const { data, error } = await query;
+            if (!error) setEvents(data || []);
+        } catch (err) {
+            console.error("Error fetching events:", err);
+        } finally {
+            setLoading(false);
         }
+    }, [supabase, filter]);
 
-        // 2. Now fetch based on filter
-        let query = supabase.from('events').select('*');
-
-        if (filter === 'upcoming') {
-            // Include anything that hasn't ended yet
-            query = query.gte('end_time', now).order('start_time', { ascending: true });
-        } else {
-            // Show events that have ended
-            query = query.lt('end_time', now).order('end_time', { ascending: false });
-        }
-
-        const { data, error } = await query;
-        if (!error) setEvents(data || []);
-        setLoading(false);
-    }
+    useEffect(() => {
+        const fetchAll = async () => {
+            await Promise.all([
+                fetchEvents(),
+                fetchCommunityEvent()
+            ]);
+        };
+        fetchAll();
+    }, [fetchEvents, fetchCommunityEvent]);
 
     async function handleRegister(e) {
         e.preventDefault();
