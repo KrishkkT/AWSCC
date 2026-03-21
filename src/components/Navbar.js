@@ -25,7 +25,7 @@ export default function Navbar() {
     ];
 
     return (
-        <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled ? "py-4 bg-background/80 dark:bg-background/95 backdrop-blur-xl border-b border-border shadow-sm" : "py-8 bg-transparent"}`}>
+        <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled || isMobileMenuOpen ? "py-4 bg-background/80 dark:bg-background/95 backdrop-blur-xl border-b border-border shadow-sm" : "py-8 bg-transparent"}`}>
             <div className="container mx-auto px-6 flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-3 group relative z-10">
                     <div className="h-14 md:h-16 flex items-center justify-start overflow-visible">
@@ -64,43 +64,52 @@ export default function Navbar() {
                 {/* Mobile Toggle */}
                 <div className="flex items-center gap-4 lg:hidden">
                     <ThemeToggle />
-                    <button className="text-foreground p-2 relative z-10" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+                    <button 
+                        className="text-foreground p-2 relative z-[100]" 
+                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                        aria-label="Toggle Menu"
+                    >
                         {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
                 </div>
             </div>
 
-            {/* Mobile Menu */}
             <AnimatePresence>
                 {isMobileMenuOpen && (
                     <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        className="fixed inset-0 h-screen w-full bg-background/98 backdrop-blur-xl z-40 p-10 lg:hidden flex flex-col justify-center gap-8"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 h-screen w-full bg-background/95 backdrop-blur-xl z-[90] lg:hidden flex flex-col justify-center items-center"
+                        onClick={() => setIsMobileMenuOpen(false)}
                     >
-                        <div className="flex flex-col gap-6">
-                            {navLinks.map((link, idx) => (
-                                <motion.div
-                                    key={link.name}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: idx * 0.05 }}
-                                >
-                                    <Link
-                                        href={link.href}
-                                        className="text-3xl font-display font-bold hover:text-brand-aws transition-colors"
-                                        onClick={() => setIsMobileMenuOpen(false)}
+                        <div 
+                            className="container mx-auto px-10 flex flex-col justify-center gap-12"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex flex-col gap-8">
+                                {navLinks.map((link, idx) => (
+                                    <motion.div
+                                        key={link.name}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: idx * 0.05 }}
                                     >
-                                        {link.name}
-                                    </Link>
-                                </motion.div>
-                            ))}
-                        </div>
-                        <div className="mt-10 flex flex-col gap-4">
-                            <Link href="/contact" className="btn-aws py-4 text-center font-bold" onClick={() => setIsMobileMenuOpen(false)}>
-                                Join Community
-                            </Link>
+                                        <Link
+                                            href={link.href}
+                                            className="text-4xl md:text-5xl font-display font-bold hover:text-brand-aws transition-colors"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                        >
+                                            {link.name}
+                                        </Link>
+                                    </motion.div>
+                                ))}
+                            </div>
+                            <div className="flex flex-col gap-4">
+                                <Link href="/contact" className="btn-aws py-5 text-center font-bold text-lg" onClick={() => setIsMobileMenuOpen(false)}>
+                                    Join Community
+                                </Link>
+                            </div>
                         </div>
                     </motion.div>
                 )}
