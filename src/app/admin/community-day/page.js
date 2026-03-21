@@ -17,6 +17,16 @@ const DEFAULT_AGENDA = [
   }
 ];
 
+const safeArray = (data, fallback = []) => Array.isArray(data) ? data : fallback;
+const safeObject = (data, fallback = {}) => (typeof data === 'object' && data !== null && !Array.isArray(data)) ? data : fallback;
+
+const TABS = [
+    { id: 'general', label: 'General Info', icon: Calendar },
+    { id: 'agenda', label: 'Agenda Blocks', icon: Clock },
+    { id: 'speakers_sponsors', label: 'Speakers & Sponsors', icon: Users },
+    { id: 'content', label: 'Page Content', icon: FileText }
+];
+
 export default function AdminCommunityDay() {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -47,8 +57,6 @@ export default function AdminCommunityDay() {
 
     const supabase = createClient();
 
-    useEffect(() => { fetchEvents(); }, [fetchEvents]);
-
     const fetchEvents = useCallback(async () => {
         setLoading(true);
         const { data, error } = await supabase.from('community_events').select('*').order('year', { ascending: false });
@@ -59,6 +67,8 @@ export default function AdminCommunityDay() {
         }
         setLoading(false);
     }, [supabase]);
+
+    useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
     function showFeedback(message, type = 'success') {
         setFeedback({ message, type });
@@ -88,8 +98,6 @@ export default function AdminCommunityDay() {
         setActiveTab('general');
     }
 
-    const safeArray = (data, fallback = []) => Array.isArray(data) ? data : fallback;
-    const safeObject = (data, fallback = {}) => (typeof data === 'object' && data !== null && !Array.isArray(data)) ? data : fallback;
 
     function startEdit(event) {
         setEditingEvent(event);
@@ -209,12 +217,6 @@ export default function AdminCommunityDay() {
         setProcessingId(null);
     }
 
-    const TABS = [
-        { id: 'general', label: 'General Info', icon: Calendar },
-        { id: 'agenda', label: 'Agenda Blocks', icon: Clock },
-        { id: 'speakers_sponsors', label: 'Speakers & Sponsors', icon: Users },
-        { id: 'content', label: 'Page Content', icon: FileText }
-    ];
 
     // Graphical Array Helpers
     const updateArrayItem = (key, idx, field, value) => {

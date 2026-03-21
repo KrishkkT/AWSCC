@@ -22,10 +22,6 @@ export default function AdminGallery() {
 
     const supabase = createClient();
 
-    useEffect(() => {
-        fetchPhotos();
-    }, [fetchPhotos]);
-
     const fetchPhotos = useCallback(async () => {
         setLoading(true);
         const { data, error } = await supabase
@@ -36,6 +32,10 @@ export default function AdminGallery() {
         else console.error('Error fetching gallery:', error);
         setLoading(false);
     }, [supabase]);
+
+    useEffect(() => {
+        fetchPhotos();
+    }, [fetchPhotos]);
 
     async function handleImageUpload(e) {
         const file = e.target.files?.[0];

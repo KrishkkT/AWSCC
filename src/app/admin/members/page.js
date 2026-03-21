@@ -18,8 +18,6 @@ export default function AdminMembers() {
     const [processingId, setProcessingId] = useState(null);
     const supabase = createClient();
 
-    useEffect(() => { fetchMembers(); }, [fetchMembers]);
-
     const fetchMembers = useCallback(async () => {
         setLoading(true);
         // Try sorting by created_at, fallback to id if it fails (before migration is applied)
@@ -47,6 +45,8 @@ export default function AdminMembers() {
         }
         setLoading(false);
     }, [supabase]);
+
+    useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
     async function handleAddMember(e) {
         e.preventDefault();

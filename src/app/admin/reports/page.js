@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
 import { FileText, Download, BarChart3, Users, Calendar, TrendingUp, Loader2 } from "lucide-react";
@@ -11,8 +11,6 @@ export default function AdminReports() {
     const [loading, setLoading] = useState(true);
     const [exporting, setExporting] = useState(null);
     const supabase = createClient();
-
-    useEffect(() => { fetchStats(); }, [fetchStats]);
 
     const fetchStats = useCallback(async () => {
         setLoading(true);
@@ -29,7 +27,7 @@ export default function AdminReports() {
         setLoading(false);
     }, [supabase]);
 
-    const reports = [
+    const reports = useMemo(() => [
         {
             title: "Membership Summary",
             desc: "Total members, role breakdown, activation rates",
@@ -54,7 +52,9 @@ export default function AdminReports() {
             icon: <FileText size={24} />,
             stats: "PDF Export Ready",
         },
-    ];
+    ], [stats]);
+
+    useEffect(() => { fetchStats(); }, [fetchStats]);
 
     async function handleExport(report) {
         setExporting(report.title);

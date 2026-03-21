@@ -28,10 +28,6 @@ export default function AdminTeam() {
 
     const supabase = createClient();
 
-    useEffect(() => {
-        fetchTeam();
-    }, [fetchTeam]);
-
     const fetchTeam = useCallback(async () => {
         setLoading(true);
         const { data, error } = await supabase
@@ -41,6 +37,10 @@ export default function AdminTeam() {
         if (!error) setTeam(data || []);
         setLoading(false);
     }, [supabase]);
+
+    useEffect(() => {
+        fetchTeam();
+    }, [fetchTeam]);
 
     async function handleImageUpload(e) {
         const file = e.target.files[0];

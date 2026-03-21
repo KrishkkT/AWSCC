@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import jsPDF from 'jspdf';
 
 export const generateProfessionalReport = async (data, title = "System Report") => {
     const doc = new jsPDF('p', 'mm', 'a4');
