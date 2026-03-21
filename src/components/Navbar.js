@@ -25,7 +25,7 @@ export default function Navbar() {
     ];
 
     return (
-        <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled || isMobileMenuOpen ? "py-4 bg-background/80 dark:bg-background/95 backdrop-blur-xl border-b border-border shadow-sm" : "py-8 bg-transparent"}`}>
+        <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled && !isMobileMenuOpen ? "py-4 bg-background/80 dark:bg-background/95 backdrop-blur-xl border-b border-border shadow-sm" : "py-8 bg-transparent"}`}>
             <div className="container mx-auto px-6 flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-3 group relative z-10">
                     <div className="h-14 md:h-16 flex items-center justify-start overflow-visible">
@@ -80,7 +80,7 @@ export default function Navbar() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 h-screen w-full bg-background/95 backdrop-blur-xl z-[90] lg:hidden flex flex-col justify-center items-center"
+                        className="fixed inset-0 h-screen w-full bg-background/10 backdrop-blur-2xl z-[90] lg:hidden flex flex-col justify-center items-center"
                         onClick={() => setIsMobileMenuOpen(false)}
                     >
                         <div 
