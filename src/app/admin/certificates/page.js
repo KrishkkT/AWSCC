@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Award, Search, Download, Plus, Eye, Trash2, FileText, Loader2, X, ShieldCheck } from "lucide-react";
 import Toast from "@/components/Toast";
@@ -26,12 +26,7 @@ export default function AdminCertificates() {
     });
     const supabase = createClient();
 
-    useEffect(() => {
-        fetchCertificates();
-        fetchEvents();
-    }, []);
-
-    async function fetchCertificates() {
+    const fetchCertificates = useCallback(async () => {
         setLoading(true);
         const { data, error } = await supabase
             .from('certificates')
@@ -39,12 +34,17 @@ export default function AdminCertificates() {
             .order('created_at', { ascending: false });
         if (!error) setCertificates(data || []);
         setLoading(false);
-    }
+    }, [supabase]);
 
-    async function fetchEvents() {
+    const fetchEvents = useCallback(async () => {
         const { data } = await supabase.from('events').select('id, title').order('created_at', { ascending: false });
         if (data) setEvents(data);
-    }
+    }, [supabase]);
+
+    useEffect(() => {
+        fetchCertificates();
+        fetchEvents();
+    }, [fetchCertificates, fetchEvents]);
 
     async function handleIssueCert(e) {
         e.preventDefault();

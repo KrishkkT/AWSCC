@@ -40,10 +40,10 @@ export default async function CommunityDayPage({ params }) {
                         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                     </div>
                     
-                    <h1 className="text-4xl md:text-5xl font-black text-foreground mb-4">You're Early to the Party!</h1>
+                    <h1 className="text-4xl md:text-5xl font-black text-foreground mb-4">You&apos;re Early to the Party!</h1>
                     
                     <p className="text-muted-foreground text-lg mb-8 leading-relaxed max-w-xl mx-auto">
-                        Oh, you reached here! Don't worry, the <strong>AWS Community Day {year}</strong> is currently being heavily organized by our team.<br/><br/>
+                        Oh, you reached here! Don&apos;t worry, the <strong>AWS Community Day {year}</strong> is currently being heavily organized by our team.<br/><br/>
                         Stay tuned on our socials. This page will be super active once the event is fully announced with early-bird tickets and exclusive speakers!
                     </p>
                     

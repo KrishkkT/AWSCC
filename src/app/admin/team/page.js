@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Users, Plus, Trash2, Edit2, Github, Linkedin, Twitter, Save, X, Loader2, Upload, Link as LinkIcon, Image as ImageIcon, Instagram } from "lucide-react";
 import Toast from "@/components/Toast";
@@ -30,9 +30,9 @@ export default function AdminTeam() {
 
     useEffect(() => {
         fetchTeam();
-    }, []);
+    }, [fetchTeam]);
 
-    async function fetchTeam() {
+    const fetchTeam = useCallback(async () => {
         setLoading(true);
         const { data, error } = await supabase
             .from('team_members')
@@ -40,7 +40,7 @@ export default function AdminTeam() {
             .order('display_order', { ascending: true });
         if (!error) setTeam(data || []);
         setLoading(false);
-    }
+    }, [supabase]);
 
     async function handleImageUpload(e) {
         const file = e.target.files[0];
@@ -169,7 +169,7 @@ export default function AdminTeam() {
                             className="glass-card p-6 border-white/5 flex items-start gap-5 hover:border-brand-cyan/20 transition-all group"
                         >
                             <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/5 shrink-0 border border-white/10 group-hover:border-brand-cyan/30 transition-all">
-                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.full_name}&background=0D0D0D&color=fff`} className="w-full h-full object-cover" alt="" />
+                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.full_name}&background=0D0D0D&color=fff`} className="w-full h-full object-cover" alt={member.full_name} />
                             </div>
                             <div className="flex-grow min-w-0">
                                 <h3 className="text-white font-black truncate">{member.full_name}</h3>

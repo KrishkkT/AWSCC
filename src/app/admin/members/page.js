@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Users, Search, Shield, Mail, UserCheck, Crown, X, Check, Trash2, Loader2, RotateCcw } from "lucide-react";
 import Toast from "@/components/Toast";
@@ -18,9 +18,9 @@ export default function AdminMembers() {
     const [processingId, setProcessingId] = useState(null);
     const supabase = createClient();
 
-    useEffect(() => { fetchMembers(); }, []);
+    useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
-    async function fetchMembers() {
+    const fetchMembers = useCallback(async () => {
         setLoading(true);
         // Try sorting by created_at, fallback to id if it fails (before migration is applied)
         let { data, error } = await supabase
@@ -46,7 +46,7 @@ export default function AdminMembers() {
             setMembers(data || []);
         }
         setLoading(false);
-    }
+    }, [supabase]);
 
     async function handleAddMember(e) {
         e.preventDefault();

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Cloud, Zap, Shield, Users, ArrowRight, ExternalLink, Globe, Cpu, Calendar, Trophy, Rocket, BookOpen } from "lucide-react";
+import { Cloud, Zap, Shield, Users, ArrowRight, ExternalLink, Globe, Cpu, Calendar, Trophy, Rocket, BookOpen, Box } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import HeroVisual from "@/components/HeroVisual";
@@ -28,7 +28,7 @@ export default function Home() {
     useEffect(() => {
         setMounted(true);
         fetchHighlights();
-    }, []);
+    }, [fetchHighlights]);
 
     async function fetchHighlights() {
         const { data, error } = await supabase

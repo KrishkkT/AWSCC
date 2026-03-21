@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
 import { FileText, Download, BarChart3, Users, Calendar, TrendingUp, Loader2 } from "lucide-react";
@@ -12,9 +12,9 @@ export default function AdminReports() {
     const [exporting, setExporting] = useState(null);
     const supabase = createClient();
 
-    useEffect(() => { fetchStats(); }, []);
+    useEffect(() => { fetchStats(); }, [fetchStats]);
 
-    async function fetchStats() {
+    const fetchStats = useCallback(async () => {
         setLoading(true);
         const [membersRes, eventsRes, activeRes] = await Promise.all([
             supabase.from('profiles').select('id', { count: 'exact', head: true }),
@@ -27,7 +27,7 @@ export default function AdminReports() {
             activeMembers: activeRes.count || 0,
         });
         setLoading(false);
-    }
+    }, [supabase]);
 
     const reports = [
         {

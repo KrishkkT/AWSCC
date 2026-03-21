@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import CertificateTemplate from "@/components/CertificateTemplate";
 import { Download, Share2, ShieldCheck, Printer, ExternalLink, AlertCircle, Award } from "lucide-react";
@@ -16,26 +16,27 @@ export default function VerifyClient({ params }) {
     const supabase = createClient();
     const certRef = useRef();
 
-    useEffect(() => {
-        async function fetchCert() {
-            try {
-                const { data, error } = await supabase
-                    .from('certificates')
-                    .select('*, events(title, start_time, date)')
-                    .eq('id', id)
-                    .single();
+    const fetchCert = useCallback(async () => {
+        try {
+            const { data, error } = await supabase
+                .from('certificates')
+                .select('*, events(title, start_time, date)')
+                .eq('id', id)
+                .single();
 
-                if (error) throw error;
-                setCert(data);
-            } catch (err) {
-                console.error("Fetch error:", err);
-                setError("Certificate not found");
-            } finally {
-                setLoading(false);
-            }
+            if (error) throw error;
+            setCert(data);
+        } catch (err) {
+            console.error("Fetch error:", err);
+            setError("Certificate not found");
+        } finally {
+            setLoading(false);
         }
+    }, [id, supabase]);
+
+    useEffect(() => {
         if (id) fetchCert();
-    }, [id]);
+    }, [id, fetchCert]);
 
     const handleDownloadPDF = async () => {
         if (!cert) return;

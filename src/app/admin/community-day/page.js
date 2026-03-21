@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Calendar, Plus, Search, Edit2, Trash2, Eye, EyeOff, X, Check, Loader2, Code2, Users, Award, Ticket, Clock, FileText } from "lucide-react";
 import Toast from "@/components/Toast";
@@ -47,9 +47,9 @@ export default function AdminCommunityDay() {
 
     const supabase = createClient();
 
-    useEffect(() => { fetchEvents(); }, []);
+    useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
-    async function fetchEvents() {
+    const fetchEvents = useCallback(async () => {
         setLoading(true);
         const { data, error } = await supabase.from('community_events').select('*').order('year', { ascending: false });
         if (error && error.code !== '42P01') {
@@ -58,7 +58,7 @@ export default function AdminCommunityDay() {
             setEvents(data || []);
         }
         setLoading(false);
-    }
+    }, [supabase]);
 
     function showFeedback(message, type = 'success') {
         setFeedback({ message, type });
@@ -299,9 +299,9 @@ export default function AdminCommunityDay() {
                                     <div className="flex gap-4 items-start">
                                         <label className="shrink-0 flex flex-col justify-center items-center w-32 h-32 border-2 border-dashed border-white/20 rounded-xl hover:border-brand-cyan/50 hover:bg-brand-cyan/5 transition-all cursor-pointer relative overflow-hidden group">
                                             {popupImageFile ? (
-                                                <img src={URL.createObjectURL(popupImageFile)} alt="Preview" className="w-full h-full object-cover" />
+                                                <img src={URL.createObjectURL(popupImageFile)} alt="Popup Preview" className="w-full h-full object-cover" />
                                             ) : formData.popup_image_url ? (
-                                                <img src={formData.popup_image_url} alt="Current" className="w-full h-full object-cover" />
+                                                <img src={formData.popup_image_url} alt="Current Popup" className="w-full h-full object-cover" />
                                             ) : (
                                                 <div className="text-center">
                                                     <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-2 text-white/60 group-hover:text-brand-cyan transition-colors"><Plus size={16} /></div>
@@ -397,7 +397,7 @@ export default function AdminCommunityDay() {
                                         <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 md:p-5 relative flex flex-col sm:flex-row gap-5 items-start">
                                             <button type="button" onClick={() => removeArrayItem('speakers_data', idx)} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full sm:bg-transparent"><X size={14}/></button>
                                             <label className="w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-2xl border-2 border-dashed border-white/20 hover:border-brand-cyan/50 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group bg-white/5 mx-auto sm:mx-0">
-                                                {speaker.image ? <img src={speaker.image} className="absolute inset-0 w-full h-full object-cover" /> : <div className="text-white/40 group-hover:text-brand-cyan transition-colors"><Plus size={24}/></div>}
+                                                {speaker.image ? <img src={speaker.image} alt={speaker.name || "Speaker"} className="absolute inset-0 w-full h-full object-cover" /> : <div className="text-white/40 group-hover:text-brand-cyan transition-colors"><Plus size={24}/></div>}
                                                 <input type="file" accept="image/*" className="hidden" onChange={e => handleArrayImageChange('speakers_data', idx, e.target.files[0], 'image')} />
                                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
                                                     <span className="text-[10px] font-black uppercase text-white tracking-widest">Upload</span>
@@ -423,7 +423,7 @@ export default function AdminCommunityDay() {
                                         <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 md:p-5 relative flex flex-col sm:flex-row gap-5 items-center sm:items-start">
                                             <button type="button" onClick={() => removeArrayItem('sponsors_data', idx)} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full sm:bg-transparent"><X size={14}/></button>
                                             <label className="w-20 h-20 shrink-0 bg-white/5 rounded-xl overflow-hidden border-2 border-dashed border-white/20 hover:border-[#fde047]/50 flex flex-col items-center justify-center cursor-pointer relative group">
-                                                {sponsor.logo ? <img src={sponsor.logo} className="w-full h-full object-contain p-2" /> : <div className="text-white/20 group-hover:text-[#fde047] transition-colors"><Award size={24}/></div>}
+                                                {sponsor.logo ? <img src={sponsor.logo} alt={sponsor.name || "Sponsor"} className="w-full h-full object-contain p-2" /> : <div className="text-white/20 group-hover:text-[#fde047] transition-colors"><Award size={24}/></div>}
                                                 <input type="file" accept="image/*" className="hidden" onChange={e => handleArrayImageChange('sponsors_data', idx, e.target.files[0], 'logo')} />
                                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
                                                     <span className="text-[9px] font-black uppercase text-white tracking-widest mt-1">Logo</span>
@@ -477,7 +477,7 @@ export default function AdminCommunityDay() {
                                             <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 relative text-sm flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                                                 <button type="button" onClick={() => removeArrayItem('team_data', idx)} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full sm:bg-transparent"><X size={14}/></button>
                                                 <label className="w-20 h-20 shrink-0 mx-auto sm:mx-0 rounded-full bg-white/5 border-2 border-dashed border-white/20 hover:border-brand-cyan/50 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group">
-                                                    {member.image ? <img src={member.image} className="absolute inset-0 w-full h-full object-cover" /> : <div className="text-white/40 group-hover:text-brand-cyan transition-colors"><Users size={20}/></div>}
+                                                    {member.image ? <img src={member.image} alt={member.name || "Member"} className="absolute inset-0 w-full h-full object-cover" /> : <div className="text-white/40 group-hover:text-brand-cyan transition-colors"><Users size={20}/></div>}
                                                     <input type="file" accept="image/*" className="hidden" onChange={e => handleArrayImageChange('team_data', idx, e.target.files[0], 'image')} />
                                                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
                                                         <span className="text-[9px] font-black uppercase text-white tracking-widest">Image</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Github, Linkedin, Instagram, Users } from "lucide-react";
 
@@ -10,21 +10,22 @@ export default function Team() {
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
 
-    useEffect(() => {
-        async function fetchTeam() {
-            setLoading(true);
-            const { data, error } = await supabase
-                .from('team_members')
-                .select('*')
-                .order('display_order', { ascending: true });
+    const fetchTeam = useCallback(async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('team_members')
+            .select('*')
+            .order('display_order', { ascending: true });
 
-            if (data) {
-                setTeam(data);
-            }
-            setLoading(false);
+        if (data) {
+            setTeam(data);
         }
+        setLoading(false);
+    }, [supabase]);
+
+    useEffect(() => {
         fetchTeam();
-    }, []);
+    }, [fetchTeam]);
 
     const TeamSection = ({ title, members }) => {
         if (members.length === 0) return null;

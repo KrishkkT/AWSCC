@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Calendar, Plus, Search, Edit2, Trash2, Clock, Users, MapPin, X, Check, Loader2 } from "lucide-react";
 import Toast from "@/components/Toast";
@@ -38,9 +38,12 @@ export default function AdminEvents() {
 
     const supabase = createClient();
 
-    useEffect(() => { fetchEvents(); }, []);
+    const showFeedback = useCallback((message, type = 'success') => {
+        setFeedback({ message, type });
+        setTimeout(() => setFeedback(null), 3000);
+    }, []);
 
-    async function fetchEvents() {
+    const fetchEvents = useCallback(async () => {
         setLoading(true);
         const { data: rawEvents, error } = await supabase
             .from('events')
@@ -64,7 +67,6 @@ export default function AdminEvents() {
                     .update({ status: 'completed' })
                     .in('id', toComplete);
                 
-                // Refresh data to show updated statuses
                 const { data: updatedEvents } = await supabase
                     .from('events')
                     .select('*')
@@ -75,12 +77,24 @@ export default function AdminEvents() {
             }
         }
         setLoading(false);
-    }
+    }, [supabase, showFeedback]);
 
-    function showFeedback(message, type = 'success') {
-        setFeedback({ message, type });
-        setTimeout(() => setFeedback(null), 3000);
-    }
+    const fetchParticipants = useCallback(async (eventId) => {
+        setLoadingParticipants(true);
+        const { data, error } = await supabase
+            .from('event_registrations')
+            .select('*')
+            .eq('event_id', eventId)
+            .order('created_at', { ascending: false });
+        if (error) {
+            console.error('Fetch participants error:', error);
+        } else {
+            setEventParticipants(data || []);
+        }
+        setLoadingParticipants(false);
+    }, [supabase]);
+
+    useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
     async function handleBatchIssue(eventId) {
         if (!confirm('This will issue certificates to all registered participants for this event. Proceed?')) return;
@@ -183,21 +197,6 @@ export default function AdminEvents() {
             setImporting(false);
         }
     };
-
-    async function fetchParticipants(eventId) {
-        setLoadingParticipants(true);
-        const { data, error } = await supabase
-            .from('event_registrations')
-            .select('*')
-            .eq('event_id', eventId)
-            .order('created_at', { ascending: false });
-        if (error) {
-            console.error('Fetch participants error:', error);
-        } else {
-            setEventParticipants(data || []);
-        }
-        setLoadingParticipants(false);
-    }
 
     async function handleIndividualIssue(participant) {
         if (!confirm(`Issue certificate to ${participant.full_name}?`)) return;

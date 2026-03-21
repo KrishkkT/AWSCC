@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Image as ImageIcon, Plus, Trash2, Edit2, Save, X, Loader2, Eye, Upload } from "lucide-react";
 import Toast from "@/components/Toast";
@@ -24,9 +24,9 @@ export default function AdminGallery() {
 
     useEffect(() => {
         fetchPhotos();
-    }, []);
+    }, [fetchPhotos]);
 
-    async function fetchPhotos() {
+    const fetchPhotos = useCallback(async () => {
         setLoading(true);
         const { data, error } = await supabase
             .from('gallery')
@@ -35,7 +35,7 @@ export default function AdminGallery() {
         if (!error) setPhotos(data || []);
         else console.error('Error fetching gallery:', error);
         setLoading(false);
-    }
+    }, [supabase]);
 
     async function handleImageUpload(e) {
         const file = e.target.files?.[0];

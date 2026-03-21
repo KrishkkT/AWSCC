@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Calendar, MapPin, ExternalLink, Clock, Check } from "lucide-react";
+import { Calendar, MapPin, ExternalLink, Clock, Check, ArrowRight, Cloud, Zap } from "lucide-react";
 
 export default function Events() {
     const supabase = createClient();
@@ -19,9 +19,12 @@ export default function Events() {
     const [communityEvent, setCommunityEvent] = useState(null);
 
     useEffect(() => {
-        fetchEvents();
-        fetchCommunityEvent();
-    }, [filter]);
+        const fetchAll = async () => {
+            await fetchEvents();
+            await fetchCommunityEvent();
+        };
+        fetchAll();
+    }, [filter, fetchEvents, fetchCommunityEvent]);
 
     async function fetchCommunityEvent() {
         const { data, error } = await supabase
