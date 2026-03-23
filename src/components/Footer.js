@@ -13,9 +13,9 @@ export default function Footer() {
                 <div className="lg:col-span-1 space-y-6">
                     <Link href="/" className="flex items-center gap-3">
                         <img
-                            src="/images/logo.png"
+                            src="/images/ddu-aws-combined.png"
                             alt="AWSCC Logo"
-                            className="h-12 w-auto object-contain invert dark:invert-0"
+                            className="h-14 w-auto object-contain invert dark:invert-0"
                             onError={(e) => {
                                 e.target.style.display = 'none';
                                 e.target.nextSibling.style.display = 'flex';

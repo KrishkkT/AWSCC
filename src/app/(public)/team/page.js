@@ -46,12 +46,12 @@ export default function Team() {
                             transition={{ delay: i * 0.1 }}
                             className="card-professional p-8 text-center group border-border relative max-w-[320px] w-full"
                         >
-                            <div className="w-32 h-32 mx-auto mb-8 rounded-2xl p-0.5 bg-secondary relative group-hover:bg-brand-aws transition-colors duration-500 overflow-hidden">
+                            <div className="w-32 h-32 mx-auto mb-8 rounded-2xl p-0.5 bg-secondary relative group-hover:bg-brand-aws transition-all duration-500 overflow-hidden group-hover:shadow-[0_0_20px_rgba(255,153,0,0.4)] group-hover:scale-105">
                                 <div className="w-full h-full rounded-2xl overflow-hidden bg-background">
                                     <img
                                         src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.full_name}&background=111111&color=fff`}
                                         alt={member.full_name}
-                                        className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700"
+                                        className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-2 group-hover:brightness-110 transition-all duration-700"
                                     />
                                 </div>
                             </div>

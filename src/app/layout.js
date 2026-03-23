@@ -92,14 +92,6 @@ export const metadata = {
         description: "Join the Student Cloud Builder Community at DDU.",
         images: ["/images/og-image.jpg"],
     },
-    icons: {
-        icon: [
-            { url: "/favicon.png" },
-            { url: "/favicon.png", sizes: "32x32", type: "image/png" },
-            { url: "/favicon.png", sizes: "16x16", type: "image/png" },
-        ],
-        apple: "/favicon.png",
-    },
     category: "technology",
 };
 
