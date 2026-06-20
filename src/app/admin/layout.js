@@ -3,7 +3,7 @@ import AdminTopBar from "@/components/admin/AdminTopBar";
 import AdminLayoutClient from "@/components/admin/AdminLayoutClient";
 
 export const metadata = {
-    title: "Admin Portal | AWS Cloud Club",
+    title: "Admin Portal | AWS Student Builder Group",
     description: "Secure Management Portal",
 };
 

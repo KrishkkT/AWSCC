@@ -31,7 +31,7 @@ export default function Navbar() {
                     <div className="h-9 sm:h-16 md:h-20 lg:h-24 flex items-center justify-start overflow-hidden">
                         <img
                             src="/images/ddu-aws-combined.png"
-                            alt="AWS Cloud Club & DDU Logo"
+                            alt="AWS Student Builder Group & DDU Logo"
                             className="h-16 w-auto object-contain brightness-110 dark:brightness-100 drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-none"
                         />
                     </div>

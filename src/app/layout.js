@@ -27,29 +27,29 @@ const playfair = Playfair_Display({
 export const metadata = {
     metadataBase: new URL("https://awscc-ddu.vercel.app"),
     title: {
-        default: "AWS Cloud Club | Dharmsinh Desai University (DDU)",
-        template: "%s | AWS Cloud Club DDU"
+        default: "AWS Student Builder Group | Dharmsinh Desai University (DDU)",
+        template: "%s | AWS Student Builder Group DDU"
     },
-    description: "Official AWS Cloud Club at Dharmsinh Desai University (DDU), Nadiad. Join the elite community of student cloud builders, learn AWS services, and accelerate your career in cloud computing.",
+    description: "Official AWS Student Builder Group at Dharmsinh Desai University (DDU), Nadiad. Join the elite community of student cloud builders, learn AWS services, and accelerate your career in cloud computing.",
     keywords: [
-        "AWS Cloud Club",
-        "AWS Cloud Club DDU",
+        "AWS Student Builder Group",
+        "AWS Student Builder Group DDU",
         "DDU Nadiad",
         "Dharmsinh Desai University",
         "Cloud Computing Student Club",
         "AWS Services",
         "AWS Student Community",
-        "DDU Cloud Club",
+        "DDU Student Builder Group",
         "AWS Gujarat",
         "Cloud Builder Community",
         "AWS Certifications",
         "Cloud Workshops",
         "DDU IT Department",
-        "AWS Cloud Club Nadiad"
+        "AWS Student Builder Group Nadiad"
     ],
-    authors: [{ name: "AWS Cloud Club DDU", url: "https://awscc-ddu.vercel.app" }],
-    creator: "AWS Cloud Club DDU",
-    publisher: "AWS Cloud Club DDU",
+    authors: [{ name: "AWS Student Builder Group DDU", url: "https://awscc-ddu.vercel.app" }],
+    creator: "AWS Student Builder Group DDU",
+    publisher: "AWS Student Builder Group DDU",
     robots: {
         index: true,
         follow: true,
@@ -71,16 +71,16 @@ export const metadata = {
         telephone: false,
     },
     openGraph: {
-        title: "AWS Cloud Club | DDU Nadiad",
+        title: "AWS Student Builder Group | DDU Nadiad",
         description: "Official Student Community for Cloud Innovation at Dharmsinh Desai University (DDU). Accelerate your cloud journey with student builders.",
         url: "/", 
-        siteName: "AWS Cloud Club DDU",
+        siteName: "AWS Student Builder Group DDU",
         images: [
             {
                 url: "/images/og-image.jpg",
                 width: 1200,
                 height: 630,
-                alt: "AWS Cloud Club DDU",
+                alt: "AWS Student Builder Group DDU",
             },
         ],
         locale: "en_US",
@@ -88,7 +88,7 @@ export const metadata = {
     },
     twitter: {
         card: "summary_large_image",
-        title: "AWS Cloud Club | DDU Nadiad",
+        title: "AWS Student Builder Group | DDU Nadiad",
         description: "Join the Student Cloud Builder Community at DDU.",
         images: ["/images/og-image.jpg"],
     },

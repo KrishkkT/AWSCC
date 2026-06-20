@@ -138,14 +138,14 @@ export default function AdminMembers() {
     }
 
     const roleColors = {
-        captain: 'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20',
+        Leader: 'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20',
         faculty: 'bg-brand-teal/10 text-brand-teal border-brand-teal/20',
         core: 'bg-white/10 text-white/70 border-white/20',
         member: 'bg-white/5 text-white/30 border-white/10',
     };
 
     const roleIcons = {
-        captain: <Crown size={14} />,
+        Leader: <Crown size={14} />,
         faculty: <Shield size={14} />,
         core: <UserCheck size={14} />,
         member: <Users size={14} />,
@@ -216,7 +216,7 @@ export default function AdminMembers() {
                                 <select value={newMember.role} onChange={e => setNewMember({ ...newMember, role: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-cyan outline-none font-bold">
                                     <option value="member">Member</option>
                                     <option value="core">Core</option>
-                                    <option value="captain">Captain</option>
+                                    <option value="Leader">Leader</option>
                                     <option value="faculty">Faculty</option>
                                 </select>
                             </div>
@@ -243,7 +243,7 @@ export default function AdminMembers() {
                 <select value={filterRole} onChange={e => setFilterRole(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm font-bold outline-none focus:border-brand-cyan/50 cursor-pointer">
                     <option value="all">All Roles</option>
                     <option value="faculty">Faculty</option>
-                    <option value="captain">Captain</option>
+                    <option value="Leader">Leader</option>
                     <option value="core">Core</option>
                     <option value="member">Member</option>
                 </select>
@@ -298,7 +298,7 @@ export default function AdminMembers() {
                                         >
                                             <option value="member">Member</option>
                                             <option value="core">Core</option>
-                                            <option value="captain">Captain</option>
+                                            <option value="Leader">Leader</option>
                                             <option value="faculty">Faculty</option>
                                         </select>
                                         {processingId === member.id ? (

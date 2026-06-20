@@ -60,7 +60,7 @@ export default function Home() {
                             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                             className="text-5xl sm:text-6xl md:text-8xl lg:text-9xl font-display font-bold tracking-tight mb-8 leading-[0.85] text-foreground"
                         >
-                            AWS Cloud Club <br />
+                            AWS Student Builder Group <br />
                             <span className="text-aws-gradient">DDU Nadiad</span>
                         </motion.h1>
 
@@ -183,7 +183,7 @@ export default function Home() {
                 <section className="py-24 bg-secondary/20 backdrop-blur-sm relative border-y border-border/50">
                     <div className="container mx-auto px-6">
                         <div className="max-w-3xl mx-auto text-center mb-20 space-y-6">
-                            <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground">Why Join <span className="text-brand-aws">AWS Cloud Club</span>?</h2>
+                            <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground">Why Join <span className="text-brand-aws">AWS Student Builder Group</span>?</h2>
                             <p className="text-muted-foreground text-lg">We bridge the gap between academic theory and industry practice through the power of cloud computing.</p>
                         </div>
 
@@ -196,7 +196,7 @@ export default function Home() {
                                 },
                                 {
                                     title: "Global Network",
-                                    desc: "Connect with a global community of AWS builders and enthusiasts across various Cloud Clubs.",
+                                    desc: "Connect with a global community of AWS builders and enthusiasts across various Student Builder Groups.",
                                     icon: <Globe className="text-brand-aws" size={28} />
                                 },
                                 {

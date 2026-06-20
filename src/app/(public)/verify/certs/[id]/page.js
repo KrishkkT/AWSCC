@@ -16,16 +16,16 @@ export async function generateMetadata({ params }) {
 
     return {
         title: `${cert.recipient_name}'s Certificate | AWSCC DDU`,
-        description: `Official ${cert.certificate_type} certificate for ${cert.recipient_name} regarding ${cert.event_name}. Verified by AWS Cloud Club DDU.`,
+        description: `Official ${cert.certificate_type} certificate for ${cert.recipient_name} regarding ${cert.event_name}. Verified by AWS Student Builder Group DDU.`,
         openGraph: {
-            title: `${cert.recipient_name} - AWS Cloud Club Certificate`,
-            description: `Achievement for ${cert.event_name} issued by AWS Cloud Club DDU.`,
+            title: `${cert.recipient_name} - AWS Student Builder Group Certificate`,
+            description: `Achievement for ${cert.event_name} issued by AWS Student Builder Group DDU.`,
             images: [
                 {
                     url: `${siteUrl}/templates/attendee_template.png`,
                     width: 1000,
                     height: 707,
-                    alt: 'AWS Cloud Club Certificate Template',
+                    alt: 'AWS Student Builder Group Certificate Template',
                 },
             ],
             type: 'article',

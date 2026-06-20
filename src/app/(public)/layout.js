@@ -24,7 +24,7 @@ export default async function PublicLayout({ children }) {
             .select('role')
             .eq('id', user.id)
             .single();
-        isAdmin = ['captain', 'faculty', 'core', 'admin'].includes(profile?.role);
+        isAdmin = ['Leader', 'faculty', 'core', 'admin'].includes(profile?.role);
     }
 
     if (settings?.maintenance_mode && !isAdmin) {
@@ -50,7 +50,7 @@ export default async function PublicLayout({ children }) {
                 {children}
             </main>
             <Footer />
-            
+
             {/* Global Event Injections */}
             <CommunityDayWidget event={validEvent} />
             <CommunityDayPopup event={validEvent} />

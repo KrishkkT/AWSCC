@@ -9,12 +9,12 @@ export async function POST(req) {
             return new Response(JSON.stringify({ error: "Invalid data provided" }), { status: 400 });
         }
 
-        // 1. Verify Authorization (Admin/Captain/Faculty)
+        // 1. Verify Authorization (Admin/Leader/Faculty)
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
 
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-        if (!profile || !['admin', 'captain', 'faculty'].includes(profile.role)) {
+        if (!profile || !['admin', 'Leader', 'faculty'].includes(profile.role)) {
             return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
         }
 
@@ -31,9 +31,9 @@ export async function POST(req) {
         const newParticipants = participants.filter(p => p.email && !existingEmails.has(p.email.toLowerCase()));
 
         if (newParticipants.length === 0) {
-            return new Response(JSON.stringify({ 
+            return new Response(JSON.stringify({
                 message: "No new participants to import. All emails are already registered.",
-                count: 0 
+                count: 0
             }), { status: 200 });
         }
 

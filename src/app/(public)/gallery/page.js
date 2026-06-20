@@ -48,7 +48,7 @@ export default function Gallery() {
                         Cloud <span className="text-brand-aws">Gallery</span>
                     </h1>
                     <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-                        Capturing moments of innovation, collaboration, and community growth at AWS Cloud Club DDU.
+                        Capturing moments of innovation, collaboration, and community growth at AWS Student Builder Group DDU.
                     </p>
                 </div>
             </section>

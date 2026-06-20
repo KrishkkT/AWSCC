@@ -37,7 +37,7 @@ export default function LoadingScreen({ onComplete }) {
                 transition={{ delay: 0.2 }}
             >
                 <div className="text-white/60 text-sm font-bold uppercase tracking-[0.3em] mb-2">
-                    Loading AWS Cloud Club...
+                    Loading AWS Student Builder Group...
                 </div>
                 {/* Progress Bar */}
                 <div className="w-70 h-1 bg-white/10 rounded-full overflow-hidden">

@@ -57,7 +57,7 @@ export default function VerifyClient({ params }) {
         if (!cert) return;
         const certName = `Certificate of Completion: ${cert.event_name}`;
         const issueDate = new Date(cert.created_at);
-        const url = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent(certName)}&organizationName=${encodeURIComponent("AWS Cloud Club DDU")}&issueMonth=${issueDate.getMonth() + 1}&issueYear=${issueDate.getFullYear()}&certUrl=${encodeURIComponent(window.location.href)}&certId=${cert.id}`;
+        const url = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent(certName)}&organizationName=${encodeURIComponent("AWS Student Builder Group DDU")}&issueMonth=${issueDate.getMonth() + 1}&issueYear=${issueDate.getFullYear()}&certUrl=${encodeURIComponent(window.location.href)}&certId=${cert.id}`;
         window.open(url, '_blank');
     };
 
@@ -111,7 +111,7 @@ export default function VerifyClient({ params }) {
                                 <span className="font-black uppercase tracking-widest text-xs">Verified Asset</span>
                             </div>
                             <h2 className="text-2xl font-black mb-2 tracking-tight">Digital Credential</h2>
-                            <p className="text-sm text-muted-foreground font-medium mb-8">This certificate is a verified achievement issued by AWS Cloud Club DDU.</p>
+                            <p className="text-sm text-muted-foreground font-medium mb-8">This certificate is a verified achievement issued by AWS Student Builder Group DDU.</p>
 
                             <div className="space-y-3">
                                 <button

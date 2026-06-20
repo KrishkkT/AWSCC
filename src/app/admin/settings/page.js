@@ -31,7 +31,7 @@ export default function Settings() {
                     .single();
                 setProfile(prof || { full_name: user.email, role: 'member', email: user.email });
 
-                if (prof?.role === 'captain') {
+                if (prof?.role === 'Leader') {
                     const { data: global } = await supabase
                         .from('global_settings')
                         .select('*')
@@ -54,7 +54,7 @@ export default function Settings() {
             .update({ full_name: profile.full_name })
             .eq('id', user.id);
 
-        if (profile.role === 'captain') {
+        if (profile.role === 'Leader') {
             await supabase
                 .from('global_settings')
                 .upsert([{ ...globalSettings, id: '1', updated_at: new Date().toISOString() }]);
@@ -113,12 +113,12 @@ export default function Settings() {
                         </div>
                     </motion.div>
 
-                    {profile.role === 'captain' && (
+                    {profile.role === 'Leader' && (
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-10 border-brand-cyan/20 bg-brand-cyan/5 relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4"><Shield className="text-brand-cyan/20" size={80} /></div>
                             <div className="flex items-center gap-4 mb-10 pb-6 border-b border-brand-cyan/10 relative z-10">
                                 <div className="w-12 h-12 bg-brand-cyan/20 rounded-2xl flex items-center justify-center text-brand-cyan"><SettingsIcon size={24} /></div>
-                                <h3 className="text-xl font-black text-white tracking-tight">Captain Intelligence <span className="text-xs ml-2 text-brand-cyan/60 uppercase tracking-widest font-black">Global Control</span></h3>
+                                <h3 className="text-xl font-black text-white tracking-tight">Leader Intelligence <span className="text-xs ml-2 text-brand-cyan/60 uppercase tracking-widest font-black">Global Control</span></h3>
                             </div>
                             <div className="space-y-8 relative z-10">
                                 <div className="flex items-center justify-between p-6 bg-white/5 rounded-2xl border border-white/5">
@@ -156,7 +156,7 @@ export default function Settings() {
                         <div className="p-4 bg-brand-cyan/5 border border-brand-cyan/20 rounded-xl">
                             <div className="text-brand-cyan font-black text-xl uppercase tracking-tighter mb-1">{profile.role}</div>
                             <p className="text-white/40 text-[10px] leading-relaxed">
-                                {profile.role === 'captain' ? 'You have complete control over the system.' : 'You have standard administrative access.'}
+                                {profile.role === 'Leader' ? 'You have complete control over the system.' : 'You have standard administrative access.'}
                             </p>
                         </div>
                     </motion.div>

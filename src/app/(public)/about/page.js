@@ -34,7 +34,7 @@ export default function About() {
                         transition={{ delay: 0.2 }}
                         className="text-muted-foreground text-lg md:text-xl font-medium leading-relaxed max-w-3xl"
                     >
-                        The AWS Cloud Club at DDU is a student-led organization authorized by Amazon Web Services.
+                        The AWS Student Builder Group at DDU is a student-led organization authorized by Amazon Web Services.
                         We bridge the gap between classroom theory and industry infrastructure.
                     </motion.p>
                 </div>

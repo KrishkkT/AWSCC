@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
 export const sendEmail = async ({ to, subject, html }) => {
     try {
         const info = await transporter.sendMail({
-            from: `"AWS Cloud Club" <${process.env.SMTP_USER}>`,
+            from: `"AWS Student Builder Group" <${process.env.SMTP_USER}>`,
             to,
             subject,
             html,
@@ -32,11 +32,11 @@ export const sendEmail = async ({ to, subject, html }) => {
 
 export const emailTemplates = {
     memberActivation: (name) => ({
-        subject: "Welcome to AWS Cloud Club | Account Activated!",
+        subject: "Welcome to AWS Student Builder Group | Account Activated!",
         html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                 <h2 style="color: #00C2FF;">Hello ${name}!</h2>
-                <p>Your membership at <strong>AWS Cloud Club - DDU</strong> has been activated.</p>
+                <p>Your membership at <strong>AWS Student Builder Group - DDU</strong> has been activated.</p>
                 <p>You can now access the member portal and register for upcoming events.</p>
                 <a href="${process.env.NEXT_PUBLIC_APP_URL}/auth/login" style="display: inline-block; padding: 10px 20px; background-color: #00C2FF; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">Login to Portal</a>
                 <p style="margin-top: 30px; font-size: 12px; color: #666;">If you didn't request this, please ignore this email.</p>
@@ -48,7 +48,7 @@ export const emailTemplates = {
         html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                 <h2 style="color: #00C2FF;">Congratulations ${name}!</h2>
-                <p>You have been promoted to the role of <strong>${role.toUpperCase()}</strong> at AWS Cloud Club - DDU.</p>
+                <p>You have been promoted to the role of <strong>${role.toUpperCase()}</strong> at AWS Student Builder Group - DDU.</p>
                 <p>Your new permissions are now active. Please log in to see the changes.</p>
                 <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="display: inline-block; padding: 10px 20px; background-color: #00C2FF; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">Go to Dashboard</a>
             </div>

@@ -69,7 +69,7 @@ export async function middleware(request) {
             return NextResponse.redirect(url)
         }
 
-        const isAdmin = ['faculty', 'captain', 'core', 'member'].includes(profile.role)
+        const isAdmin = ['faculty', 'Leader', 'core', 'member'].includes(profile.role)
         const isActive = profile.is_active === true
 
         if (!isAdmin || !isActive) {

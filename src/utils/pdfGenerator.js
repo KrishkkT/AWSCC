@@ -13,7 +13,7 @@ export const generateProfessionalReport = async (data, title = "System Report") 
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(40);
-    doc.text("AWS CLOUD CLUB", width / 2, height / 3, { align: 'center' });
+    doc.text("AWS Student Builder Group", width / 2, height / 3, { align: 'center' });
 
     doc.setFontSize(20);
     doc.text("DDU Nadiad Chapter", width / 2, height / 3 + 15, { align: 'center' });
@@ -47,7 +47,7 @@ export const generateProfessionalReport = async (data, title = "System Report") 
     doc.setTextColor(60, 60, 60);
 
     let yPos = 50;
-    doc.text(`This report provides a comprehensive overview of the ${title} for the AWS Cloud Club at DDU.`, 20, yPos);
+    doc.text(`This report provides a comprehensive overview of the ${title} for the AWS Student Builder Group at DDU.`, 20, yPos);
     yPos += 20;
 
     // Stats Section
@@ -67,7 +67,7 @@ export const generateProfessionalReport = async (data, title = "System Report") 
         doc.setPage(i);
         doc.setFontSize(10);
         doc.setTextColor(150, 150, 150);
-        doc.text(`AWS Cloud Club DDU - ${title} - Page ${i} of ${pageCount}`, width / 2, height - 10, { align: 'center' });
+        doc.text(`AWS Student Builder Group DDU - ${title} - Page ${i} of ${pageCount}`, width / 2, height - 10, { align: 'center' });
     }
 
     doc.save(`${title.replace(/\s+/g, '_')}_${Date.now()}.pdf`);

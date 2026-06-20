@@ -27,13 +27,13 @@ export default function Maintenance() {
                 </div>
 
                 <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-lg mx-auto">
-                    The Cloud Club headquarters is currently undergoing a structural upgrade to better serve our builder community.
+                    The Student Builder Group headquarters is currently undergoing a structural upgrade to better serve our builder community.
                 </p>
 
                 <div className="pt-4">
                     <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
                         <Cloud size={16} className="text-brand-aws" />
-                        AWS Cloud Club DDU
+                        AWS Student Builder Group DDU
                     </div>
                 </div>
             </motion.div>

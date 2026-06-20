@@ -85,7 +85,7 @@ export default function AdminDashboard() {
                     </motion.h1>
                     <p className="text-slate-400 font-medium text-sm sm:text-base max-w-xl leading-relaxed">
                         Authorized access for {profile?.full_name || 'Administrator'}.
-                        Monitoring real-time metrics and system integrity for the AWS Cloud Club DDU deployment.
+                        Monitoring real-time metrics and system integrity for the AWS Student Builder Group DDU deployment.
                     </p>
                 </div>
 

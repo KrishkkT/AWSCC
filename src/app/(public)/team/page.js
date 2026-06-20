@@ -125,10 +125,10 @@ export default function Team() {
                             members={team.filter(m => m.category === 'Mentor')}
                         />
 
-                        {/* 2. Captain Section */}
+                        {/* 2. Leader Section */}
                         <TeamSection
-                            title="Club Captains"
-                            members={team.filter(m => m.category === 'Captain')}
+                            title="Club Leaders"
+                            members={team.filter(m => m.category === 'Leader')}
                         />
 
                         {/* 3. Core Team Section */}

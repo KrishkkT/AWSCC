@@ -13,7 +13,7 @@ export async function generateMetadata({ params }) {
         .single();
         
     return {
-        title: data ? `${data.title} | AWS Cloud Club` : `AWS Community Day ${year}`,
+        title: data ? `${data.title} | AWS Student Builder Group` : `AWS Community Day ${year}`,
         description: "Join us for the ultimate student cloud computing event of the year.",
     };
 }

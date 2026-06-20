@@ -23,7 +23,7 @@ export default function Unauthorized() {
                 <h1 className="text-4xl font-black text-white mb-4 tracking-tight">Access Denied</h1>
                 <p className="text-white/50 mb-10 leading-relaxed text-lg font-medium">
                     You do not have the required permissions to access the Admin Portal.
-                    If you believe this is an error, please contact the <span className="text-brand-cyan">Club Captain</span>.
+                    If you believe this is an error, please contact the <span className="text-brand-cyan">Club Leader</span>.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">

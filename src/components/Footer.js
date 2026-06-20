@@ -27,7 +27,7 @@ export default function Footer() {
                         </div>
                     </Link>
                     <p className="text-muted-foreground leading-relaxed text-sm max-w-xs">
-                        The official AWS Cloud Club at Dharmsinh Desai University. Empowering students with industry-leading cloud technology and hands-on learning.
+                        The official AWS Student Builder Group at Dharmsinh Desai University. Empowering students with industry-leading cloud technology and hands-on learning.
                     </p>
                     <div className="flex gap-3">
                         {[
@@ -83,7 +83,7 @@ export default function Footer() {
             </div>
 
             <div className="container mx-auto px-6 pt-8 border-t border-border flex flex-col items-center justify-center text-center gap-6 text-xs text-muted-foreground font-medium">
-                <p>© {currentYear} AWS Cloud Club DDU. All rights reserved.</p>
+                <p>© {currentYear} AWS Student Builder Group DDU. All rights reserved.</p>
             </div>
         </footer>
     );

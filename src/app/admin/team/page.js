@@ -209,7 +209,7 @@ export default function AdminTeam() {
                                     <label className="text-[10px] font-black uppercase text-white/30 ml-1">Category</label>
                                     <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-cyan transition-all font-bold">
                                         <option value="Mentor" className="bg-brand-dark">Mentor</option>
-                                        <option value="Captain" className="bg-brand-dark">Captain</option>
+                                        <option value="Leader" className="bg-brand-dark">Leader</option>
                                         <option value="Team" className="bg-brand-dark">Team Member</option>
                                     </select>
                                 </div>
