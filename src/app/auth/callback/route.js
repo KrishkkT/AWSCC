@@ -24,7 +24,7 @@ export async function GET(request) {
                     .eq('id', user.id)
                     .single();
 
-                if (profile && ['faculty', 'Leader', 'core'].includes(profile.role) && profile.is_active) {
+                if (profile && ['faculty', 'Leader', 'core', 'captain'].includes(profile.role) && profile.is_active) {
                     return NextResponse.redirect(`${origin}/admin`);
                 }
             }

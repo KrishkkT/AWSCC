@@ -31,7 +31,7 @@ export default function Settings() {
                     .single();
                 setProfile(prof || { full_name: user.email, role: 'member', email: user.email });
 
-                if (prof?.role === 'Leader') {
+                if (['Leader', 'captain'].includes(prof?.role)) {
                     const { data: global } = await supabase
                         .from('global_settings')
                         .select('*')
@@ -54,7 +54,7 @@ export default function Settings() {
             .update({ full_name: profile.full_name })
             .eq('id', user.id);
 
-        if (profile.role === 'Leader') {
+        if (['Leader', 'captain'].includes(profile.role)) {
             await supabase
                 .from('global_settings')
                 .upsert([{ ...globalSettings, id: '1', updated_at: new Date().toISOString() }]);
@@ -113,7 +113,7 @@ export default function Settings() {
                         </div>
                     </motion.div>
 
-                    {profile.role === 'Leader' && (
+                    {['Leader', 'captain'].includes(profile.role) && (
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-10 border-brand-cyan/20 bg-brand-cyan/5 relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4"><Shield className="text-brand-cyan/20" size={80} /></div>
                             <div className="flex items-center gap-4 mb-10 pb-6 border-b border-brand-cyan/10 relative z-10">
@@ -156,7 +156,7 @@ export default function Settings() {
                         <div className="p-4 bg-brand-cyan/5 border border-brand-cyan/20 rounded-xl">
                             <div className="text-brand-cyan font-black text-xl uppercase tracking-tighter mb-1">{profile.role}</div>
                             <p className="text-white/40 text-[10px] leading-relaxed">
-                                {profile.role === 'Leader' ? 'You have complete control over the system.' : 'You have standard administrative access.'}
+                                {['Leader', 'captain'].includes(profile.role) ? 'You have complete control over the system.' : 'You have standard administrative access.'}
                             </p>
                         </div>
                     </motion.div>

@@ -36,6 +36,7 @@ export default function AdminTopBar() {
 
     const roleColors = {
         Leader: 'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20',
+        captain: 'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20',
         faculty: 'bg-brand-teal/10 text-brand-teal border-brand-teal/20',
         core: 'bg-white/10 text-white/70 border-white/20',
         member: 'bg-white/5 text-white/40 border-white/10'

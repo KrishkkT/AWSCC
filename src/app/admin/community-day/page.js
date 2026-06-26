@@ -20,6 +20,37 @@ const DEFAULT_AGENDA = [
 const safeArray = (data, fallback = []) => Array.isArray(data) ? data : fallback;
 const safeObject = (data, fallback = {}) => (typeof data === 'object' && data !== null && !Array.isArray(data)) ? data : fallback;
 
+const normalizeAgendaData = (agendaData) => {
+    return safeArray(agendaData).map(block => {
+        if (block.type === 'parallel') {
+            const isOldFormat = Array.isArray(block.tracks) && (block.tracks.length === 0 || typeof block.tracks[0] === 'string');
+            if (isOldFormat) {
+                const tracks = safeArray(block.tracks).map((trackName, tIdx) => {
+                    const sessions = safeArray(block.sessions).map(session => {
+                        const item = Array.isArray(session.tracks) ? session.tracks[tIdx] : null;
+                        return {
+                            time: session.time || '09:00 - 09:30',
+                            title: item?.title || (typeof item === 'string' ? item : '') || '',
+                            speaker: item?.speaker || '',
+                            description: item?.description || ''
+                        };
+                    }).filter(s => s.title);
+                    return {
+                        name: trackName,
+                        sessions
+                    };
+                });
+                return {
+                    ...block,
+                    tracks,
+                    sessions: []
+                };
+            }
+        }
+        return block;
+    });
+};
+
 const TABS = [
     { id: 'general', label: 'General Info', icon: Calendar },
     { id: 'agenda', label: 'Agenda Blocks', icon: Clock },
@@ -110,7 +141,7 @@ export default function AdminCommunityDay() {
             is_active: event.is_active,
             hero_data: safeObject(event.hero_data, {}),
             about_data: safeObject(event.about_data, { text: '' }),
-            agenda_data: safeArray(event.agenda_data, DEFAULT_AGENDA),
+            agenda_data: normalizeAgendaData(safeArray(event.agenda_data, DEFAULT_AGENDA)),
             speakers_data: safeArray(event.speakers_data, []),
             sponsors_data: safeArray(event.sponsors_data, []),
             team_data: safeArray(event.team_data, []),
@@ -186,7 +217,10 @@ export default function AdminCommunityDay() {
             venue: formData.venue || null,
             visibility_toggled: formData.visibility_toggled,
             is_active: formData.is_active,
-            agenda_data: formData.agenda_data,
+            agenda_data: safeArray(formData.agenda_data).map(block => {
+                const { _tracksRaw, ...rest } = block;
+                return rest;
+            }),
             speakers_data: processedSpeakers,
             sponsors_data: processedSponsors,
             team_data: processedTeam,
@@ -359,29 +393,140 @@ export default function AdminCommunityDay() {
                                         {block.type === 'parallel' && (
                                             <div className="space-y-2 mb-6">
                                                 <label className="text-xs font-black uppercase text-brand-cyan">Tracks (Comma Separated)</label>
-                                                <input type="text" value={block.tracks?.join(', ')} onChange={e => { const a = [...formData.agenda_data]; a[bIdx].tracks = e.target.value.split(',').map(t=>t.trim()); setFormData({...formData, agenda_data: a}); }} className="w-full bg-white/5 border border-brand-cyan/20 rounded-xl px-4 py-2 text-white text-sm outline-none" placeholder="Track A, Track B, Track C" />
+                                                <input 
+                                                    type="text" 
+                                                    value={block._tracksRaw !== undefined ? block._tracksRaw : (safeArray(block.tracks).map(t => typeof t === 'string' ? t : (t.name || '')).join(', ') || '')} 
+                                                    onChange={e => {
+                                                        const val = e.target.value;
+                                                        const a = [...formData.agenda_data];
+                                                        a[bIdx]._tracksRaw = val;
+                                                        const names = val.split(',');
+                                                        const currentTracks = safeArray(a[bIdx].tracks);
+                                                        a[bIdx].tracks = names.map((n, idx) => {
+                                                            const trimmedName = n.trim();
+                                                            const existing = currentTracks[idx] || currentTracks.find(t => (typeof t === 'string' ? t : t.name) === trimmedName);
+                                                            return {
+                                                                name: trimmedName,
+                                                                sessions: (typeof existing === 'object' && existing !== null) ? (existing.sessions || []) : []
+                                                            };
+                                                        });
+                                                        setFormData({...formData, agenda_data: a});
+                                                    }} 
+                                                    className="w-full bg-white/5 border border-brand-cyan/20 rounded-xl px-4 py-2 text-white text-sm outline-none font-sans" 
+                                                    placeholder="Track A, Track B, Track C" 
+                                                />
                                             </div>
                                         )}
 
-                                        <div className="space-y-3">
-                                            <label className="text-xs font-black uppercase text-white/70">Sessions</label>
-                                            {block.sessions.map((session, sIdx) => (
-                                                <div key={sIdx} className="flex gap-2 items-center bg-white/5 p-2 rounded-xl">
-                                                    <input type="text" value={session.time} onChange={e => { const a = [...formData.agenda_data]; a[bIdx].sessions[sIdx].time = e.target.value; setFormData({...formData, agenda_data: a}); }} className="w-24 bg-transparent text-brand-cyan text-sm font-bold text-center border-r border-white/10 shrink-0 outline-none" placeholder="Time" />
-                                                    
-                                                    {block.type === 'main' ? (
-                                                        <input type="text" value={session.title} onChange={e => { const a = [...formData.agenda_data]; a[bIdx].sessions[sIdx].title = e.target.value; setFormData({...formData, agenda_data: a}); }} className="w-full bg-transparent text-white text-sm px-2 outline-none" placeholder="Session Title" />
-                                                    ) : (
-                                                        <input type="text" value={session.tracks?.join(' | ') || ''} onChange={e => { const a = [...formData.agenda_data]; a[bIdx].sessions[sIdx].tracks = e.target.value.split('|').map(t=>t.trim()); setFormData({...formData, agenda_data: a}); }} className="w-full bg-transparent text-white text-sm px-2 outline-none" placeholder="Track 1 Title | Track 2 Title | Track 3" />
-                                                    )}
-                                                    
-                                                    <button type="button" onClick={() => { const a = [...formData.agenda_data]; a[bIdx].sessions.splice(sIdx, 1); setFormData({...formData, agenda_data: a}); }} className="p-2 text-white/30 hover:text-red-400 shrink-0"><X size={14}/></button>
-                                                </div>
-                                            ))}
-                                            <button type="button" onClick={() => { const a = [...formData.agenda_data]; a[bIdx].sessions.push({ time: "00:00", title: "", tracks: [] }); setFormData({...formData, agenda_data: a}); }} className="text-xs font-bold text-brand-cyan flex items-center gap-1 hover:text-white transition-colors mt-2">
-                                                <Plus size={14} /> Add Session Slot
-                                            </button>
-                                        </div>
+                                        {block.type === 'main' ? (
+                                            <div className="space-y-4">
+                                                <label className="text-xs font-black uppercase text-white/70">Sessions</label>
+                                                {safeArray(block.sessions).map((session, sIdx) => (
+                                                    <div key={sIdx} className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4 relative">
+                                                        <button type="button" onClick={() => { const a = [...formData.agenda_data]; a[bIdx].sessions.splice(sIdx, 1); setFormData({...formData, agenda_data: a}); }} className="absolute top-4 right-4 text-red-500 hover:text-red-400 p-1 hover:bg-white/5 rounded-lg transition-all"><X size={16} /></button>
+                                                        
+                                                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full max-w-sm">
+                                                            <span className="text-[10px] font-black uppercase text-brand-cyan tracking-wider flex items-center gap-1.5 shrink-0">
+                                                                <Clock size={12} /> Time Slot
+                                                            </span>
+                                                            <input type="text" value={session.time} onChange={e => { const a = [...formData.agenda_data]; a[bIdx].sessions[sIdx].time = e.target.value; setFormData({...formData, agenda_data: a}); }} className="bg-[#05080f] border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs font-bold w-full" placeholder="e.g. 09:00 - 09:30" />
+                                                        </div>
+                                                        
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-black uppercase text-white/40">Session Title</label>
+                                                                <input type="text" value={session.title || ''} onChange={e => { const a = [...formData.agenda_data]; a[bIdx].sessions[sIdx].title = e.target.value; setFormData({...formData, agenda_data: a}); }} className="w-full bg-[#05080f] border border-white/10 rounded-xl px-3 py-2 text-white text-xs" placeholder="e.g. Opening Keynote" />
+                                                            </div>
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-black uppercase text-white/40">Speaker(s)</label>
+                                                                <input type="text" value={session.speaker || ''} onChange={e => { const a = [...formData.agenda_data]; a[bIdx].sessions[sIdx].speaker = e.target.value; setFormData({...formData, agenda_data: a}); }} className="w-full bg-[#05080f] border border-white/10 rounded-xl px-3 py-2 text-white text-xs" placeholder="e.g. John Doe" />
+                                                            </div>
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-black uppercase text-white/40">Description</label>
+                                                                <input type="text" value={session.description || ''} onChange={e => { const a = [...formData.agenda_data]; a[bIdx].sessions[sIdx].description = e.target.value; setFormData({...formData, agenda_data: a}); }} className="w-full bg-[#05080f] border border-white/10 rounded-xl px-3 py-2 text-white text-xs" placeholder="e.g. Brief description of the session..." />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                <button type="button" onClick={() => { const a = [...formData.agenda_data]; a[bIdx].sessions.push({ time: "00:00 - 00:00", title: "", speaker: "", description: "" }); setFormData({...formData, agenda_data: a}); }} className="text-xs font-bold text-brand-cyan flex items-center gap-1 hover:text-white transition-colors mt-2">
+                                                    <Plus size={14} /> Add Session Slot
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                                {safeArray(block.tracks).map((track, tIdx) => {
+                                                    const trackObj = typeof track === 'string' ? { name: track, sessions: [] } : track;
+                                                    return (
+                                                        <div key={tIdx} className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-4">
+                                                            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                                                                <span className="text-xs font-black uppercase text-brand-cyan tracking-wider">{trackObj.name || `Track ${tIdx + 1}`}</span>
+                                                            </div>
+                                                            
+                                                            <div className="space-y-4">
+                                                                {safeArray(trackObj.sessions).map((session, sIdx) => (
+                                                                    <div key={sIdx} className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-3 relative">
+                                                                        <button type="button" onClick={() => {
+                                                                            const a = [...formData.agenda_data];
+                                                                            a[bIdx].tracks[tIdx].sessions.splice(sIdx, 1);
+                                                                            setFormData({...formData, agenda_data: a});
+                                                                        }} className="absolute top-3 right-3 text-red-500 hover:text-red-400 p-1 hover:bg-white/5 rounded-lg transition-all">
+                                                                            <X size={14} />
+                                                                        </button>
+
+                                                                        <div className="space-y-2">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Clock size={12} className="text-brand-cyan shrink-0" />
+                                                                                <input type="text" value={session.time || ''} onChange={e => {
+                                                                                    const a = [...formData.agenda_data];
+                                                                                    a[bIdx].tracks[tIdx].sessions[sIdx].time = e.target.value;
+                                                                                    setFormData({...formData, agenda_data: a});
+                                                                                }} className="bg-[#05080f] border border-white/10 rounded-lg px-2.5 py-1 text-white text-xs font-bold w-full" placeholder="e.g. 09:00 - 09:30" />
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-black uppercase text-white/40">Title</label>
+                                                                                <input type="text" value={session.title || ''} onChange={e => {
+                                                                                    const a = [...formData.agenda_data];
+                                                                                    a[bIdx].tracks[tIdx].sessions[sIdx].title = e.target.value;
+                                                                                    setFormData({...formData, agenda_data: a});
+                                                                                }} className="w-full bg-[#05080f] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs font-bold" placeholder="Session Title" />
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-black uppercase text-white/40">Speaker</label>
+                                                                                <input type="text" value={session.speaker || ''} onChange={e => {
+                                                                                    const a = [...formData.agenda_data];
+                                                                                    a[bIdx].tracks[tIdx].sessions[sIdx].speaker = e.target.value;
+                                                                                    setFormData({...formData, agenda_data: a});
+                                                                                }} className="w-full bg-[#05080f] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs" placeholder="Speaker" />
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-black uppercase text-white/40">Description</label>
+                                                                                <textarea value={session.description || ''} onChange={e => {
+                                                                                    const a = [...formData.agenda_data];
+                                                                                    a[bIdx].tracks[tIdx].sessions[sIdx].description = e.target.value;
+                                                                                    setFormData({...formData, agenda_data: a});
+                                                                                }} className="w-full bg-[#05080f] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs h-16 resize-none" placeholder="Description" />
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+
+                                                            <button type="button" onClick={() => {
+                                                                const a = [...formData.agenda_data];
+                                                                if (!a[bIdx].tracks[tIdx]) a[bIdx].tracks[tIdx] = { name: typeof track === 'string' ? track : '', sessions: [] };
+                                                                if (!Array.isArray(a[bIdx].tracks[tIdx].sessions)) {
+                                                                    a[bIdx].tracks[tIdx].sessions = [];
+                                                                }
+                                                                a[bIdx].tracks[tIdx].sessions.push({ time: "09:00 - 09:30", title: "", speaker: "", description: "" });
+                                                                setFormData({...formData, agenda_data: a});
+                                                            }} className="text-xs font-bold text-brand-cyan flex items-center gap-1 hover:text-white transition-colors w-full justify-center py-2 border border-dashed border-brand-cyan/20 rounded-xl hover:border-brand-cyan/40 mt-2">
+                                                                <Plus size={14} /> Add Session to {trackObj.name || `Track ${tIdx + 1}`}
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                                 <button type="button" onClick={() => setFormData({ ...formData, agenda_data: [...formData.agenda_data, { type: 'main', title: 'New Block', sessions: [] }] })} className="w-full py-4 border-2 border-dashed border-white/10 rounded-2xl text-white/50 hover:border-brand-cyan/30 hover:text-brand-cyan transition-colors flex items-center justify-center gap-2 font-bold text-sm">

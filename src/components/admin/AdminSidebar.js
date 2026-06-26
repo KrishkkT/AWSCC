@@ -20,6 +20,10 @@ const ROLE_PERMISSIONS = {
         sections: ['core', 'management', 'system'],
         features: ['analytics', 'reports', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
     },
+    captain: {
+        sections: ['core', 'management', 'system'],
+        features: ['analytics', 'reports', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
+    },
     core: {
         sections: ['core', 'management'],
         features: ['analytics', 'manage_events', 'attendance', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
@@ -113,6 +117,7 @@ export default function AdminSidebar() {
 
     const roleColors = {
         Leader: 'text-brand-cyan',
+        captain: 'text-brand-cyan',
         faculty: 'text-brand-teal',
         core: 'text-white/60',
         member: 'text-white/30',

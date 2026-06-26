@@ -12,9 +12,9 @@ export default function CommunityDayPopup({ event }) {
 
     useEffect(() => {
         if (!event) return;
-        
+
         // Don't show on the actual community day page
-        if (pathname.includes(`/community-day-${event.year}`)) return;
+        if (pathname.includes(`/scd/${event.year}`)) return;
 
         // Check if user already dismissed it this session
         const dismissed = sessionStorage.getItem(`awscc_popup_dismissed_${event.year}`);
@@ -64,7 +64,7 @@ export default function CommunityDayPopup({ event }) {
                         <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full bg-brand-cyan/20 blur-[100px] pointer-events-none" />
 
                         <div className={`relative p-8 ${event.hero_data?.popup_image ? 'pt-2' : ''}`}>
-                            <button 
+                            <button
                                 onClick={handleDismiss}
                                 className={`absolute right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-colors z-20 ${event.hero_data?.popup_image ? '-top-40 md:-top-56' : 'top-4'}`}
                             >
@@ -99,7 +99,7 @@ export default function CommunityDayPopup({ event }) {
                             </div>
 
                             <div className="flex gap-3">
-                                <Link href={`/community-day/${event.year}`} className="flex-1" onClick={handleDismiss}>
+                                <Link href={`/scd/${event.year}`} className="flex-1" onClick={handleDismiss}>
                                     <button className="w-full btn-primary py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,194,255,0.3)]">
                                         Explore the Event <ArrowRight size={16} />
                                     </button>

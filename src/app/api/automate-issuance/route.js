@@ -11,7 +11,7 @@ export async function POST(req) {
         if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
 
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-        if (!profile || !['admin', 'Leader', 'faculty'].includes(profile.role)) {
+        if (!profile || !['admin', 'Leader', 'faculty', 'captain'].includes(profile.role)) {
             return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
         }
 

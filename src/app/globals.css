@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-    --background: #ffffff;
+    --background: #f5f7fa;
     --foreground: #0f172a;
     --card: #ffffff;
     --card-foreground: #0f172a;
@@ -23,7 +23,7 @@
     --input: #e2e8f0;
     --ring: #3b82f6;
     --radius: 0.5rem;
-    
+
     --brand-dark: #020b17;
     --brand-aws: #3b82f6;
     --brand-blue: #2563eb;
@@ -51,7 +51,7 @@
     --border: #1e293b;
     --input: #1e293b;
     --ring: #3b82f6;
-    
+
     --brand-dark: #020b17;
     --brand-aws: #3b82f6;
     --brand-blue: #2563eb;
@@ -71,7 +71,12 @@
         color: white;
     }
 
-    h1, h2, h3, h4, h5, h6 {
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
         @apply font-display font-bold tracking-tight text-foreground;
         color: var(--foreground);
     }
@@ -80,6 +85,11 @@
 /* Glass Card Utility */
 .glass-card {
     @apply backdrop-blur-xl border rounded-3xl overflow-hidden shadow-lg;
+    background-color: color-mix(in srgb, var(--card) 90%, transparent);
+    border-color: color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.dark .glass-card {
     background-color: color-mix(in srgb, var(--card) 40%, transparent);
     border-color: color-mix(in srgb, var(--border) 50%, transparent);
 }
@@ -137,7 +147,7 @@
     .btn-crud-delete {
         @apply btn-crud bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white focus:ring-2 focus:ring-red-500/50;
     }
-    
+
     .btn-crud-add {
         @apply btn-crud bg-green-500/10 border-green-500/20 text-green-500 hover:bg-green-500 hover:text-white focus:ring-2 focus:ring-green-500/50;
     }
@@ -216,6 +226,7 @@ textarea:focus {
 
 /* Animations */
 @keyframes float {
+
     0%,
     100% {
         transform: translateY(0);

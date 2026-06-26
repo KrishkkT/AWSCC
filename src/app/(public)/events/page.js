@@ -8,7 +8,7 @@ import { Calendar, MapPin, ExternalLink, Clock, Check, ArrowRight, Cloud, Zap } 
 
 export default function Events() {
     const supabase = createClient();
-    
+
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('upcoming');
@@ -36,14 +36,14 @@ export default function Events() {
         setLoading(true);
         try {
             const now = new Date().toISOString();
-            
+
             // 1. First, check if any upcoming/active events should be completed
             const { data: overdue } = await supabase
                 .from('events')
                 .select('id')
                 .or('status.eq.upcoming,status.eq.active')
                 .lt('end_time', now);
-            
+
             if (overdue && overdue.length > 0) {
                 await supabase
                     .from('events')
@@ -136,7 +136,7 @@ export default function Events() {
                 </div>
 
                 {filter === 'upcoming' && communityEvent && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="mb-16 relative overflow-hidden rounded-3xl border border-brand-cyan/20 bg-[#0a0f18] shadow-2xl group flex flex-col md:flex-row"
@@ -152,16 +152,16 @@ export default function Events() {
                                     Flagship Event
                                 </div>
                             </div>
-                            
+
                             <h2 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight">
                                 {communityEvent.title}
                             </h2>
                             <p className="text-white/60 mb-8 font-medium max-w-xl text-lg">
                                 Our largest annual multi-track cloud computing event. Join us for a full day of expert sessions, hands-on workshops, and massive networking opportunities at {communityEvent.venue || 'Dharmsinh Desai University'}.
                             </p>
-                            
+
                             <div className="flex items-center gap-4">
-                                <Link href={`/community-day/${communityEvent.year}`}>
+                                <Link href={`/scd/${communityEvent.year}`}>
                                     <button className="btn-primary py-3.5 px-8 flex items-center gap-3 shadow-[0_0_30px_rgba(0,194,255,0.3)]">
                                         View Entire Schedule & Details <ArrowRight size={18} />
                                     </button>

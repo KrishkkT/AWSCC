@@ -96,7 +96,7 @@ export default function About() {
                         </p>
                         <div className="flex flex-col gap-4 pt-4">
                             {[
-                                "Authorized by AWS Student Builder Group",
+                                "Authorized by AWS Club Program",
                                 "Hands-on Workshop Series",
                                 "Industry Networking Events",
                                 "Official Certification Support"

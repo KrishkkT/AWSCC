@@ -24,7 +24,7 @@ export default async function PublicLayout({ children }) {
             .select('role')
             .eq('id', user.id)
             .single();
-        isAdmin = ['Leader', 'faculty', 'core', 'admin'].includes(profile?.role);
+        isAdmin = ['Leader', 'faculty', 'core', 'admin', 'captain'].includes(profile?.role);
     }
 
     if (settings?.maintenance_mode && !isAdmin) {

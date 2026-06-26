@@ -73,7 +73,7 @@ export const metadata = {
     openGraph: {
         title: "AWS Student Builder Group | DDU Nadiad",
         description: "Official Student Community for Cloud Innovation at Dharmsinh Desai University (DDU). Accelerate your cloud journey with student builders.",
-        url: "/", 
+        url: "/",
         siteName: "AWS Student Builder Group DDU",
         images: [
             {

@@ -11,12 +11,12 @@ export default function CommunityDayWidget({ event }) {
     const pathname = usePathname();
 
     if (!event) return null;
-    
+
     // Don't show the widget if we are already on the community day page
-    if (pathname.includes(`/community-day`)) return null;
+    if (pathname.includes(`/scd`)) return null;
 
     return (
-        <div 
+        <div
             className="fixed bottom-6 right-6 z-[60] flex flex-col items-end"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
@@ -30,7 +30,7 @@ export default function CommunityDayWidget({ event }) {
                         className="mb-4 bg-brand-dark/90 backdrop-blur-xl border border-brand-cyan/20 p-5 rounded-2xl shadow-2xl shadow-brand-cyan/10 w-64 origin-bottom-right"
                     >
                         <div className="absolute inset-0 bg-gradient-to-tr from-brand-cyan/5 to-transparent rounded-2xl pointer-events-none" />
-                        
+
                         <div className="flex items-center gap-2 mb-2 relative z-10">
                             <span className="flex h-2 w-2 relative">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-cyan opacity-75"></span>
@@ -38,16 +38,16 @@ export default function CommunityDayWidget({ event }) {
                             </span>
                             <span className="text-[10px] font-black uppercase tracking-widest text-brand-cyan">Upcoming Event</span>
                         </div>
-                        
+
                         <h4 className="text-white font-black text-lg leading-tight mb-1 relative z-10">
                             AWS Community Day {event.year}
                         </h4>
-                        
+
                         <p className="text-white/50 text-xs font-medium mb-4 relative z-10">
                             Join us for the biggest cloud computing event at DDU!
                         </p>
-                        
-                        <Link href={`/community-day/${event.year}`}>
+
+                        <Link href={`/scd/${event.year}`}>
                             <button className="w-full relative z-10 btn-primary py-2.5 px-4 text-xs flex items-center justify-center gap-2 group overflow-hidden">
                                 <span className="relative z-10">View Details</span>
                                 <ArrowRight size={14} className="relative z-10 group-hover:translate-x-1 transition-transform" />
@@ -57,7 +57,7 @@ export default function CommunityDayWidget({ event }) {
                 )}
             </AnimatePresence>
 
-            <Link href={`/community-day/${event.year}`}>
+            <Link href={`/scd/${event.year}`}>
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -66,7 +66,7 @@ export default function CommunityDayWidget({ event }) {
                     {/* Glowing effects */}
                     <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-full mix-blend-overlay" />
                     <Cloud className="text-white relative z-10 drop-shadow-md" size={24} />
-                    
+
                     {/* Ripple animation continuously */}
                     <div className="absolute inset-0 rounded-full border border-white/30 animate-ping opacity-20" style={{ animationDuration: '3s' }} />
                 </motion.button>

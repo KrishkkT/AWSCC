@@ -139,13 +139,15 @@ export default function AdminMembers() {
 
     const roleColors = {
         Leader: 'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20',
+        captain: 'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20',
         faculty: 'bg-brand-teal/10 text-brand-teal border-brand-teal/20',
         core: 'bg-white/10 text-white/70 border-white/20',
-        member: 'bg-white/5 text-white/30 border-white/10',
+        member: 'bg-white/5 text-white/40 border-white/10',
     };
 
     const roleIcons = {
         Leader: <Crown size={14} />,
+        captain: <Crown size={14} />,
         faculty: <Shield size={14} />,
         core: <UserCheck size={14} />,
         member: <Users size={14} />,
@@ -217,6 +219,7 @@ export default function AdminMembers() {
                                     <option value="member">Member</option>
                                     <option value="core">Core</option>
                                     <option value="Leader">Leader</option>
+                                    <option value="captain">Captain</option>
                                     <option value="faculty">Faculty</option>
                                 </select>
                             </div>
@@ -244,6 +247,7 @@ export default function AdminMembers() {
                     <option value="all">All Roles</option>
                     <option value="faculty">Faculty</option>
                     <option value="Leader">Leader</option>
+                    <option value="captain">Captain</option>
                     <option value="core">Core</option>
                     <option value="member">Member</option>
                 </select>
@@ -299,6 +303,7 @@ export default function AdminMembers() {
                                             <option value="member">Member</option>
                                             <option value="core">Core</option>
                                             <option value="Leader">Leader</option>
+                                            <option value="captain">Captain</option>
                                             <option value="faculty">Faculty</option>
                                         </select>
                                         {processingId === member.id ? (

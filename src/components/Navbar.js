@@ -25,14 +25,14 @@ export default function Navbar() {
     ];
 
     return (
-        <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled && !isMobileMenuOpen ? "py-4 bg-background/80 dark:bg-background/95 backdrop-blur-xl border-b border-border shadow-sm" : "py-8 bg-transparent"}`}>
+        <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled && !isMobileMenuOpen ? "py-2.5 bg-background/80 dark:bg-background/95 backdrop-blur-xl border-b border-border shadow-sm" : "py-4 bg-transparent"}`}>
             <div className="container mx-auto px-6 flex items-center justify-between">
                 <Link href="/" className="flex items-center group relative z-10 transition-transform hover:scale-[1.02] duration-300">
-                    <div className="h-9 sm:h-16 md:h-20 lg:h-24 flex items-center justify-start overflow-hidden">
+                    <div className="h-8 sm:h-10 md:h-12 lg:h-14 flex items-center justify-start overflow-hidden">
                         <img
                             src="/images/ddu-aws-combined.png"
                             alt="AWS Student Builder Group & DDU Logo"
-                            className="h-16 w-auto object-contain brightness-110 dark:brightness-100 drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-none"
+                            className="h-10 sm:h-12 lg:h-14 w-auto object-contain brightness-110 dark:brightness-100 drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-none"
                         />
                     </div>
                 </Link>

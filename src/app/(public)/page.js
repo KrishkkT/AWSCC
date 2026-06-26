@@ -31,7 +31,17 @@ export default function Home() {
     }, [fetchHighlights]);
 
     async function fetchHighlights() {
-        const { data, error } = await supabase
+        // Fetch active Community Day event
+        const { data: activeSCD, error: scdError } = await supabase
+            .from('community_events')
+            .select('*')
+            .eq('is_active', true)
+            .order('year', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        // Fetch regular events
+        const { data: regularEvents, error: eventsError } = await supabase
             .from('events')
             .select('*')
             .eq('is_visible', true)
@@ -39,8 +49,32 @@ export default function Home() {
             .order('date', { ascending: false })
             .limit(3);
 
-        if (!error && data) {
-            setHighlights(data);
+        if (!eventsError && regularEvents) {
+            let combined = [...regularEvents];
+
+            if (!scdError && activeSCD) {
+                const formattedSCD = {
+                    id: `scd-${activeSCD.year}`,
+                    title: activeSCD.title,
+                    description: activeSCD.about_data?.text || 'Join us for the biggest cloud computing event at DDU!',
+                    image_url: activeSCD.hero_data?.popup_image || activeSCD.hero_data?.image || null,
+                    status: 'Flagship Event',
+                    date: activeSCD.date,
+                    isCommunityDay: true,
+                    year: activeSCD.year
+                };
+                combined.push(formattedSCD);
+            }
+
+            // Sort all by date descending
+            combined.sort((a, b) => {
+                const dateA = new Date(a.date || a.start_time || 0);
+                const dateB = new Date(b.date || b.start_time || 0);
+                return dateB - dateA;
+            });
+
+            // Keep only top 3 items to fit the layout perfectly
+            setHighlights(combined.slice(0, 3));
         }
     }
 
@@ -111,7 +145,7 @@ export default function Home() {
                                 { title: "Applied AI/ML", desc: "Integrate intelligent services and machine learning models into cloud platforms.", icon: <Rocket size={24} /> }
                             ].map((focus, i) => (
                                 <ScrollReveal key={i} delay={i * 0.1}>
-                                    <div className="group h-full p-8 rounded-2xl bg-card/50 backdrop-blur-md border border-border/50 hover:border-brand-aws/40 hover:bg-brand-aws/5 transition-all duration-500 flex flex-col items-center text-center shadow-sm hover:shadow-md">
+                                    <div className="group h-full p-8 rounded-2xl bg-card/90 dark:bg-card/50 backdrop-blur-md border border-border/50 hover:border-brand-aws/40 hover:bg-brand-aws/5 transition-all duration-500 flex flex-col items-center text-center shadow-sm hover:shadow-md">
                                         <div className="w-14 h-14 rounded-xl bg-brand-aws/10 flex items-center justify-center text-brand-aws mb-6 group-hover:scale-110 transition-transform">
                                             {focus.icon}
                                         </div>
@@ -159,11 +193,13 @@ export default function Home() {
                                             <div className="p-8 flex flex-col flex-grow">
                                                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground mb-4 uppercase tracking-tighter">
                                                     <Calendar size={14} className="text-brand-aws" />
-                                                    {new Date(event.date || event.start_time).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                                                    {event.date || event.start_time
+                                                        ? new Date(event.date || event.start_time).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+                                                        : 'TBD'}
                                                 </div>
                                                 <h3 className="text-xl font-display font-bold text-card-foreground group-hover:text-brand-aws transition-colors mb-4 line-clamp-1">{event.title}</h3>
                                                 <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-6">{event.description || `Join us for an immersive session on ${event.title.toLowerCase()}.`}</p>
-                                                <Link href={`/events?id=${event.id}`} className="mt-auto flex items-center gap-2 text-sm font-bold text-brand-aws group/link">
+                                                <Link href={event.isCommunityDay ? `/scd/${event.year}` : `/events?id=${event.id}`} className="mt-auto flex items-center gap-2 text-sm font-bold text-brand-aws group/link">
                                                     Event Details <ArrowRight size={16} className="group-hover/link:translate-x-1 transition-transform" />
                                                 </Link>
                                             </div>
@@ -183,7 +219,7 @@ export default function Home() {
                 <section className="py-24 bg-secondary/20 backdrop-blur-sm relative border-y border-border/50">
                     <div className="container mx-auto px-6">
                         <div className="max-w-3xl mx-auto text-center mb-20 space-y-6">
-                            <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground">Why Join <span className="text-brand-aws">AWS Student Builder Group</span>?</h2>
+                            <h2 className="text-4xl md:text-6xl font-display font-bold text-foreground">Why Join <span className="text-brand-aws">AWS Student Builder Group</span>?</h2>
                             <p className="text-muted-foreground text-lg">We bridge the gap between academic theory and industry practice through the power of cloud computing.</p>
                         </div>
 
