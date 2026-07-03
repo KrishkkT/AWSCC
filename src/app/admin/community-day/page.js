@@ -68,6 +68,7 @@ export default function AdminCommunityDay() {
     const [feedback, setFeedback] = useState(null);
     const [activeTab, setActiveTab] = useState('general');
     const [popupImageFile, setPopupImageFile] = useState(null);
+    const [mobileImageFile, setMobileImageFile] = useState(null);
 
     const [formData, setFormData] = useState({
         year: new Date().getFullYear(),
@@ -76,14 +77,15 @@ export default function AdminCommunityDay() {
         venue: 'Dharmsinh Desai University',
         visibility_toggled: false,
         is_active: true,
-        hero_data: { popup_image: '' },
+        hero_data: { popup_image: '', mobile_image: '' },
         about_data: { text: '' },
         agenda_data: DEFAULT_AGENDA,
         speakers_data: [],
         sponsors_data: [],
         team_data: [],
         ticket_data: { konfhub_url: '', tickets: [] },
-        popup_image_url: ''
+        popup_image_url: '',
+        mobile_image_url: ''
     });
 
     const supabase = createClient();
@@ -114,16 +116,18 @@ export default function AdminCommunityDay() {
             venue: 'Dharmsinh Desai University',
             visibility_toggled: false,
             is_active: true,
-            hero_data: { popup_image: '' },
+            hero_data: { popup_image: '', mobile_image: '' },
             about_data: { text: '' },
             agenda_data: DEFAULT_AGENDA,
             speakers_data: [],
             sponsors_data: [],
             team_data: [],
             ticket_data: { konfhub_url: '', tickets: [] },
-            popup_image_url: ''
+            popup_image_url: '',
+            mobile_image_url: ''
         });
         setPopupImageFile(null);
+        setMobileImageFile(null);
         setEditingEvent(null);
         setShowForm(false);
         setActiveTab('general');
@@ -149,11 +153,13 @@ export default function AdminCommunityDay() {
                 konfhub_url: safeObject(event.ticket_data, {}).konfhub_url || '', 
                 tickets: Array.isArray(safeObject(event.ticket_data, {}).tickets) ? safeObject(event.ticket_data, {}).tickets : [] 
             },
-            popup_image_url: event.hero_data?.popup_image || ''
+            popup_image_url: event.hero_data?.popup_image || '',
+            mobile_image_url: event.hero_data?.mobile_image || ''
         });
         setActiveTab('general');
         setShowForm(true);
         setPopupImageFile(null);
+        setMobileImageFile(null);
     }
 
     const uploadImage = async (file) => {
@@ -181,9 +187,23 @@ export default function AdminCommunityDay() {
             }
         }
 
+        let finalMobileImageUrl = formData.mobile_image_url;
+        if (mobileImageFile) {
+            try {
+                finalMobileImageUrl = await uploadImage(mobileImageFile);
+            } catch (err) {
+                showFeedback(`Mobile Image Upload Error: ${err.message}`, 'error');
+                setSaving(false);
+                return;
+            }
+        }
+
         const heroDataObj = { ...formData.hero_data };
         if (finalPopupImageUrl) heroDataObj.popup_image = finalPopupImageUrl;
         else delete heroDataObj.popup_image;
+
+        if (finalMobileImageUrl) heroDataObj.mobile_image = finalMobileImageUrl;
+        else delete heroDataObj.mobile_image;
 
         const processArrayImages = async (arr, fileField, urlField) => {
             return await Promise.all(arr.map(async (item) => {
@@ -331,7 +351,7 @@ export default function AdminCommunityDay() {
                                 </div>
                                 
                                 <div className="md:col-span-2 space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-[0.2em] text-white/70">Landing Popup Image</label>
+                                    <label className="text-xs font-black uppercase tracking-[0.2em] text-white/70">Landing Popup Image (Desktop - Landscape)</label>
                                     <div className="flex gap-4 items-start">
                                         <label className="shrink-0 flex flex-col justify-center items-center w-32 h-32 border-2 border-dashed border-white/20 rounded-xl hover:border-brand-cyan/50 hover:bg-brand-cyan/5 transition-all cursor-pointer relative overflow-hidden group">
                                             {popupImageFile ? (
@@ -348,7 +368,30 @@ export default function AdminCommunityDay() {
                                         </label>
                                         <div className="flex-1 space-y-2">
                                             <input type="text" value={formData.popup_image_url} onChange={e => { setFormData({ ...formData, popup_image_url: e.target.value }); setPopupImageFile(null); }} placeholder="Or paste image URL" className="w-full bg-[#05080f] border border-white/20 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-cyan outline-none font-bold" />
-                                            <p className="text-xs text-white/50 max-w-sm">Upload a promotional poster to be featured on the massive Landing Page popup.</p>
+                                            <p className="text-xs text-white/50 max-w-sm">Upload a landscape banner/poster to be featured on desktop devices.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-2 space-y-2">
+                                    <label className="text-xs font-black uppercase tracking-[0.2em] text-white/70">Landing Popup Image (Mobile - Portrait)</label>
+                                    <div className="flex gap-4 items-start">
+                                        <label className="shrink-0 flex flex-col justify-center items-center w-32 h-32 border-2 border-dashed border-white/20 rounded-xl hover:border-brand-cyan/50 hover:bg-brand-cyan/5 transition-all cursor-pointer relative overflow-hidden group">
+                                            {mobileImageFile ? (
+                                                <img src={URL.createObjectURL(mobileImageFile)} alt="Mobile Preview" className="w-full h-full object-cover" />
+                                            ) : formData.mobile_image_url ? (
+                                                <img src={formData.mobile_image_url} alt="Current Mobile Popup" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="text-center">
+                                                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-2 text-white/60 group-hover:text-brand-cyan transition-colors"><Plus size={16} /></div>
+                                                    <span className="text-[10px] uppercase font-bold text-white/60 tracking-widest group-hover:text-brand-cyan">Upload</span>
+                                                </div>
+                                            )}
+                                            <input type="file" accept="image/*" onChange={e => { if (e.target.files[0]) setMobileImageFile(e.target.files[0]); }} className="hidden" />
+                                        </label>
+                                        <div className="flex-1 space-y-2">
+                                            <input type="text" value={formData.mobile_image_url} onChange={e => { setFormData({ ...formData, mobile_image_url: e.target.value }); setMobileImageFile(null); }} placeholder="Or paste mobile image URL" className="w-full bg-[#05080f] border border-white/20 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-cyan outline-none font-bold" />
+                                            <p className="text-xs text-white/50 max-w-sm">Upload a portrait poster to be featured on mobile devices (recommended ratio 4:5 or 9:16).</p>
                                         </div>
                                     </div>
                                 </div>

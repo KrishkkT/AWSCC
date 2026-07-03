@@ -87,7 +87,8 @@ export default function SCDYearPage({ params }) {
     const safeArray = (data) => Array.isArray(data) ? data : [];
     const safeObject = (data) => (data && typeof data === 'object' && !Array.isArray(data)) ? data : {};
 
-    const heroImage = event.hero_data?.popup_image || event.hero_data?.image || null;
+    const desktopImage = event.hero_data?.popup_image || event.hero_data?.image || null;
+    const mobileImage = event.hero_data?.mobile_image || desktopImage;
 
     // Normalize agenda data for parallel blocks to support the new structure with backward compatibility
     const rawAgendaBlocks = safeArray(event.agenda_data);
@@ -149,6 +150,8 @@ export default function SCDYearPage({ params }) {
         }
     ];
 
+    const hasMobileImage = !!event.hero_data?.mobile_image;
+
     return (
         <div className="min-h-screen bg-background text-slate-900 dark:text-white relative overflow-hidden transition-colors duration-500">
             {/* Cinematic Floating Cloud Background */}
@@ -163,9 +166,24 @@ export default function SCDYearPage({ params }) {
                 <section className="relative min-h-[80vh] flex flex-col justify-center items-center pt-20 pb-16">
                     <div className="container mx-w-full px-6 flex flex-col items-center max-w-5xl text-center space-y-10 relative z-10">
                         {/* Poster Image Container */}
-                        <div className="relative w-full max-w-5xl -mt-4 h-[500px] md:h-[500px] lg:h-[550px] rounded-[2rem] overflow-hidden border border-border bg-card shadow-2xl transition-all duration-500 hover:scale-[1.01] hover:shadow-[0_0_50px_rgba(0,194,255,0.15)]">
-                            {heroImage ? (
-                                <img src={heroImage} alt="Event Poster" className="w-full h-full object-fill" />
+                        <div className={`relative w-full max-w-5xl -mt-8 rounded-[2rem] overflow-hidden border border-border bg-card shadow-2xl transition-all duration-500 hover:scale-[1.01] hover:shadow-[0_0_50px_rgba(0,194,255,0.15)] ${hasMobileImage ? 'aspect-[9/16] md:aspect-[1.6/1]' : 'aspect-[1.6/1]'}`}>
+                            {desktopImage || mobileImage ? (
+                                <>
+                                    {desktopImage && (
+                                        <img
+                                            src={desktopImage}
+                                            alt="Event Poster"
+                                            className={`${mobileImage ? 'hidden md:block' : 'block'} w-full h-full object-cover`}
+                                        />
+                                    )}
+                                    {mobileImage && (
+                                        <img
+                                            src={mobileImage}
+                                            alt="Event Poster Mobile"
+                                            className={`${desktopImage ? 'block md:hidden' : 'block'} w-full h-full object-cover`}
+                                        />
+                                    )}
+                                </>
                             ) : (
                                 <div className="w-full h-full bg-gradient-to-br from-brand-aws/20 to-brand-blue/20 backdrop-blur-md flex flex-col items-center justify-center p-8">
                                     <Cloud className="w-24 h-24 text-brand-cyan/20 mb-4 animate-float" />

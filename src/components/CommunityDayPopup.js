@@ -52,9 +52,30 @@ export default function CommunityDayPopup({ event }) {
                         exit={{ opacity: 0, scale: 0.95, y: -20 }}
                         className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-brand-cyan/20 bg-[#0a0f18] shadow-2xl glass-card z-10"
                     >
-                        {event.hero_data?.popup_image && (
-                            <div className="w-full h-48 md:h-64 relative overflow-hidden bg-brand-dark flex flex-col items-center justify-center">
-                                <img src={event.hero_data.popup_image} alt="Event Cover" className="absolute inset-0 w-full h-full object-cover" />
+                        {/* Close button */}
+                        <button
+                            onClick={handleDismiss}
+                            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 text-white/80 hover:text-white transition-colors z-30 backdrop-blur-sm"
+                        >
+                            <X size={16} />
+                        </button>
+
+                        {(event.hero_data?.popup_image || event.hero_data?.mobile_image) && (
+                            <div className={`w-full relative overflow-hidden bg-brand-dark flex flex-col items-center justify-center ${event.hero_data?.mobile_image ? 'aspect-[9/16] md:aspect-[1.6/1]' : 'aspect-[1.6/1]'}`}>
+                                {event.hero_data?.popup_image && (
+                                    <img
+                                        src={event.hero_data.popup_image}
+                                        alt="Event Cover Desktop"
+                                        className={`${event.hero_data?.mobile_image ? 'hidden md:block' : 'block'} absolute inset-0 w-full h-full object-cover`}
+                                    />
+                                )}
+                                {event.hero_data?.mobile_image && (
+                                    <img
+                                        src={event.hero_data.mobile_image}
+                                        alt="Event Cover Mobile"
+                                        className={`${event.hero_data?.popup_image ? 'block md:hidden' : 'block'} absolute inset-0 w-full h-full object-cover`}
+                                    />
+                                )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f18] via-transparent to-transparent pointer-events-none" />
                                 <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#0a0f18] to-transparent pointer-events-none" />
                             </div>
@@ -63,13 +84,7 @@ export default function CommunityDayPopup({ event }) {
                         {/* Glowing orb accent */}
                         <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full bg-brand-cyan/20 blur-[100px] pointer-events-none" />
 
-                        <div className={`relative p-8 ${event.hero_data?.popup_image ? 'pt-2' : ''}`}>
-                            <button
-                                onClick={handleDismiss}
-                                className={`absolute right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-colors z-20 ${event.hero_data?.popup_image ? '-top-40 md:-top-56' : 'top-4'}`}
-                            >
-                                <X size={16} />
-                            </button>
+                        <div className={`relative p-8 ${(event.hero_data?.popup_image || event.hero_data?.mobile_image) ? 'pt-2' : ''}`}>
 
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="px-3 py-1 rounded-full bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan text-xs font-black uppercase tracking-widest flex items-center gap-2">
