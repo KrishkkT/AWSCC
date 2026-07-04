@@ -48,7 +48,7 @@ export default function Navbar() {
 
                 <div className="hidden lg:flex items-center gap-4">
                     <ThemeToggle />
-                    <Link href="https://www.meetup.com/awscc-at-dharmsinh-desai-university/" target="_blank" className="btn-aws !py-2.5 !px-8 text-xs whitespace-nowrap">
+                    <Link href="https://www.meetup.com/aws-sbg-ddit/" target="_blank" className="btn-aws !py-2.5 !px-8 text-xs whitespace-nowrap">
                         Join Community
                     </Link>
                 </div>
@@ -98,7 +98,7 @@ export default function Navbar() {
                                 ))}
                             </div>
                             <div className="flex flex-col gap-4">
-                                <Link href="https://www.meetup.com/awscc-at-dharmsinh-desai-university/" target="_blank" className="btn-aws py-5 text-center font-bold text-lg" onClick={() => setIsMobileMenuOpen(false)}>
+                                <Link href="https://www.meetup.com/aws-sbg-ddit/" target="_blank" className="btn-aws py-5 text-center font-bold text-lg" onClick={() => setIsMobileMenuOpen(false)}>
                                     Join Community
                                 </Link>
                             </div>

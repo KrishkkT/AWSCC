@@ -32,12 +32,10 @@ export default function Footer() {
                     <div className="flex gap-3">
                         {[
                             { icon: <Mail size={16} />, href: "mailto:awscloudclub@ddu.ac.in" },
-                            { icon: <Instagram size={16} />, href: "#" },
-                            { icon: <Linkedin size={16} />, href: "#" },
-                            { icon: <Github size={16} />, href: "#" },
-                            { icon: <Twitter size={16} />, href: "#" }
+                            { icon: <Instagram size={16} />, href: "https://www.instagram.com/aws_sbg_ddit" },
+                            { icon: <Linkedin size={16} />, href: "https://www.linkedin.com/company/aws-sbg-ddit/" },
                         ].map((social, idx) => (
-                            <a key={idx} href={social.href} className="w-9 h-9 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:bg-brand-aws hover:text-white hover:border-brand-aws transition-all duration-300">
+                            <a key={idx} href={social.href} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:bg-brand-aws hover:text-white hover:border-brand-aws transition-all duration-300">
                                 {social.icon}
                             </a>
                         ))}

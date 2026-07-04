@@ -69,7 +69,7 @@ export default function CommunityPage() {
                         <a href="https://discord.gg/yourlink" className="btn-aws !px-10 !py-4 flex items-center justify-center gap-2">
                             Join Discord
                         </a>
-                        <a href="https://meetup.com/yourlink" className="btn-outline !px-10 !py-4 border-border hover:border-foreground/30">
+                        <a href="https://meetup.com/aws-sbg-ddit" className="btn-outline !px-10 !py-4 border-border hover:border-foreground/30">
                             Meetup Page
                         </a>
                     </div>

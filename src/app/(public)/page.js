@@ -114,7 +114,7 @@ export default function Home() {
                             className="flex flex-col sm:flex-row items-center gap-6"
                         >
                             <Link
-                                href="https://www.meetup.com/awscc-at-dharmsinh-desai-university/"
+                                href="https://www.meetup.com/aws-sbg-ddit/"
                                 target="_blank"
                                 className="btn-aws !px-12 !py-5 text-lg flex items-center gap-3 group relative overflow-hidden"
                             >
@@ -175,8 +175,11 @@ export default function Home() {
                             {highlights.length > 0 ? (
                                 highlights.map((event, i) => (
                                     <ScrollReveal key={i} delay={i * 0.1}>
-                                        <div className="card-professional group h-full flex flex-col p-0 overflow-hidden">
-                                            <div className="aspect-[16/9] bg-slate-800 relative overflow-hidden">
+                                        <Link
+                                            href={event.isCommunityDay ? `/scd/${event.year}` : `/events?id=${event.id}`}
+                                            className="card-professional group h-full flex flex-col p-0 overflow-hidden no-underline"
+                                        >
+                                            <div className="aspect-[3/2] bg-slate-800 relative overflow-hidden">
                                                 {event.image_url ? (
                                                     <img src={event.image_url} alt={event.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                                 ) : (
@@ -184,11 +187,6 @@ export default function Home() {
                                                         <Box className="w-16 h-16 text-slate-700" />
                                                     </div>
                                                 )}
-                                                <div className="absolute top-4 left-4">
-                                                    <span className="px-3 py-1 bg-brand-deep/80 backdrop-blur-md text-brand-aws text-[10px] font-bold uppercase tracking-widest border border-brand-aws/30 rounded-md">
-                                                        {event.status || 'Upcoming'}
-                                                    </span>
-                                                </div>
                                             </div>
                                             <div className="p-8 flex flex-col flex-grow">
                                                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground mb-4 uppercase tracking-tighter">
@@ -199,11 +197,11 @@ export default function Home() {
                                                 </div>
                                                 <h3 className="text-xl font-display font-bold text-card-foreground group-hover:text-brand-aws transition-colors mb-4 line-clamp-1">{event.title}</h3>
                                                 <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-6">{event.description || `Join us for an immersive session on ${event.title.toLowerCase()}.`}</p>
-                                                <Link href={event.isCommunityDay ? `/scd/${event.year}` : `/events?id=${event.id}`} className="mt-auto flex items-center gap-2 text-sm font-bold text-brand-aws group/link">
-                                                    Event Details <ArrowRight size={16} className="group-hover/link:translate-x-1 transition-transform" />
-                                                </Link>
+                                                <div className="mt-auto flex items-center gap-2 text-sm font-bold text-brand-aws">
+                                                    Event Details <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                                                </div>
                                             </div>
-                                        </div>
+                                        </Link>
                                     </ScrollReveal>
                                 ))
                             ) : (
@@ -274,7 +272,7 @@ export default function Home() {
                                     Join the most active developer community at Dharmsinh Desai University and start building for the future.
                                 </p>
                                 <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
-                                    <Link href="https://www.meetup.com/awscc-at-dharmsinh-desai-university/" target="_blank" className="btn-aws !text-white !px-12 !py-4 text-base shadow-xl">
+                                    <Link href="https://www.meetup.com/aws-sbg-ddit/" target="_blank" className="btn-aws !text-white !px-12 !py-4 text-base shadow-xl">
                                         Register via Meetup
                                     </Link>
                                     <Link href="/contact" className="btn-outline !border-white/30 !text-white !hover:bg-white/10 !px-12 !py-4 text-base">
