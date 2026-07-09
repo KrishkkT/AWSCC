@@ -16,8 +16,9 @@ const transporter = nodemailer.createTransport({
 
 export const sendEmail = async ({ to, subject, html }) => {
     try {
+        const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
         const info = await transporter.sendMail({
-            from: `"AWS Student Builder Group" <${process.env.SMTP_USER}>`,
+            from: `"AWS Student Builder Group" <${fromEmail}>`,
             to,
             subject,
             html,

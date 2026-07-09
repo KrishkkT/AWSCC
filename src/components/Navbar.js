@@ -47,7 +47,7 @@ export default function Navbar() {
                 </div>
 
                 <div className="hidden lg:flex items-center gap-4">
-                    <ThemeToggle />
+                    {/* <ThemeToggle /> */}
                     <Link href="https://www.meetup.com/aws-sbg-ddit/" target="_blank" className="btn-aws !py-2.5 !px-8 text-xs whitespace-nowrap">
                         Join Community
                     </Link>
@@ -55,7 +55,7 @@ export default function Navbar() {
 
                 {/* Mobile Toggle */}
                 <div className="flex items-center gap-4 lg:hidden">
-                    <ThemeToggle />
+                    {/* <ThemeToggle /> */}
                     <button
                         className="text-foreground p-2 relative z-[100]"
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

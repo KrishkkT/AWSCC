@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Github, Linkedin, Instagram, Users } from "lucide-react";
+import { Github, Linkedin, Instagram, Users, Globe } from "lucide-react";
 
 export default function Team() {
     const [team, setTeam] = useState([]);
@@ -76,6 +76,11 @@ export default function Team() {
                                 {member.instagram_url && (
                                     <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-aws transition-all transform hover:-translate-y-1">
                                         <Instagram size={20} />
+                                    </a>
+                                )}
+                                {member.portfolio_url && (
+                                    <a href={member.portfolio_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-cyan transition-all transform hover:-translate-y-1" title="Portfolio Website">
+                                        <Globe size={20} />
                                     </a>
                                 )}
                             </div>

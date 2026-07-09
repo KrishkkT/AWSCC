@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Calendar, Plus, Search, Edit2, Trash2, Eye, EyeOff, X, Check, Loader2, Code2, Users, Award, Ticket, Clock, FileText } from "lucide-react";
+import { Calendar, Plus, Search, Edit2, Trash2, Eye, EyeOff, X, Check, Loader2, Code2, Users, Award, Ticket, Clock, FileText, Laptop } from "lucide-react";
 import Toast from "@/components/Toast";
 
 const DEFAULT_AGENDA = [
@@ -55,6 +55,7 @@ const TABS = [
     { id: 'general', label: 'General Info', icon: Calendar },
     { id: 'agenda', label: 'Agenda Blocks', icon: Clock },
     { id: 'speakers_sponsors', label: 'Speakers & Sponsors', icon: Users },
+    { id: 'workshops', label: 'Workshops', icon: Laptop },
     { id: 'content', label: 'Page Content', icon: FileText }
 ];
 
@@ -83,6 +84,7 @@ export default function AdminCommunityDay() {
         speakers_data: [],
         sponsors_data: [],
         team_data: [],
+        workshops_data: [],
         ticket_data: { konfhub_url: '', tickets: [] },
         popup_image_url: '',
         mobile_image_url: ''
@@ -122,6 +124,7 @@ export default function AdminCommunityDay() {
             speakers_data: [],
             sponsors_data: [],
             team_data: [],
+            workshops_data: [],
             ticket_data: { konfhub_url: '', tickets: [] },
             popup_image_url: '',
             mobile_image_url: ''
@@ -149,6 +152,7 @@ export default function AdminCommunityDay() {
             speakers_data: safeArray(event.speakers_data, []),
             sponsors_data: safeArray(event.sponsors_data, []),
             team_data: safeArray(event.team_data, []),
+            workshops_data: safeArray(event.workshops_data, []),
             ticket_data: { 
                 konfhub_url: safeObject(event.ticket_data, {}).konfhub_url || '', 
                 tickets: Array.isArray(safeObject(event.ticket_data, {}).tickets) ? safeObject(event.ticket_data, {}).tickets : [] 
@@ -164,7 +168,7 @@ export default function AdminCommunityDay() {
 
     const uploadImage = async (file) => {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
+        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
         const filePath = `community_day/${fileName}`;
         const { error: uploadError } = await supabase.storage.from('event-images').upload(filePath, file);
         if (uploadError) throw uploadError;
@@ -244,6 +248,7 @@ export default function AdminCommunityDay() {
             speakers_data: processedSpeakers,
             sponsors_data: processedSponsors,
             team_data: processedTeam,
+            workshops_data: formData.workshops_data || [],
             hero_data: heroDataObj,
             about_data: formData.about_data,
             ticket_data: formData.ticket_data
@@ -630,6 +635,59 @@ export default function AdminCommunityDay() {
                             </div>
                         )}
 
+                        {activeTab === 'workshops' && (
+                            <div className="space-y-4">
+                                <h4 className="text-lg font-black text-brand-cyan border-b border-brand-cyan/20 pb-2 flex items-center justify-between">
+                                    Workshops List
+                                    <button type="button" onClick={() => addArrayItem('workshops_data', { title: '', speaker: '', time: '', venue: '', description: '', requirements: '', guide_url: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Workshop</button>
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {(formData.workshops_data || []).map((ws, idx) => (
+                                        <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-6 relative space-y-4">
+                                            <button type="button" onClick={() => removeArrayItem('workshops_data', idx)} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full sm:bg-transparent"><X size={14}/></button>
+                                            
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase text-white/30 ml-1">Workshop Title</label>
+                                                <input type="text" value={ws.title} onChange={e => updateArrayItem('workshops_data', idx, 'title', e.target.value)} placeholder="e.g. AWS Serverless Hands-on" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan font-bold transition-all placeholder:text-white/30 placeholder:font-normal" />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-white/30 ml-1">Speaker(s)</label>
+                                                    <input type="text" value={ws.speaker} onChange={e => updateArrayItem('workshops_data', idx, 'speaker', e.target.value)} placeholder="e.g. Jane Doe" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-white/30 ml-1">Time / Slot</label>
+                                                    <input type="text" value={ws.time} onChange={e => updateArrayItem('workshops_data', idx, 'time', e.target.value)} placeholder="e.g. 14:00 - 16:00" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all" />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-white/30 ml-1">Venue / Lab</label>
+                                                    <input type="text" value={ws.venue} onChange={e => updateArrayItem('workshops_data', idx, 'venue', e.target.value)} placeholder="e.g. Lab 3, Ground Floor" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-white/30 ml-1">AWS Guide Link</label>
+                                                    <input type="url" value={ws.guide_url} onChange={e => updateArrayItem('workshops_data', idx, 'guide_url', e.target.value)} placeholder="https://..." className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all" />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase text-white/30 ml-1">Description</label>
+                                                <textarea rows={3} value={ws.description} onChange={e => updateArrayItem('workshops_data', idx, 'description', e.target.value)} placeholder="Enter workshop description..." className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan resize-none transition-all"></textarea>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase text-white/30 ml-1">Additional Requirements (comma-separated)</label>
+                                                <input type="text" value={ws.requirements} onChange={e => updateArrayItem('workshops_data', idx, 'requirements', e.target.value)} placeholder="e.g. Git installed, AWS CLI configured" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {activeTab === 'content' && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2 md:col-span-2">
@@ -660,7 +718,7 @@ export default function AdminCommunityDay() {
                                 <div className="space-y-4 md:col-span-2 mt-4">
                                     <h4 className="text-lg font-black text-white border-b border-white/10 pb-2 flex items-center justify-between">
                                         Organizing Team
-                                        <button type="button" onClick={() => addArrayItem('team_data', { name: '', role: '', image: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Member</button>
+                                        <button type="button" onClick={() => addArrayItem('team_data', { name: '', role: '', image: '', portfolio_url: '', github_url: '', linkedin_url: '', instagram_url: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Member</button>
                                     </h4>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {formData.team_data.map((member, idx) => (
@@ -673,10 +731,16 @@ export default function AdminCommunityDay() {
                                                         <span className="text-[9px] font-black uppercase text-white tracking-widest">Image</span>
                                                     </div>
                                                 </label>
-                                                <div className="flex-1 w-full space-y-2 sm:pr-2">
+                                                <div className="flex-grow w-full space-y-2 sm:pr-2">
                                                     <input type="text" value={member.name} onChange={e => updateArrayItem('team_data', idx, 'name', e.target.value)} placeholder="Member Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan font-bold transition-all placeholder:text-white/30 placeholder:font-normal" />
                                                     <input type="text" value={member.role} onChange={e => updateArrayItem('team_data', idx, 'role', e.target.value)} placeholder="Role (e.g. Lead Organizer)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-brand-cyan outline-none focus:border-brand-cyan transition-all placeholder:text-white/30" />
                                                     <input type="text" value={member.image} onChange={e => updateArrayItem('team_data', idx, 'image', e.target.value)} placeholder="Or paste Avatar URL" className="w-full bg-brand-cyan/5 border border-brand-cyan/20 rounded-lg px-3 py-1.5 text-brand-cyan/70 text-xs outline-none focus:border-brand-cyan focus:bg-brand-cyan/10 transition-all font-mono" />
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <input type="text" value={member.portfolio_url || ''} onChange={e => updateArrayItem('team_data', idx, 'portfolio_url', e.target.value)} placeholder="Portfolio Website URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
+                                                        <input type="text" value={member.github_url || ''} onChange={e => updateArrayItem('team_data', idx, 'github_url', e.target.value)} placeholder="GitHub URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
+                                                        <input type="text" value={member.linkedin_url || ''} onChange={e => updateArrayItem('team_data', idx, 'linkedin_url', e.target.value)} placeholder="LinkedIn URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
+                                                        <input type="text" value={member.instagram_url || ''} onChange={e => updateArrayItem('team_data', idx, 'instagram_url', e.target.value)} placeholder="Instagram URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}

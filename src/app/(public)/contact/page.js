@@ -29,6 +29,17 @@ export default function Contact() {
             console.error(error);
             setStatus('error');
         } else {
+            try {
+                await fetch('/api/contact', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                });
+            } catch (err) {
+                console.error("Failed to send contact notification email:", err);
+            }
             setStatus('success');
             e.target.reset();
         }
@@ -97,20 +108,20 @@ export default function Contact() {
                                     </div>
                                 </motion.div>
                             ))}
-                            
+
                             {/* DDU Map Location Box */}
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.3 }}
-                                className="card-professional overflow-hidden shadow-sm h-56 relative rounded-3xl border border-border/50 group"
+                                className="card-professional overflow-hidden shadow-sm h-80 relative rounded-3xl border border-border/50 group"
                             >
-                                <iframe 
-                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3683.003319080649!2d72.8687790757271!3d22.68612197941094!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e5b206cd2dbaf%3A0xe549b062ca61665e!2sDharmsinh%20Desai%20University!5e0!3m2!1sen!2sin!4v1710928000000!5m2!1sen!2sin" 
-                                    className="w-full h-full grayscale-[20%] contrast-[1.1] group-hover:grayscale-0 transition-all duration-500"
-                                    style={{ border: 0 }} 
-                                    allowFullScreen="" 
-                                    loading="lazy" 
+                                <iframe
+                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3681.3072706642383!2d72.87820267391233!3d22.679602629042744!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e5adf2c171355%3A0xe1e974ce083657fb!2sDharmsinh%20Desai%20University!5e0!3m2!1sen!2sin!4v1783621192376!5m2!1sen!2sin"
+                                    className="w-full h-full transition-all duration-500"
+                                    style={{ border: 0 }}
+                                    allowFullScreen=""
+                                    loading="lazy"
                                     title="Dharmsinh Desai University Map"
                                 ></iframe>
                             </motion.div>
@@ -129,13 +140,13 @@ export default function Contact() {
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Full Name</label>
                                     <div className="relative">
-                                        <input required name="name" type="text" className="w-full bg-secondary transition-all focus:bg-background" placeholder="Mukesh Ambani" />
+                                        <input required name="name" type="text" className="w-full bg-secondary transition-all focus:bg-background" placeholder="Your full name" />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Email Address</label>
                                     <div className="relative">
-                                        <input required name="email" type="email" className="w-full bg-secondary transition-all focus:bg-background" placeholder="mukesh@gmail.com" />
+                                        <input required name="email" type="email" className="w-full bg-secondary transition-all focus:bg-background" placeholder="Your email address" />
                                     </div>
                                 </div>
                             </div>

@@ -118,7 +118,7 @@ export default function About() {
                         <img
                             src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=2070&auto=format&fit=crop"
                             alt="Team Collaboration"
-                            className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
+                            className="w-full h-full object-cover transition-all duration-700"
                         />
                     </motion.div>
                 </div>

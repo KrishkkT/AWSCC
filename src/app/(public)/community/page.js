@@ -66,8 +66,8 @@ export default function CommunityPage() {
                         Join our digital headquarters for real-time discussions, event announcements, and collaborative building.
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <a href="https://discord.gg/yourlink" className="btn-aws !px-10 !py-4 flex items-center justify-center gap-2">
-                            Join Discord
+                        <a href="https://linkedin.com/company/aws-sbg-ddit" className="btn-aws !px-10 !py-4 flex items-center justify-center gap-2">
+                            Join Linkedin
                         </a>
                         <a href="https://meetup.com/aws-sbg-ddit" className="btn-outline !px-10 !py-4 border-border hover:border-foreground/30">
                             Meetup Page

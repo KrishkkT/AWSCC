@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Users, Plus, Trash2, Edit2, Github, Linkedin, Twitter, Save, X, Loader2, Upload, Link as LinkIcon, Image as ImageIcon, Instagram } from "lucide-react";
 import Toast from "@/components/Toast";
 
+// Force recompile trigger for modal layout update
 export default function AdminTeam() {
     const [team, setTeam] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -23,6 +24,7 @@ export default function AdminTeam() {
         github_url: '',
         linkedin_url: '',
         instagram_url: '',
+        portfolio_url: '',
         display_order: 0
     });
 
@@ -48,7 +50,7 @@ export default function AdminTeam() {
 
         setUploading(true);
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
+        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
         const filePath = `team/${fileName}`;
 
         try {
@@ -119,7 +121,10 @@ export default function AdminTeam() {
     const openModal = (member = null) => {
         if (member) {
             setEditingMember(member);
-            setFormData({ ...member });
+            setFormData({
+                portfolio_url: '',
+                ...member
+            });
             setImageSource('url');
         } else {
             setEditingMember(null);
@@ -131,6 +136,7 @@ export default function AdminTeam() {
                 github_url: '',
                 linkedin_url: '',
                 instagram_url: '',
+                portfolio_url: '',
                 display_order: team?.length || 0
             });
             setImageSource('url');
@@ -263,18 +269,22 @@ export default function AdminTeam() {
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4 font-bold">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-bold">
                                 <div className="space-y-2">
                                     <label className="flex items-center gap-2 text-[10px] font-black uppercase text-white/30 ml-1"><Github size={12} /> GitHub</label>
-                                    <input type="text" value={formData.github_url} onChange={e => setFormData({ ...formData, github_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-brand-cyan transition-all" />
+                                    <input type="text" value={formData.github_url || ''} onChange={e => setFormData({ ...formData, github_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-brand-cyan transition-all" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="flex items-center gap-2 text-[10px] font-black uppercase text-white/30 ml-1"><Linkedin size={12} /> LinkedIn</label>
-                                    <input type="text" value={formData.linkedin_url} onChange={e => setFormData({ ...formData, linkedin_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-brand-cyan transition-all" />
+                                    <input type="text" value={formData.linkedin_url || ''} onChange={e => setFormData({ ...formData, linkedin_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-brand-cyan transition-all" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="flex items-center gap-2 text-[10px] font-black uppercase text-white/30 ml-1"><Instagram size={12} /> Instagram</label>
-                                    <input type="text" value={formData.instagram_url} onChange={e => setFormData({ ...formData, instagram_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-brand-cyan transition-all" />
+                                    <input type="text" value={formData.instagram_url || ''} onChange={e => setFormData({ ...formData, instagram_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-brand-cyan transition-all" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase text-white/30 ml-1"><LinkIcon size={12} /> Portfolio</label>
+                                    <input type="text" value={formData.portfolio_url || ''} onChange={e => setFormData({ ...formData, portfolio_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-brand-cyan transition-all" placeholder="https://..." />
                                 </div>
                             </div>
 

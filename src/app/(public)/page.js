@@ -226,17 +226,17 @@ export default function Home() {
                                 {
                                     title: "Industry Ready",
                                     desc: "Learn real-world AWS architecting, DevOps, and Serverless from those who build on it daily.",
-                                    icon: <Zap className="text-brand-aws" size={28} />
+                                    icon: <Zap className="text-brand-aws group-hover:text-brand-deep transition-colors duration-300" size={28} />
                                 },
                                 {
                                     title: "Global Network",
                                     desc: "Connect with a global community of AWS builders and enthusiasts across various Student Builder Groups.",
-                                    icon: <Globe className="text-brand-aws" size={28} />
+                                    icon: <Globe className="text-brand-aws group-hover:text-brand-deep transition-colors duration-300" size={28} />
                                 },
                                 {
                                     title: "Career Growth",
                                     desc: "Access exclusive community resources, certification guidance, and networking opportunities.",
-                                    icon: <BookOpen className="text-brand-aws" size={28} />
+                                    icon: <BookOpen className="text-brand-aws group-hover:text-brand-deep transition-colors duration-300" size={28} />
                                 }
                             ].map((pillar, i) => (
                                 <ScrollReveal key={i} delay={i * 0.1}>
