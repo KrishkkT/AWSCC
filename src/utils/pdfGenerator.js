@@ -82,8 +82,12 @@ export const generateCertificatePDF = async (certData) => {
 
     try {
         // 1. Fetch the template PDF
-        const response = await fetch('/templates/attendee_template.pdf');
-        if (!response.ok) throw new Error("Template not found");
+        const templateFile = certData.template === 'purple' 
+            ? 'attendee_template_purple.pdf' 
+            : 'attendee_template_green.pdf';
+            
+        const response = await fetch(`/templates/${templateFile}`);
+        if (!response.ok) throw new Error(`Template not found: ${templateFile}`);
         const existingPdfBytes = await response.arrayBuffer();
 
         // 2. Load the PDF
@@ -98,67 +102,30 @@ export const generateCertificatePDF = async (certData) => {
 
         // Recipient Name - UPPERCASE & BOLD
         const recipientName = (certData.recipient_name || "Recipient").toUpperCase();
-        const nameFontSize = 38;
+        
+        // Dynamic font-sizing based on name length to prevent overlap and text clipping
+        const nameLength = recipientName.length;
+        let nameFontSize = 26;
+        if (nameLength > 25) {
+            nameFontSize = 16;
+        } else if (nameLength > 18) {
+            nameFontSize = 20;
+        } else if (nameLength > 12) {
+            nameFontSize = 23;
+        }
+
         const nameTextWidth = font.widthOfTextAtSize(recipientName, nameFontSize);
+        
+        // Color selection: Green (#00B77A) for Green template, Black for Purple template
+        const isGreenTemplate = certData.template !== 'purple';
+        const nameColor = isGreenTemplate ? rgb(0, 0.71, 0.48) : rgb(0, 0, 0);
+
         firstPage.drawText(recipientName, {
-            x: (width - nameTextWidth) / 2,
-            y: height * 0.52, // Positioned at ~46% from top
+            x: 762.5 - nameTextWidth / 2,
+            y: height * 0.40, // Positioned on the right side below "Proudly presented to"
             size: nameFontSize,
             font: font,
-            color: rgb(0.77, 0.63, 0.35), // Authentic Gold #C5A059
-        });
-
-        // Event Title - Centering & Positioning
-        const eventTitle = certData.event_name || certData.events?.title || "AWS Event";
-        const eventFontSize = 18;
-        const eventTextWidth = font.widthOfTextAtSize(eventTitle, eventFontSize);
-        firstPage.drawText(eventTitle, {
-            x: (width - eventTextWidth) / 2,
-            y: height * 0.38, // Positioned at ~62% from top
-            size: eventFontSize,
-            font: font,
-            color: rgb(0.54, 0.45, 0.33), // Muted Gold #8B7355
-        });
-
-        // Date of Issue Label
-        firstPage.drawText("DATE OF ISSUE", {
-            x: width * 0.85,
-            y: height * 0.20,
-            size: 7,
-            font: font,
-            color: rgb(0.77, 0.63, 0.35), // Gold label
-        });
-
-        // Date Value
-        const eventDate = certData.events?.start_time || certData.events?.date || certData.created_at || Date.now();
-        const dateStr = new Date(eventDate).toLocaleDateString('en-US', {
-            day: 'numeric', month: 'long', year: 'numeric'
-        });
-        firstPage.drawText(dateStr, {
-            x: width * 0.84,
-            y: height * 0.18,
-            size: 10,
-            font: font,
-            color: rgb(0.1, 0.1, 0.1),
-        });
-
-        // Verification ID Label
-        firstPage.drawText("VERIFICATION ID", {
-            x: width * 0.85,
-            y: height * 0.15,
-            size: 7,
-            font: font,
-            color: rgb(0.77, 0.63, 0.35),
-        });
-
-        // Verification ID Value
-        const certId = (certData.id || "VERIFY-ID").substring(0, 12).toUpperCase();
-        firstPage.drawText(certId, {
-            x: width * 0.85,
-            y: height * 0.13,
-            size: 8,
-            font: font,
-            color: rgb(0.1, 0.1, 0.1),
+            color: nameColor,
         });
 
         // 4. Save and Download
