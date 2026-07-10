@@ -141,6 +141,12 @@ export default function Team() {
                             title="Core Committee"
                             members={team.filter(m => m.category === 'Team')}
                         />
+
+                        {/* 4. Founding Leaders Section */}
+                        <TeamSection
+                            title="Founding Leaders"
+                            members={team.filter(m => m.category === 'Founding')}
+                        />
                     </div>
                 )}
             </div>

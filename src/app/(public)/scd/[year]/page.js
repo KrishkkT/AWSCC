@@ -23,7 +23,9 @@ import {
     Laptop,
     Github,
     Linkedin,
-    Instagram
+    Instagram,
+    Coffee,
+    Camera
 } from "lucide-react";
 import CloudBackground from "@/components/CloudBackground";
 
@@ -247,6 +249,78 @@ export default function SCDYearPage({ params }) {
                                     ))}
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Benefits Section */}
+                <section className="py-24 border-t border-border bg-card/10">
+                    <div className="container mx-auto px-6 max-w-5xl">
+                        <div className="text-center mb-16 space-y-4">
+                            <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">Event <span className="text-brand-cyan">Benefits</span></h2>
+                            <p className="text-slate-650 dark:text-slate-400 max-w-2xl mx-auto text-sm font-sans font-medium leading-relaxed">
+                                Join the event and unlock opportunities to learn, connect, and grow. From gaining new insights to meeting like-minded people, this experience is designed to support your journey in tech.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {[
+                                {
+                                    title: "E-Certificate",
+                                    desc: "Receive an official digital participation certificate to recognize your attendance and learning.",
+                                    icon: <Award className="w-8 h-8 text-brand-cyan" />,
+                                    color: "from-brand-cyan/20 to-brand-blue/5"
+                                },
+                                {
+                                    title: "Networking",
+                                    desc: "Connect with industry leaders, expert speakers, and like-minded peers to expand your professional network.",
+                                    icon: <Users className="w-8 h-8 text-brand-aws" />,
+                                    color: "from-brand-aws/20 to-brand-blue/5"
+                                },
+                                {
+                                    title: "Prizes & Swag",
+                                    desc: "Participate in quizzes, hands-on labs, and activities to win exclusive AWS goodies, swags, and prizes.",
+                                    icon: <Zap className="w-8 h-8 text-yellow-500" />,
+                                    color: "from-yellow-500/20 to-amber-500/5"
+                                },
+                                {
+                                    title: "Complimentary Catering",
+                                    desc: "Enjoy delicious complimentary lunch, refreshments, and snacks provided during the event.",
+                                    icon: <Coffee className="w-8 h-8 text-emerald-500" />,
+                                    color: "from-emerald-500/20 to-teal-500/5"
+                                },
+                                {
+                                    title: "Photo Booth",
+                                    desc: "Capture memorable moments at the event with our custom-themed photo experiences and backdrops.",
+                                    icon: <Camera className="w-8 h-8 text-pink-500" />,
+                                    color: "from-pink-500/20 to-rose-500/5"
+                                },
+                                {
+                                    title: "Hands-on Labs",
+                                    desc: "Gain practical cloud experience with guided workshops and labs led by AWS experts.",
+                                    icon: <Laptop className="w-8 h-8 text-purple-500" />,
+                                    color: "from-purple-500/20 to-indigo-500/5"
+                                }
+                            ].map((benefit, idx) => (
+                                <div
+                                    key={idx}
+                                    className="glass-card p-8 flex flex-col justify-between border-border hover:border-brand-cyan/30 hover:shadow-[0_0_30px_rgba(0,194,255,0.1)] transition-all duration-300 relative group bg-card/40 backdrop-blur-md"
+                                >
+                                    <div className="space-y-6">
+                                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${benefit.color} border border-white/5 dark:border-white/10 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500`}>
+                                            {benefit.icon}
+                                        </div>
+                                        <div className="space-y-3">
+                                            <h3 className="text-xl font-bold text-slate-900 dark:text-white font-display">
+                                                {benefit.title}
+                                            </h3>
+                                            <p className="text-sm text-slate-600 dark:text-slate-350 leading-relaxed font-sans font-medium">
+                                                {benefit.desc}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </section>
@@ -622,42 +696,48 @@ export default function SCDYearPage({ params }) {
                                 </p>
                             </div>
 
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
                                 {team.map((member, idx) => (
-                                    <div key={idx} className="bg-card border border-border p-5 rounded-2xl flex flex-col items-center text-center space-y-4 hover:border-border/85 transition-all shadow-sm">
-                                        <div className="w-20 h-20 rounded-full border border-border bg-secondary overflow-hidden relative shadow-inner">
-                                            {member.image ? (
-                                                <img src={member.image} alt={member.name} className="absolute inset-0 w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-card">
-                                                    <Users className="w-8 h-8 text-slate-500/30 dark:text-slate-700/30" />
-                                                </div>
-                                            )}
+                                    <div key={idx} className="glass-card p-6 flex flex-col items-center text-center space-y-6 border-border hover:border-brand-cyan/40 hover:shadow-[0_0_25px_rgba(0,194,255,0.15)] transition-all duration-300 relative group bg-card/40 backdrop-blur-md">
+                                        <div className="w-28 h-28 rounded-full p-1 bg-gradient-to-tr from-brand-aws to-brand-cyan relative overflow-hidden group-hover:scale-105 transition-all duration-500 shadow-md">
+                                            <div className="w-full h-full rounded-full overflow-hidden bg-background">
+                                                {member.image ? (
+                                                    <img src={member.image} alt={member.name} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center bg-card">
+                                                        <Users className="w-10 h-10 text-slate-500/30 dark:text-slate-700/30" />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col items-center">
-                                            <h4 className="font-bold text-slate-900 dark:text-white text-sm font-sans truncate w-full max-w-[120px]">{member.name}</h4>
-                                            <p className="text-[10px] text-brand-cyan font-bold uppercase tracking-wider font-sans mb-3 truncate w-full max-w-[120px]">{member.role}</p>
+                                        <div className="flex flex-col items-center w-full">
+                                            <span className="px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan mb-3">
+                                                {member.role}
+                                            </span>
+                                            <h4 className="font-display font-bold text-slate-900 dark:text-white text-base truncate w-full mb-4">
+                                                {member.name}
+                                            </h4>
                                             
                                             {/* Social Links Row */}
-                                            <div className="flex items-center justify-center gap-3.5 text-slate-400 dark:text-slate-500">
+                                            <div className="flex items-center justify-center gap-4 text-slate-400 dark:text-slate-500 pt-2 border-t border-border/50 w-full">
                                                 {member.github_url && (
                                                     <a href={member.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:hover:text-white transition-colors" title="GitHub">
-                                                        <Github size={14} />
+                                                        <Github size={15} />
                                                     </a>
                                                 )}
                                                 {member.linkedin_url && (
                                                     <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-blue transition-colors" title="LinkedIn">
-                                                        <Linkedin size={14} />
+                                                        <Linkedin size={15} />
                                                     </a>
                                                 )}
                                                 {member.instagram_url && (
                                                     <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-aws transition-colors" title="Instagram">
-                                                        <Instagram size={14} />
+                                                        <Instagram size={15} />
                                                     </a>
                                                 )}
                                                 {member.portfolio_url && (
                                                     <a href={member.portfolio_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-cyan transition-colors" title="Portfolio Website">
-                                                        <Globe size={14} />
+                                                        <Globe size={15} />
                                                     </a>
                                                 )}
                                             </div>

@@ -13,6 +13,7 @@ export async function generateMetadata({ params }) {
     if (!cert) return { title: 'Certificate Not Found | AWSCC DDU' };
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://awsccddu.com';
+    const templateUrl = cert.template === 'purple' ? 'attendee_template_purple.png' : 'attendee_template_green.png';
 
     return {
         title: `${cert.recipient_name}'s Certificate | AWSCC DDU`,
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }) {
             description: `Achievement for ${cert.event_name} issued by AWS Student Builder Group DDU.`,
             images: [
                 {
-                    url: `${siteUrl}/templates/attendee_template.png`,
+                    url: `${siteUrl}/templates/${templateUrl}`,
                     width: 1000,
                     height: 707,
                     alt: 'AWS Student Builder Group Certificate Template',
@@ -34,7 +35,7 @@ export async function generateMetadata({ params }) {
             card: 'summary_large_image',
             title: `${cert.recipient_name}'s AWSCC Achievement`,
             description: `Verified completion of ${cert.event_name}`,
-            images: [`${siteUrl}/templates/attendee_template.png`],
+            images: [`${siteUrl}/templates/${templateUrl}`],
         },
     };
 }

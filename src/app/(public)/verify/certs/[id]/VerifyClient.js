@@ -101,6 +101,7 @@ export default function VerifyClient({ params }) {
                             date={new Date(cert.events?.start_time || cert.events?.date || cert.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                             type={cert.certificate_type}
                             certificateId={cert.id}
+                            template={cert.template}
                         />
                     </div>
 

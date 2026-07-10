@@ -8,11 +8,27 @@ export default function CertificateTemplate({
     eventName = "AWS Cloud Day",
     date = new Date().toLocaleDateString(),
     type = "participation",
-    certificateId = "CERT-12345"
+    certificateId = "CERT-12345",
+    template = "blue"
 }) {
     const containerRef = useRef(null);
     const [scale, setScale] = useState(1);
-    const templateUrl = "/templates/attendee_template.png";
+    const templateUrl = template === "purple" ? "/templates/attendee_template_purple.png" : "/templates/attendee_template_green.png";
+
+    // Dynamic font size based on name length to prevent overflow/overlap for big names
+    const nameLength = recipientName.length;
+    let fontSizeClass = "text-3xl";
+    if (nameLength > 25) {
+        fontSizeClass = "text-xl";
+    } else if (nameLength > 18) {
+        fontSizeClass = "text-2xl";
+    } else if (nameLength > 12) {
+        fontSizeClass = "text-[26px]";
+    }
+
+    // Color: Green (#00B77A) for Green template, Black for Purple template
+    const isGreenTemplate = template !== 'purple';
+    const colorClass = isGreenTemplate ? "text-[#00B77A]" : "text-black";
 
     // Handle responsive scaling
     useEffect(() => {
@@ -32,10 +48,10 @@ export default function CertificateTemplate({
     return (
         <div ref={containerRef} className="w-full flex justify-center items-center overflow-hidden py-4 bg-transparent">
             {/* The actual certificate content with dynamic scaling */}
-            <div 
-                id="certificate-content" 
+            <div
+                id="certificate-content"
                 className="w-[1000px] h-[707px] bg-white relative overflow-hidden shadow-2xl select-none print:shadow-none origin-center shrink-0"
-                style={{ 
+                style={{
                     transform: `scale(${scale})`,
                     margin: `calc(-1 * (707px * (1 - ${scale})) / 2) 0`
                 }}
@@ -62,29 +78,10 @@ export default function CertificateTemplate({
                 {/* Dynamic Content Layers - Absolute Positioning */}
                 <div className="absolute inset-0 z-10 font-serif text-brand-dark">
                     {/* Recipient Name - Precision Alignment */}
-                    <div className="absolute top-[42%] left-0 w-full text-center">
-                        <h1 className="text-[#C5A059] text-5xl font-black tracking-tight px-8" style={{ fontFamily: "var(--font-cinzel), serif" }}>
+                    <div className="absolute top-[59%] left-[52%] w-[43%] text-center">
+                        <h1 className={`${colorClass} ${fontSizeClass} font-black tracking-tight px-2 uppercase`} style={{ fontFamily: "var(--font-cinzel), serif" }}>
                             {recipientName}
                         </h1>
-                    </div>
-
-                    {/* Event Name - Precision Alignment */}
-                    <div className="absolute top-[60%] left-0 w-full text-center px-20">
-                        <h2 className="text-[#8B7355] text-lg font-black uppercase tracking-[0.15em] leading-relaxed" style={{ fontFamily: "var(--font-cinzel), serif" }}>
-                            {eventName}
-                        </h2>
-                    </div>
-
-                    {/* Footer Section (ID and Date) */}
-                    <div className="absolute bottom-[10%] right-[8%] text-right flex flex-col items-end gap-1">
-                        <div className="space-y-0.5">
-                            <p className="text-[7px] text-[#C5A059] font-black uppercase tracking-widest leading-none">Date</p>
-                            <p className="text-[10px] font-bold text-[#1A1A1A] leading-tight">{date}</p>
-                        </div>
-                        <div className="space-y-0.5">
-                            <p className="text-[7px] text-[#C5A059] font-black uppercase tracking-widest leading-none">Verification ID</p>
-                            <p className="text-[10px] font-bold text-[#1A1A1A] leading-tight">{certificateId}</p>
-                        </div>
                     </div>
 
                     {/* Badge/Seal Overlay - Conditional based on type */}
@@ -97,14 +94,6 @@ export default function CertificateTemplate({
                         )}
                     </div>
                 </div>
-
-                <style jsx>{`
-                    h1 {
-                        background: linear-gradient(135deg, #C5A059 0%, #8B7355 100%);
-                        -webkit-background-clip: text;
-                        -webkit-text-fill-color: transparent;
-                    }
-                `}</style>
             </div>
         </div>
     );

@@ -218,6 +218,7 @@ export default function AdminTeam() {
                                         <option value="Captain" className="bg-brand-dark">Captain</option>
                                         <option value="Leader" className="bg-brand-dark">Leader</option>
                                         <option value="Team" className="bg-brand-dark">Team Member</option>
+                                        <option value="Founding" className="bg-brand-dark">Founding Leader</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">

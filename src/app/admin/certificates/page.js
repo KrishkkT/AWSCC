@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Award, Search, Download, Plus, Eye, Trash2, FileText, Loader2, X, ShieldCheck } from "lucide-react";
+import { Award, Search, Download, Plus, Eye, Trash2, FileText, Loader2, X, ShieldCheck, Upload } from "lucide-react";
 import Toast from "@/components/Toast";
 import { generateCertificatePDF } from "@/utils/pdfGenerator";
 
@@ -22,8 +22,10 @@ export default function AdminCertificates() {
         recipient_name: '',
         recipient_email: '',
         event_id: '',
-        certificate_type: 'participation'
+        certificate_type: 'participation',
+        template: 'blue'
     });
+    const [bulkData, setBulkData] = useState([]);
     const supabase = createClient();
 
     const fetchCertificates = useCallback(async () => {
@@ -46,48 +48,162 @@ export default function AdminCertificates() {
         fetchEvents();
     }, [fetchCertificates, fetchEvents]);
 
+    const handleCSVUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target.result;
+            const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+            if (lines.length === 0) {
+                setFeedback({ message: 'The CSV file is empty.', type: 'error' });
+                return;
+            }
+
+            // Try to parse headers from the first line
+            const firstLine = lines[0].split(',').map(item => item.trim().replace(/^["']|["']$/g, '').toLowerCase());
+            let nameColIdx = -1;
+            let emailColIdx = -1;
+
+            nameColIdx = firstLine.findIndex(h => h.includes('name') || h === 'recipient');
+            emailColIdx = firstLine.findIndex(h => h.includes('email') || h.includes('mail') || h === 'address');
+
+            let startIndex = 0;
+            if (nameColIdx !== -1 && emailColIdx !== -1) {
+                startIndex = 1;
+            } else {
+                nameColIdx = 0;
+                emailColIdx = 1;
+                startIndex = 0;
+            }
+
+            const parsed = [];
+            for (let i = startIndex; i < lines.length; i++) {
+                const cols = lines[i].split(',').map(item => item.trim().replace(/^["']|["']$/g, ''));
+                const name = cols[nameColIdx];
+                const email = cols[emailColIdx];
+                if (name && email && email.includes('@')) {
+                    parsed.push({
+                        recipient_name: name,
+                        recipient_email: email,
+                        template: 'blue'
+                    });
+                }
+            }
+
+            if (parsed.length > 0) {
+                setBulkData(parsed);
+                setNewCert({
+                    recipient_name: '',
+                    recipient_email: '',
+                    event_id: '',
+                    certificate_type: 'participation'
+                });
+                setShowModal(true);
+                setFeedback({ message: `Parsed ${parsed.length} recipients from CSV.`, type: 'success' });
+            } else {
+                setFeedback({ message: 'Failed to parse names and emails. Make sure the CSV has Name and Email columns.', type: 'error' });
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = null; // Clear input
+    };
+
     async function handleIssueCert(e) {
         e.preventDefault();
         setSubmitting(true);
 
         const eventName = events.find(ev => ev.id === newCert.event_id)?.title || 'Event';
 
-        const { data: certData, error } = await supabase
-            .from('certificates')
-            .insert([{
-                ...newCert,
+        if (bulkData.length > 0) {
+            // Bulk Issuance
+            const insertData = bulkData.map(item => ({
+                recipient_name: item.recipient_name,
+                recipient_email: item.recipient_email,
+                event_id: newCert.event_id,
                 event_name: eventName,
+                certificate_type: newCert.certificate_type,
+                template: item.template,
                 status: 'verified'
-            }])
-            .select('id')
-            .single();
+            }));
 
-        if (!error) {
-            try {
-                await fetch('/api/email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        to: newCert.recipient_email,
-                        type: 'certificateissued',
-                        data: {
-                            name: newCert.recipient_name,
-                            eventName: eventName,
-                            certId: certData.id
+            const { data: insertedCerts, error } = await supabase
+                .from('certificates')
+                .insert(insertData)
+                .select('id, recipient_name, recipient_email');
+
+            if (!error) {
+                if (insertedCerts && insertedCerts.length > 0) {
+                    for (const cert of insertedCerts) {
+                        try {
+                            await fetch('/api/email', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    to: cert.recipient_email,
+                                    type: 'certificateissued',
+                                    data: {
+                                        name: cert.recipient_name,
+                                        eventName: eventName,
+                                        certId: cert.id
+                                    }
+                                })
+                            });
+                        } catch (err) {
+                            console.error("Email notification failed for:", cert.recipient_email, err);
                         }
-                    })
-                });
-            } catch (err) {
-                console.error("Email notification failed:", err);
-            }
+                    }
+                }
 
-            setShowModal(false);
-            setNewCert({ recipient_name: '', recipient_email: '', event_id: '', certificate_type: 'participation' });
-            fetchCertificates();
-            setFeedback({ message: 'Certificate issued successfully!', type: 'success' });
+                setShowModal(false);
+                setBulkData([]);
+                setNewCert({ recipient_name: '', recipient_email: '', event_id: '', certificate_type: 'participation', template: 'blue' });
+                fetchCertificates();
+                setFeedback({ message: `Successfully issued ${insertData.length} certificates!`, type: 'success' });
+            } else {
+                console.error("Supabase Error:", error);
+                setFeedback({ message: "Error issuing certificates: " + error.message, type: 'error' });
+            }
         } else {
-            console.error("Supabase Error:", error);
-            setFeedback({ message: "Error issuing certificate: " + error.message, type: 'error' });
+            // Single Issuance
+            const { data: certData, error } = await supabase
+                .from('certificates')
+                .insert([{
+                    ...newCert,
+                    event_name: eventName,
+                    status: 'verified'
+                }])
+                .select('id')
+                .single();
+
+            if (!error) {
+                try {
+                    await fetch('/api/email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: newCert.recipient_email,
+                            type: 'certificateissued',
+                            data: {
+                                name: newCert.recipient_name,
+                                eventName: eventName,
+                                certId: certData.id
+                            }
+                        })
+                    });
+                } catch (err) {
+                    console.error("Email notification failed:", err);
+                }
+
+                setShowModal(false);
+                setNewCert({ recipient_name: '', recipient_email: '', event_id: '', certificate_type: 'participation', template: 'blue' });
+                fetchCertificates();
+                setFeedback({ message: 'Certificate issued successfully!', type: 'success' });
+            } else {
+                console.error("Supabase Error:", error);
+                setFeedback({ message: "Error issuing certificate: " + error.message, type: 'error' });
+            }
         }
         setSubmitting(false);
     }
@@ -112,12 +228,26 @@ export default function AdminCertificates() {
                     </motion.h1>
                     <p className="text-white/40 font-medium">Issue, track, and verify event certificates.</p>
                 </div>
-                <button
-                    onClick={() => setShowModal(true)}
-                    className="btn-primary px-8 py-4 flex items-center gap-3 shadow-[0_0_30px_rgba(0,194,255,0.2)]"
-                >
-                    <Plus size={20} /> Issue Certificate
-                </button>
+                <div className="flex items-center gap-4">
+                    <label className="btn-outline px-6 py-4 flex items-center gap-3 cursor-pointer">
+                        <Upload size={20} /> Upload CSV
+                        <input
+                            type="file"
+                            accept=".csv"
+                            onChange={handleCSVUpload}
+                            className="hidden"
+                        />
+                    </label>
+                    <button
+                        onClick={() => {
+                            setBulkData([]);
+                            setShowModal(true);
+                        }}
+                        className="btn-primary px-8 py-4 flex items-center gap-3 shadow-[0_0_30px_rgba(0,194,255,0.2)]"
+                    >
+                        <Plus size={20} /> Issue Certificate
+                    </button>
+                </div>
             </div>
 
             {/* Modal */}
@@ -131,66 +261,168 @@ export default function AdminCertificates() {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="glass-card w-full max-w-xl p-10 relative z-10 border-white/10"
+                        className={`glass-card w-full p-10 relative z-10 border-white/10 transition-all duration-300 ${bulkData.length > 0 ? 'max-w-2xl' : 'max-w-xl'}`}
                     >
-                        <h2 className="text-3xl font-black text-white mb-8">Issue <span className="text-brand-cyan">Certificate</span></h2>
-                        <form onSubmit={handleIssueCert} className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Recipient Name</label>
-                                <input
-                                    required type="text"
-                                    value={newCert.recipient_name}
-                                    onChange={e => setNewCert({ ...newCert, recipient_name: e.target.value })}
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold"
-                                    placeholder="Enter full name"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Recipient Email</label>
-                                <input
-                                    required type="email"
-                                    value={newCert.recipient_email}
-                                    onChange={e => setNewCert({ ...newCert, recipient_email: e.target.value })}
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold"
-                                    placeholder="email@example.com"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Select Event</label>
-                                    <select
-                                        required
-                                        value={newCert.event_id}
-                                        onChange={e => setNewCert({ ...newCert, event_id: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold"
-                                    >
-                                        <option value="" className="bg-brand-dark">Select Event</option>
-                                        {events.map(event => (
-                                            <option key={event.id} value={event.id} className="bg-brand-dark">{event.title}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Cert Type</label>
-                                    <select
-                                        required
-                                        value={newCert.certificate_type}
-                                        onChange={e => setNewCert({ ...newCert, certificate_type: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold"
-                                    >
-                                        <option value="participation" className="bg-brand-dark">Participation</option>
-                                        <option value="excellence" className="bg-brand-dark">Excellence</option>
-                                        <option value="winner" className="bg-brand-dark">Winner</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="flex gap-4 pt-4">
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-grow btn-secondary py-4 font-black uppercase tracking-widest">Cancel</button>
-                                <button type="submit" disabled={submitting} className="flex-grow btn-primary py-4 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,194,255,0.2)]">
-                                    {submitting ? 'Issuing...' : 'Confirm Issue'}
-                                </button>
-                            </div>
-                        </form>
+                        {bulkData.length > 0 ? (
+                            <>
+                                <h2 className="text-3xl font-black text-white mb-6">Issue Bulk <span className="text-brand-cyan">Certificates</span></h2>
+                                <form onSubmit={handleIssueCert} className="space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Recipients List ({bulkData.length})</label>
+                                        <div className="max-h-60 overflow-y-auto border border-white/10 rounded-2xl overflow-hidden bg-white/5">
+                                            <table className="w-full text-left text-xs border-collapse">
+                                                <thead className="sticky top-0 bg-brand-dark border-b border-white/10 text-white/40">
+                                                    <tr>
+                                                        <th className="px-4 py-2.5 font-black uppercase tracking-widest text-[9px]">Name</th>
+                                                        <th className="px-4 py-2.5 font-black uppercase tracking-widest text-[9px]">Email</th>
+                                                        <th className="px-4 py-2.5 font-black uppercase tracking-widest text-[9px]">Template</th>
+                                                        <th className="px-4 py-2.5 font-black uppercase tracking-widest text-[9px] text-center w-10"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {bulkData.map((item, idx) => (
+                                                        <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                                            <td className="px-2 py-1.5 text-white">
+                                                                <input
+                                                                    type="text"
+                                                                    required
+                                                                    value={item.recipient_name}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...bulkData];
+                                                                        updated[idx].recipient_name = e.target.value;
+                                                                        setBulkData(updated);
+                                                                    }}
+                                                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-white text-xs font-semibold focus:border-brand-cyan outline-none"
+                                                                />
+                                                            </td>
+                                                            <td className="px-2 py-1.5 text-white">
+                                                                <input
+                                                                    type="email"
+                                                                    required
+                                                                    value={item.recipient_email}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...bulkData];
+                                                                        updated[idx].recipient_email = e.target.value;
+                                                                        setBulkData(updated);
+                                                                    }}
+                                                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-white/80 text-xs font-medium focus:border-brand-cyan outline-none"
+                                                                />
+                                                            </td>
+                                                            <td className="px-2 py-1.5">
+                                                                <select
+                                                                    value={item.template}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...bulkData];
+                                                                        updated[idx].template = e.target.value;
+                                                                        setBulkData(updated);
+                                                                    }}
+                                                                    className="bg-brand-dark border border-white/10 rounded-lg px-2 py-1.5 text-white text-[10px] font-bold focus:border-brand-cyan outline-none cursor-pointer font-sans"
+                                                                >
+                                                                    <option value="blue">Green</option>
+                                                                    <option value="purple">Purple</option>
+                                                                </select>
+                                                            </td>
+                                                            <td className="px-2 py-1.5 text-center">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const updated = [...bulkData];
+                                                                        updated.splice(idx, 1);
+                                                                        setBulkData(updated);
+                                                                    }}
+                                                                    className="text-white/30 hover:text-red-400 p-1 transition-colors"
+                                                                    title="Remove Recipient"
+                                                                >
+                                                                    <X size={14} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Select Event</label>
+                                        <select
+                                            required
+                                            value={newCert.event_id}
+                                            onChange={e => setNewCert({ ...newCert, event_id: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold cursor-pointer font-sans"
+                                        >
+                                            <option value="" className="bg-brand-dark">Select Event</option>
+                                            {events.map(event => (
+                                                <option key={event.id} value={event.id} className="bg-brand-dark">{event.title}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex gap-4 pt-4">
+                                        <button type="button" onClick={() => { setShowModal(false); setBulkData([]); }} className="flex-grow btn-secondary py-4 font-black uppercase tracking-widest">Cancel</button>
+                                        <button type="submit" disabled={submitting} className="flex-grow btn-primary py-4 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,194,255,0.2)]">
+                                            {submitting ? 'Issuing...' : 'Confirm Issue'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </>
+                        ) : (
+                            <>
+                                <h2 className="text-3xl font-black text-white mb-8">Issue <span className="text-brand-cyan">Certificate</span></h2>
+                                <form onSubmit={handleIssueCert} className="space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Recipient Name</label>
+                                        <input
+                                            required type="text"
+                                            value={newCert.recipient_name}
+                                            onChange={e => setNewCert({ ...newCert, recipient_name: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold"
+                                            placeholder="Enter full name"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Recipient Email</label>
+                                        <input
+                                            required type="email"
+                                            value={newCert.recipient_email}
+                                            onChange={e => setNewCert({ ...newCert, recipient_email: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold"
+                                            placeholder="email@example.com"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Template Color</label>
+                                        <select
+                                            required
+                                            value={newCert.template}
+                                            onChange={e => setNewCert({ ...newCert, template: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold cursor-pointer font-sans"
+                                        >
+                                            <option value="blue" className="bg-brand-dark font-sans">Green</option>
+                                            <option value="purple" className="bg-brand-dark font-sans">Purple</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Select Event</label>
+                                        <select
+                                            required
+                                            value={newCert.event_id}
+                                            onChange={e => setNewCert({ ...newCert, event_id: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold cursor-pointer font-sans"
+                                        >
+                                            <option value="" className="bg-brand-dark">Select Event</option>
+                                            {events.map(event => (
+                                                <option key={event.id} value={event.id} className="bg-brand-dark">{event.title}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex gap-4 pt-4">
+                                        <button type="button" onClick={() => setShowModal(false)} className="flex-grow btn-secondary py-4 font-black uppercase tracking-widest">Cancel</button>
+                                        <button type="submit" disabled={submitting} className="flex-grow btn-primary py-4 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,194,255,0.2)]">
+                                            {submitting ? 'Issuing...' : 'Confirm Issue'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </>
+                        )}
                     </motion.div>
                 </div>
             )}
@@ -314,7 +546,7 @@ export default function AdminCertificates() {
                         >
                             {/* Template Background Overlay (Original PNG) */}
                             <img
-                                src="/templates/attendee_template.png"
+                                src={showPreview.template === 'purple' ? '/templates/attendee_template_purple.png' : '/templates/attendee_template_green.png'}
                                 className="absolute inset-0 w-full h-full object-contain"
                                 alt="Certificate Template"
                             />
@@ -322,30 +554,28 @@ export default function AdminCertificates() {
                             {/* Dynamic Content Overlay - Precision Alignment */}
                             <div className="absolute inset-0 z-10 font-serif text-brand-dark">
                                 {/* Recipient Name - Precision Spacing */}
-                                <div className="absolute top-[42%] left-0 w-full text-center">
-                                    <h1 className="text-[#C5A059] text-5xl font-black tracking-tight px-8" style={{ fontFamily: "var(--font-cinzel), serif" }}>
-                                        {showPreview.recipient_name}
-                                    </h1>
-                                </div>
+                                {(() => {
+                                    const nameLength = (showPreview.recipient_name || "").length;
+                                    let fontSizeClass = "text-xl md:text-2xl";
+                                    if (nameLength > 25) {
+                                        fontSizeClass = "text-[12px] md:text-sm";
+                                    } else if (nameLength > 18) {
+                                        fontSizeClass = "text-sm md:text-lg";
+                                    } else if (nameLength > 12) {
+                                        fontSizeClass = "text-lg md:text-xl";
+                                    }
 
-                                {/* Event Name - Precision Spacing */}
-                                <div className="absolute top-[60%] left-0 w-full text-center px-20">
-                                    <h2 className="text-[#8B7355] text-sm md:text-lg font-black uppercase tracking-[0.15em] leading-relaxed" style={{ fontFamily: "var(--font-cinzel), serif" }}>
-                                        {showPreview.event_name || showPreview.events?.title}
-                                    </h2>
-                                </div>
+                                    const isGreen = showPreview.template !== 'purple';
+                                    const colorClass = isGreen ? "text-[#00B77A]" : "text-black";
 
-                                {/* Verification Info - Shifted slightly for balance */}
-                                <div className="absolute bottom-[10%] right-[8%] text-right flex flex-col items-end gap-1 text-brand-dark">
-                                    <div className="space-y-0.5">
-                                        <p className="text-[7px] text-[#C5A059] font-black uppercase tracking-widest leading-none">Date of Issue</p>
-                                        <p className="text-[10px] font-bold leading-tight">{new Date(showPreview.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                                    </div>
-                                    <div className="space-y-0.5">
-                                        <p className="text-[7px] text-[#C5A059] font-black uppercase tracking-widest leading-none">Verification ID</p>
-                                        <p className="text-[10px] font-bold leading-tight">{showPreview.id.substring(0, 12).toUpperCase()}</p>
-                                    </div>
-                                </div>
+                                    return (
+                                        <div className="absolute top-[59%] left-[52%] w-[43%] text-center">
+                                            <h1 className={`${colorClass} ${fontSizeClass} font-black tracking-tight px-2 uppercase`} style={{ fontFamily: "var(--font-cinzel), serif" }}>
+                                                {showPreview.recipient_name}
+                                            </h1>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </motion.div>
