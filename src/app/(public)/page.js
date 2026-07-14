@@ -85,14 +85,14 @@ export default function Home() {
 
             <main className="relative z-10 flex-grow min-h-screen">
                 {/* Hero Section */}
-                <section className="relative min-h-[95vh] flex flex-col items-center justify-center pt-20 pb-16 overflow-hidden">
+                <section className="relative min-h-[90vh] md:min-h-[95vh] flex flex-col items-center justify-center pt-24 pb-16 overflow-hidden">
 
                     <div className="container relative z-10 px-6 flex flex-col items-center text-center">
                         <motion.h1
                             initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-5xl sm:text-6xl md:text-8xl lg:text-9xl font-display font-bold tracking-tight mb-8 leading-[0.85] text-foreground"
+                            className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl font-display font-bold tracking-tight mb-6 sm:mb-8 leading-[1.05] sm:leading-[0.85] text-foreground drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] dark:drop-shadow-[0_2px_15px_rgba(0,0,0,0.7)]"
                         >
                             AWS Student Builder Group <br />
                             <span className="text-aws-gradient">DDU Nadiad</span>
@@ -102,7 +102,7 @@ export default function Home() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2, duration: 0.8 }}
-                            className="text-lg md:text-2xl text-muted-foreground max-w-3xl mb-14 leading-relaxed font-sans font-medium"
+                            className="text-base md:text-2xl text-muted-foreground max-w-3xl mb-8 sm:mb-14 leading-relaxed font-sans font-medium drop-shadow-[0_1px_5px_rgba(0,0,0,0.3)] dark:drop-shadow-[0_1px_8px_rgba(0,0,0,0.5)]"
                         >
                             Empowering the next generation of cloud builders through hands-on architecture, serverless systems, and global community collaboration.
                         </motion.p>
@@ -111,19 +111,19 @@ export default function Home() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.4, duration: 0.8 }}
-                            className="flex flex-col sm:flex-row items-center gap-6"
+                            className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6"
                         >
                             <Link
                                 href="https://www.meetup.com/aws-sbg-ddit/"
                                 target="_blank"
-                                className="btn-aws !px-12 !py-5 text-lg flex items-center gap-3 group relative overflow-hidden"
+                                className="btn-aws !px-8 !py-4 sm:!px-12 sm:!py-5 text-base sm:text-lg flex items-center gap-3 group relative overflow-hidden"
                             >
                                 <span className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
                                 <span className="relative flex items-center gap-2">
                                     Join Community <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                                 </span>
                             </Link>
-                            <Link href="/events" className="btn-outline !px-12 !py-5 text-lg hover:shadow-xl hover:shadow-white/5 transition-all">
+                            <Link href="/events" className="btn-outline !px-8 !py-4 sm:!px-12 sm:!py-5 text-base sm:text-lg hover:shadow-xl hover:shadow-white/5 transition-all">
                                 Explore Events
                             </Link>
                         </motion.div>
