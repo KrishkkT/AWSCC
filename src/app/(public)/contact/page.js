@@ -23,25 +23,31 @@ export default function Contact() {
             message: formData.get('message'),
         };
 
-        const { error } = await supabase.from('contact_messages').insert([data]);
+        const { error: dbError } = await supabase.from('contact_messages').insert([data]);
 
-        if (error) {
-            console.error(error);
-            setStatus('error');
-        } else {
-            try {
-                await fetch('/api/contact', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data),
-                });
-            } catch (err) {
-                console.error("Failed to send contact notification email:", err);
+        if (dbError) {
+            console.error("Supabase database insert failed:", dbError);
+        }
+
+        try {
+            const response = await fetch('/api/contact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+
+            if (response.ok) {
+                setStatus('success');
+                e.target.reset();
+            } else {
+                console.error("Failed to send contact email: API returned non-OK status");
+                setStatus('error');
             }
-            setStatus('success');
-            e.target.reset();
+        } catch (err) {
+            console.error("Failed to send contact notification email:", err);
+            setStatus('error');
         }
         setLoading(false);
     };

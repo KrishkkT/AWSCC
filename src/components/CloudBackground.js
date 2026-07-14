@@ -7,7 +7,7 @@ import { useEffect, useState, useRef } from "react";
 // Crisp, real-looking SVG vector clouds (unblurred, using 3D stacked vectors for authentic shading)
 const OrbitalBody = ({ isDark }) => {
     return (
-        <div className="absolute left-[8%] top-[30%] -ml-12 -mt-12 md:-ml-16 md:-mt-16 w-32 h-32 md:w-36 md:h-36 rounded-full z-0 pointer-events-none scale-75 md:scale-100">
+        <div className="absolute left-[4%] top-[16%] sm:left-[8%] sm:top-[30%] -ml-8 -mt-8 sm:-ml-12 sm:-mt-12 md:-ml-16 md:-mt-16 w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-full z-0 pointer-events-none">
             <AnimatePresence mode="popLayout" initial={false}>
                 {isDark ? (
                     // MOON (NIGHT)
@@ -15,7 +15,7 @@ const OrbitalBody = ({ isDark }) => {
                         key="moon"
                         initial={{ opacity: 0, x: "80vw", y: "80vh", scale: 0.5, rotate: 90 }}
                         animate={{
-                            opacity: 0.7,
+                            opacity: 0.45,
                             x: "0vw",
                             y: ["80vh", "-20vh", "0vh"],
                             scale: 0.85,
@@ -52,7 +52,7 @@ const OrbitalBody = ({ isDark }) => {
                         key="sun"
                         initial={{ opacity: 0, x: "80vw", y: "80vh", scale: 0.5, rotate: -90 }}
                         animate={{
-                            opacity: 0.85,
+                            opacity: 0.6,
                             x: "0vw",
                             y: ["80vh", "-20vh", "0vh"],
                             scale: 0.95,
