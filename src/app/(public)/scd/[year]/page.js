@@ -995,7 +995,7 @@ export default function SCDYearPage({ params }) {
                             {/* What will be done */}
                             <div className="space-y-3">
                                 <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                                    <BookOpen size={16} className="text-brand-cyan" /> What You'll Learn
+                                    <BookOpen size={16} className="text-brand-cyan" /> What You&apos;ll Learn
                                 </h4>
                                 <p className="text-slate-700 dark:text-slate-300 font-medium font-sans leading-relaxed whitespace-pre-wrap">
                                     {activeWorkshop.description || "Detailed description coming soon."}
