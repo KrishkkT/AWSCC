@@ -401,6 +401,69 @@ export default function SCDYearPage({ params }) {
                     </div>
                 </section>
 
+                {/* Workshops Section */}
+                {workshops.length > 0 && (
+                    <section id="workshops" className="py-24 border-t border-border">
+                        <div className="container mx-auto px-6 max-w-5xl">
+                            <div className="text-center space-y-6 mb-12">
+                                <span className="px-4 py-1.5 rounded-full border border-border bg-card/50 text-[10px] font-black uppercase tracking-widest text-brand-aws shadow-sm inline-block">
+                                    Workshops
+                                </span>
+                                <h3 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white font-display tracking-tight">
+                                    Roll up your sleeves the day before
+                                </h3>
+                                <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-base font-medium leading-relaxed font-sans">
+                                    Hands-on, builder-led and held the day before the conference. Tap a card for the full details and prerequisites. More workshops land here as the lineup locks in.
+                                </p>
+                                <div className="pt-4 flex flex-col items-center gap-2">
+                                    <span className="text-xs text-slate-500 font-medium">Get your workshop tickets</span>
+                                    <a href={registrationUrl || "#"} target="_blank" rel="noopener noreferrer" className="btn-aws !px-6 !py-3 flex items-center gap-2 shadow-[0_0_20px_rgba(255,153,0,0.2)]">
+                                        <ChevronDown className="rotate-90" size={18} /> Workshop Ticket
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {workshops.map((ws, wsIdx) => (
+                                    <div key={wsIdx} className="bg-card/40 backdrop-blur-md border border-border hover:border-brand-cyan/30 transition-all rounded-2xl overflow-hidden flex flex-col group shadow-md hover:shadow-lg">
+                                        {ws.image && (
+                                            <div className="w-full h-56 md:h-64 relative overflow-hidden bg-slate-100 dark:bg-slate-800 border-b border-border">
+                                                <img src={ws.image} alt={ws.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                            </div>
+                                        )}
+                                        <div className="p-6 md:p-8 space-y-4 flex flex-col justify-between flex-grow">
+                                            <div>
+                                                {!ws.image && (
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <span className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans bg-brand-cyan/10 px-3 py-1 rounded-full">
+                                                            <Clock size={12} /> {ws.time}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <h5 className="text-xl font-black text-slate-900 dark:text-white font-display mb-3">{ws.title}</h5>
+                                                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium font-sans">{ws.description}</p>
+                                            </div>
+                                            
+                                            <div className="mt-6 pt-4 border-t border-border/50 flex items-center justify-between">
+                                                {ws.speaker ? (
+                                                    <div className="text-[11px] font-black uppercase tracking-wider text-brand-aws flex items-center gap-2 font-sans">
+                                                        <Users size={14} /> {ws.speaker}
+                                                    </div>
+                                                ) : <div></div>}
+                                                {ws.image && ws.time && (
+                                                    <span className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans bg-brand-cyan/10 px-3 py-1 rounded-full border border-brand-cyan/20">
+                                                        <Clock size={12} /> {ws.time}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
                 {/* Agenda Section */}
                 {agendaBlocks.length > 0 && (
                     <section id="agenda" className="py-24 border-t border-border">
@@ -530,42 +593,7 @@ export default function SCDYearPage({ params }) {
                                             </div>
                                         );
                                     })()}
-                                    {/* Parallel Workshops sub-section */}
-                                    {workshops.length > 0 && (
-                                        <div className="mt-12 pt-10 border-t border-border/60">
-                                            <div className="flex items-center gap-3 mb-6">
-                                                <div className="w-8 h-8 rounded-lg bg-brand-cyan/10 flex items-center justify-center text-brand-cyan">
-                                                    <Laptop size={16} />
-                                                </div>
-                                                <h4 className="text-lg font-bold text-slate-900 dark:text-white font-display">Parallel Workshops</h4>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                {workshops.map((ws, wsIdx) => (
-                                                    <div key={wsIdx} className="glass-card p-6 border-border/80 hover:border-brand-cyan/30 transition-all flex flex-col justify-between">
-                                                        <div className="space-y-3">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans">
-                                                                    <Clock size={12} /> {ws.time}
-                                                                </span>
-                                                                {ws.venue && (
-                                                                    <span className="text-slate-500 dark:text-slate-400 text-xs font-bold font-sans">
-                                                                        {ws.venue}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <h5 className="text-base font-bold text-slate-900 dark:text-white font-display">{ws.title}</h5>
-                                                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-sans">{ws.description}</p>
-                                                        </div>
-                                                        {ws.speaker && (
-                                                            <div className="mt-4 pt-3 border-t border-border/50 text-[10px] font-black uppercase tracking-wider text-brand-aws flex items-center gap-1.5 font-sans">
-                                                                <Users size={12} /> {ws.speaker}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+
                                 </>
                             ) : (
                                 /* Timeline display for single track */
@@ -833,7 +861,7 @@ export default function SCDYearPage({ params }) {
                                                 </span>
                                             </div>
                                         </div>
-                                        
+
                                         {/* Social Links Row */}
                                         <div className="flex items-center justify-center gap-5 w-full text-slate-500 dark:text-slate-400 px-2 mt-1">
                                             {member.github_url && (
