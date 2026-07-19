@@ -79,7 +79,7 @@ export default function SCDYearPage({ params }) {
                 <div className="relative z-10 max-w-md bg-card/90 dark:bg-card/40 backdrop-blur-md border border-border rounded-3xl p-10 flex flex-col items-center shadow-xl">
                     <Award size={64} className="text-brand-cyan/60 mb-6 animate-float" />
                     <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2 font-display">Event Not Found</h2>
-                    <p className="text-slate-600 dark:text-slate-350 mb-8 text-sm leading-relaxed font-sans">
+                    <p className="text-slate-600 dark:text-slate-300 mb-8 text-sm leading-relaxed font-sans">
                         We couldn&apos;t find the AWS Students Community Day details for the year {year}. It might still be in draft mode or being set up.
                     </p>
                     <Link href="/" className="btn-aws shadow-lg shadow-brand-aws/20 w-full py-3.5">
@@ -135,6 +135,9 @@ export default function SCDYearPage({ params }) {
     const tickets = safeArray(safeObject(event.ticket_data).tickets);
     const registrationUrl = safeObject(event.ticket_data).konfhub_url || "";
 
+    const totalTracks = Math.max(...agendaBlocks.filter(b => b.type === 'parallel').map(b => safeArray(b.tracks).length), 0);
+    const totalSessions = agendaBlocks.reduce((acc, block) => acc + (block.type === 'parallel' ? safeArray(block.tracks).reduce((tAcc, t) => tAcc + safeArray(t.sessions).length, 0) : safeArray(block.sessions).length), 0);
+
     const faqs = [
         {
             q: `What is AWS Students Community Day ${event?.year || year}?`,
@@ -171,50 +174,123 @@ export default function SCDYearPage({ params }) {
 
             <div className="relative z-10">
                 {/* Hero Section */}
-                <section className="relative min-h-[80vh] flex flex-col justify-center items-center pt-20 pb-16">
-                    <div className="container mx-w-full px-6 flex flex-col items-center max-w-5xl text-center space-y-10 relative z-10">
-                        {/* Poster Image Container */}
-                        <div className={`relative w-full max-w-5xl -mt-8 rounded-[2rem] overflow-hidden border border-border bg-card shadow-2xl transition-all duration-500 hover:scale-[1.01] hover:shadow-[0_0_50px_rgba(0,194,255,0.15)] ${hasMobileImage ? 'aspect-[9/16] md:aspect-[1.6/1]' : 'aspect-[1.6/1]'}`}>
-                            {desktopImage || mobileImage ? (
-                                <>
-                                    {desktopImage && (
-                                        <img
-                                            src={desktopImage}
-                                            alt="Event Poster"
-                                            className={`${mobileImage ? 'hidden md:block' : 'block'} w-full h-full object-cover`}
-                                        />
-                                    )}
-                                    {mobileImage && (
-                                        <img
-                                            src={mobileImage}
-                                            alt="Event Poster Mobile"
-                                            className={`${desktopImage ? 'block md:hidden' : 'block'} w-full h-full object-cover`}
-                                        />
-                                    )}
-                                </>
-                            ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-brand-aws/20 to-brand-blue/20 backdrop-blur-md flex flex-col items-center justify-center p-8">
-                                    <Cloud className="w-24 h-24 text-brand-cyan/20 mb-4 animate-float" />
-                                    <span className="text-3xl font-black text-slate-900 dark:text-white mb-2 font-display text-center">AWS STUDENTS COMMUNITY DAY</span>
-                                    <span className="text-7xl font-black text-brand-cyan/25">{event.year}</span>
-                                </div>
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent pointer-events-none" />
+                <section className="relative min-h-[80vh] flex flex-col justify-center items-center pt-20 pb-16 px-6 lg:px-8 overflow-hidden">
+                    {/* Unique Background Setup */}
+                    {desktopImage && (
+                        <div className="absolute inset-0 z-0">
+                            {/* The actual image with low opacity and blend mode for a dark, immersive look */}
+                            <img src={desktopImage} className="w-full h-full object-cover opacity-20 dark:opacity-20 mix-blend-luminosity object-center scale-105" alt="Background" />
+                            {/* Gradients to fade out the edges into the background color */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/30" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-transparent opacity-80" />
+                        </div>
+                    )}
+
+                    <div className="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center max-w-7xl relative z-10">
+                        {/* Left Column: Text & Buttons */}
+                        <div className="flex flex-col space-y-8 text-left">
+                            <div className="inline-flex items-center gap-2">
+                                <span className="font-display font-black text-xl tracking-tight text-brand-aws">
+                                    #SCD{event.year?.toString().substring(2)}
+                                </span>
+                                <span className="text-sm font-bold text-slate-500 uppercase tracking-widest px-2 border-l border-border">
+                                    AWS Students Community Day
+                                </span>
+                            </div>
+
+                            <h1 className="text-5xl lg:text-7xl font-black text-slate-900 dark:text-white leading-[1.1] font-display tracking-tight drop-shadow-sm">
+                                A full day of AWS, <br />
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-aws to-brand-cyan">built by students</span>
+                            </h1>
+
+                            <p className="text-lg lg:text-xl text-slate-600 dark:text-slate-300 font-medium max-w-xl leading-relaxed">
+                                Deep-dives, real-world stories, and the hallway-track conversations you&apos;ll remember for years. The AWS Student Builder Group is back for the most awaited edition yet.
+                            </p>
+
+                            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                                {registrationUrl ? (
+                                    <a href={registrationUrl} target="_blank" rel="noopener noreferrer" className="btn-aws !px-10 !py-4 text-base shadow-[0_0_20px_rgba(0,194,255,0.2)] flex items-center justify-center gap-2 group w-fit hover:shadow-[0_0_30px_rgba(0,194,255,0.4)] transition-all">
+                                        Register Now <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                    </a>
+                                ) : (
+                                    <button disabled className="btn-outline !px-10 !py-4 text-base opacity-50 cursor-not-allowed w-fit">
+                                        Registrations Closed
+                                    </button>
+                                )}
+                                <a href="#agenda" className="btn-outline !px-10 !py-4 text-base w-fit hover:bg-white/5 transition-colors">
+                                    View Schedule
+                                </a>
+                            </div>
                         </div>
 
-                        {/* Centered Buttons Directly Under the Image */}
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full">
-                            {registrationUrl ? (
-                                <a href={registrationUrl} target="_blank" rel="noopener noreferrer" className="btn-aws !px-12 !py-4.5 text-base shadow-[0_0_20px_rgba(0,194,255,0.2)] flex items-center justify-center gap-2 group">
-                                    Register Now <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                                </a>
-                            ) : (
-                                <button disabled className="btn-outline !px-12 !py-4.5 text-base opacity-50 cursor-not-allowed">
-                                    Registrations Closed
-                                </button>
-                            )}
-                            <a href="#agenda" className="btn-outline !px-12 !py-4.5 text-base">
-                                View Schedule
+                        {/* Right Column: Stacked Cards */}
+                        <div className="flex flex-col space-y-4 relative">
+                            {/* Unique glowing backplate for cards */}
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-brand-cyan/5 blur-[100px] rounded-full pointer-events-none" />
+
+                            {/* Date Card */}
+                            <div className="glass-card relative z-10 p-6 flex justify-between items-center bg-card/60 backdrop-blur-xl border-border/50 shadow-lg">
+                                <div className="flex items-center gap-3">
+                                    <Calendar className="text-brand-aws w-5 h-5" />
+                                    <span className="font-bold text-sm tracking-wider uppercase text-slate-900 dark:text-white drop-shadow-sm">
+                                        {event.date ? new Date(event.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'COMING SOON'}
+                                    </span>
+                                </div>
+                                <div className="text-xs font-black uppercase tracking-widest text-slate-500">
+                                    {event.venue?.split(',')[0] || "Dharmsinh Desai University"}
+                                </div>
+                            </div>
+
+                            {/* Workshops Card */}
+                            <a href="#workshops" className="glass-card relative z-10 p-6 group hover:border-brand-cyan/50 hover:bg-card/80 bg-card/60 backdrop-blur-xl transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,194,255,0.15)] hover:-translate-y-1 cursor-pointer flex items-center justify-between">
+                                <div className="flex items-center gap-6">
+                                    <div className="text-5xl font-black text-slate-900 dark:text-white font-display group-hover:text-brand-cyan transition-colors drop-shadow-sm">
+                                        {workshops.length}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="text-[10px] font-black text-brand-aws uppercase tracking-widest flex items-center gap-1.5">
+                                            <Zap size={12} /> LEARN & BUILD
+                                        </div>
+                                        <h3 className="text-base font-bold text-slate-900 dark:text-white drop-shadow-sm">Interactive Workshops</h3>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Hands-on sessions to level up your cloud skills.</p>
+                                    </div>
+                                </div>
+                                <ArrowRight className="text-slate-400 group-hover:text-brand-cyan group-hover:translate-x-1 transition-all" size={20} />
+                            </a>
+
+                            {/* Talks Card */}
+                            <a href="#agenda" className="glass-card relative z-10 p-6 group hover:border-brand-cyan/50 hover:bg-card/80 bg-card/60 backdrop-blur-xl transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,194,255,0.15)] hover:-translate-y-1 cursor-pointer flex items-center justify-between">
+                                <div className="flex items-center gap-6">
+                                    <div className="text-5xl font-black text-slate-900 dark:text-white font-display group-hover:text-brand-cyan transition-colors drop-shadow-sm">
+                                        {totalSessions}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="text-[10px] font-black text-brand-aws uppercase tracking-widest flex items-center gap-1.5">
+                                            <Globe size={12} /> EXPERT SESSIONS
+                                        </div>
+                                        <h3 className="text-base font-bold text-slate-900 dark:text-white drop-shadow-sm">{totalTracks > 0 ? `${totalTracks} parallel tracks` : 'Insightful Talks'}</h3>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Deep-dives into architecture, GenAI, and more.</p>
+                                    </div>
+                                </div>
+                                <ArrowRight className="text-slate-400 group-hover:text-brand-cyan group-hover:translate-x-1 transition-all" size={20} />
+                            </a>
+
+                            {/* Speakers Card */}
+                            <a href="#speakers" className="glass-card relative z-10 p-6 group hover:border-brand-cyan/50 hover:bg-card/80 bg-card/60 backdrop-blur-xl transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,194,255,0.15)] hover:-translate-y-1 cursor-pointer flex items-center justify-between">
+                                <div className="flex items-center gap-6">
+                                    <div className="text-5xl font-black text-slate-900 dark:text-white font-display group-hover:text-brand-cyan transition-colors drop-shadow-sm">
+                                        {speakers.length}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="text-[10px] font-black text-brand-aws uppercase tracking-widest flex items-center gap-1.5">
+                                            <Users size={12} /> INDUSTRY LEADERS
+                                        </div>
+                                        <h3 className="text-base font-bold text-slate-900 dark:text-white drop-shadow-sm">Expert Speakers</h3>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Learn from AWS heroes and community pros.</p>
+                                    </div>
+                                </div>
+                                <ArrowRight className="text-slate-400 group-hover:text-brand-cyan group-hover:translate-x-1 transition-all" size={20} />
                             </a>
                         </div>
                     </div>
@@ -230,7 +306,7 @@ export default function SCDYearPage({ params }) {
                                 <div className="w-12 h-1.5 bg-brand-cyan rounded-full" />
                             </div>
                             <div className="md:col-span-8 space-y-6">
-                                <p className="text-slate-600 dark:text-slate-350 text-lg leading-relaxed font-sans font-medium">
+                                <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed font-sans font-medium">
                                     {event.about_data?.text || "AWS Students Community Day is a flagship annual event conceptualized and hosted by the AWS Student Builder Group at Dharmsinh Desai University. Crafted exclusively by students, for students, it gathers industry leaders, technology evangelists, developers, and aspiring cloud builders to discuss advancements in modern architecture, containerization, serverless compute, DevOps, and Artificial Intelligence."}
                                 </p>
 
@@ -258,7 +334,7 @@ export default function SCDYearPage({ params }) {
                     <div className="container mx-auto px-6 max-w-5xl">
                         <div className="text-center mb-16 space-y-4">
                             <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">Event <span className="text-brand-cyan">Benefits</span></h2>
-                            <p className="text-slate-650 dark:text-slate-400 max-w-2xl mx-auto text-sm font-sans font-medium leading-relaxed">
+                            <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-sm font-sans font-medium leading-relaxed">
                                 Join the event and unlock opportunities to learn, connect, and grow. From gaining new insights to meeting like-minded people, this experience is designed to support your journey in tech.
                             </p>
                         </div>
@@ -314,7 +390,7 @@ export default function SCDYearPage({ params }) {
                                             <h3 className="text-xl font-bold text-slate-900 dark:text-white font-display">
                                                 {benefit.title}
                                             </h3>
-                                            <p className="text-sm text-slate-600 dark:text-slate-350 leading-relaxed font-sans font-medium">
+                                            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-sans font-medium">
                                                 {benefit.desc}
                                             </p>
                                         </div>
@@ -354,66 +430,106 @@ export default function SCDYearPage({ params }) {
                             {/* Display current block sessions (Table for parallel tracks, Timeline for single track) */}
                             {agendaBlocks[activeBlockIdx]?.type === 'parallel' ? (
                                 <>
-                                    <div
-                                        className="grid grid-cols-1 gap-8 w-full"
-                                        style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: '100%'
-                                        }}
-                                        ref={el => {
-                                            if (el) {
-                                                const tracksCount = safeArray(agendaBlocks[activeBlockIdx]?.tracks).length;
-                                                if (window.innerWidth >= 1024) {
-                                                    el.style.gridTemplateColumns = `repeat(${tracksCount}, minmax(0, 1fr))`;
-                                                } else if (window.innerWidth >= 768) {
-                                                    el.style.gridTemplateColumns = `repeat(${Math.min(2, tracksCount)}, minmax(0, 1fr))`;
-                                                } else {
-                                                    el.style.gridTemplateColumns = '100%';
-                                                }
-                                            }
-                                        }}
-                                    >
-                                        {safeArray(agendaBlocks[activeBlockIdx]?.tracks).map((track, tIdx) => (
-                                            <div key={tIdx} className="space-y-6 flex flex-col">
-                                                {/* Track Header Card */}
-                                                <div className="bg-gradient-to-r from-brand-cyan/20 to-brand-blue/20 backdrop-blur-md border border-brand-cyan/30 rounded-2xl p-4 text-center shadow-lg">
-                                                    <h3 className="text-lg font-black uppercase tracking-wider text-brand-cyan font-sans">{track.name || `Track ${tIdx + 1}`}</h3>
-                                                </div>
+                                    {(() => {
+                                        const tracks = safeArray(agendaBlocks[activeBlockIdx]?.tracks);
+                                        if (tracks.length === 0) return <div className="text-center text-slate-500 py-8">No tracks available</div>;
 
-                                                {/* Track Sessions List */}
-                                                <div className="space-y-4 flex-1">
-                                                    {safeArray(track.sessions).length > 0 ? (
-                                                        safeArray(track.sessions).map((session, sIdx) => (
-                                                            <div key={sIdx} className="glass-card p-6 hover:border-brand-cyan/30 transition-all flex flex-col space-y-3">
-                                                                <div className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans">
-                                                                    <Clock size={12} /> {session.time}
-                                                                </div>
-                                                                <div className="space-y-1">
-                                                                    <h4 className="text-base font-bold text-slate-900 dark:text-white leading-snug font-display">
-                                                                        {session.title}
-                                                                    </h4>
-                                                                    {session.speaker && (
-                                                                        <div className="text-xs font-black uppercase tracking-wider text-brand-aws flex items-center gap-1.5 font-sans">
-                                                                            <Users size={12} className="shrink-0" /> {session.speaker}
+                                        const allTimeSlots = [];
+                                        tracks.forEach(track => {
+                                            safeArray(track.sessions).forEach(session => {
+                                                if (!allTimeSlots.includes(session.time)) {
+                                                    allTimeSlots.push(session.time);
+                                                }
+                                            });
+                                        });
+                                        allTimeSlots.sort();
+
+                                        return (
+                                            <div className="w-full overflow-x-auto no-scrollbar pb-6">
+                                                <div className="min-w-[800px] border border-border/50 rounded-2xl overflow-hidden bg-card/40 backdrop-blur-md shadow-xl">
+                                                    {/* Header Row */}
+                                                    <div className="grid bg-slate-900 text-white divide-x divide-white/10 border-b border-white/10"
+                                                        style={{ gridTemplateColumns: `150px repeat(${tracks.length}, minmax(0, 1fr))` }}
+                                                    >
+                                                        <div className="p-4 font-black uppercase tracking-wider text-brand-cyan text-sm flex items-center justify-center text-center">TIME</div>
+                                                        {tracks.map((track, tIdx) => (
+                                                            <div key={tIdx} className="p-4 font-black uppercase tracking-wider text-brand-aws text-sm flex items-center justify-center text-center">
+                                                                {track.name || `Track ${tIdx + 1}`}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    {/* Data Rows */}
+                                                    <div className="divide-y divide-border/50">
+                                                        {allTimeSlots.map((time, rowIdx) => {
+                                                            const trackSessions = tracks.map(track =>
+                                                                safeArray(track.sessions).find(s => s.time === time)
+                                                            );
+
+                                                            const nonNullSessions = trackSessions.filter(s => s != null);
+                                                            const uniqueTitles = new Set(nonNullSessions.map(s => s.title.trim()));
+                                                            const isCommonSession = nonNullSessions.length > 0 && uniqueTitles.size === 1;
+
+                                                            return (
+                                                                <div
+                                                                    key={rowIdx}
+                                                                    className="grid divide-x divide-border/50 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors"
+                                                                    style={{ gridTemplateColumns: `150px repeat(${tracks.length}, minmax(0, 1fr))` }}
+                                                                >
+                                                                    {/* Time Column */}
+                                                                    <div className="p-4 flex items-center justify-center border-r border-border/50 bg-slate-50/30 dark:bg-slate-900/20">
+                                                                        <div className="text-brand-cyan text-xs font-black font-sans whitespace-nowrap text-center">
+                                                                            {time}
                                                                         </div>
+                                                                    </div>
+
+                                                                    {/* Session Columns */}
+                                                                    {isCommonSession ? (
+                                                                        <div className="p-4 md:p-6 flex flex-col justify-center text-center items-center bg-brand-cyan/5 dark:bg-brand-cyan/10" style={{ gridColumn: `span ${tracks.length}` }}>
+                                                                            <h4 className="text-base font-bold text-slate-900 dark:text-white leading-snug font-display">
+                                                                                {nonNullSessions[0].title}
+                                                                            </h4>
+                                                                            {nonNullSessions[0].speaker && (
+                                                                                <div className="mt-2 text-xs font-black uppercase tracking-wider text-brand-aws flex items-center justify-center gap-1.5 font-sans">
+                                                                                    <Users size={12} className="shrink-0" /> {nonNullSessions[0].speaker}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        trackSessions.map((session, colIdx) => (
+                                                                            <div key={colIdx} className="p-4 md:p-5 flex flex-col justify-start">
+                                                                                {session ? (
+                                                                                    <div className="space-y-2">
+                                                                                        <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug font-display">
+                                                                                            {session.title}
+                                                                                        </h4>
+                                                                                        {session.speaker && (
+                                                                                            <div className="text-[10px] font-black uppercase tracking-wider text-brand-aws flex items-center gap-1.5 font-sans">
+                                                                                                <Users size={12} className="shrink-0" /> {session.speaker}
+                                                                                            </div>
+                                                                                        )}
+                                                                                        {session.description && (
+                                                                                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed font-sans pt-1">
+                                                                                                {session.description}
+                                                                                            </p>
+                                                                                        )}
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-600 text-xs italic opacity-50">
+                                                                                        No Session
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        ))
                                                                     )}
                                                                 </div>
-                                                                {session.description && (
-                                                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed font-sans pt-1">
-                                                                        {session.description}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <div className="glass-card p-8 text-center text-slate-450 dark:text-slate-500 italic font-sans flex items-center justify-center h-24">
-                                                            No Sessions Scheduled
-                                                        </div>
-                                                    )}
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
+                                        );
+                                    })()}
                                     {/* Parallel Workshops sub-section */}
                                     {workshops.length > 0 && (
                                         <div className="mt-12 pt-10 border-t border-border/60">
@@ -522,7 +638,7 @@ export default function SCDYearPage({ params }) {
                                         <div className="p-6 space-y-2 flex-grow flex flex-col justify-end">
                                             <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight font-display">{speaker.name}</h3>
                                             <p className="text-xs text-brand-cyan font-bold leading-tight font-sans">{speaker.role}</p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-45500 font-bold uppercase tracking-wider font-sans">{speaker.company}</p>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-sans">{speaker.company}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -563,7 +679,7 @@ export default function SCDYearPage({ params }) {
                                                         <Users size={12} /> {ws.speaker}
                                                     </p>
                                                 )}
-                                                <p className="text-sm text-slate-600 dark:text-slate-350 leading-relaxed font-sans font-medium pt-2">
+                                                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-sans font-medium pt-2">
                                                     {ws.description}
                                                 </p>
                                             </div>
@@ -614,7 +730,7 @@ export default function SCDYearPage({ params }) {
                         <div className="container mx-auto px-6 max-w-5xl">
                             <div className="text-center mb-16 space-y-4">
                                 <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">Secure Your <span className="text-brand-cyan">Seat</span></h2>
-                                <p className="text-slate-600 dark:text-slate-40500 max-w-xl mx-auto text-sm font-sans">
+                                <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto text-sm font-sans">
                                     Tickets are highly limited to verify credentials. Choose your tier and register early.
                                 </p>
                             </div>
@@ -696,51 +812,50 @@ export default function SCDYearPage({ params }) {
                                 </p>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
                                 {team.map((member, idx) => (
-                                    <div key={idx} className="glass-card p-6 flex flex-col items-center text-center space-y-6 border-border hover:border-brand-cyan/40 hover:shadow-[0_0_25px_rgba(0,194,255,0.15)] transition-all duration-300 relative group bg-card/40 backdrop-blur-md">
-                                        <div className="w-28 h-28 rounded-full p-1 bg-gradient-to-tr from-brand-aws to-brand-cyan relative overflow-hidden group-hover:scale-105 transition-all duration-500 shadow-md">
-                                            <div className="w-full h-full rounded-full overflow-hidden bg-background">
-                                                {member.image ? (
-                                                    <img src={member.image} alt={member.name} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center bg-card">
-                                                        <Users className="w-10 h-10 text-slate-500/30 dark:text-slate-700/30" />
-                                                    </div>
-                                                )}
+                                    <div key={idx} className="flex flex-col group">
+                                        <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden shadow-sm mb-3">
+                                            {member.image ? (
+                                                <img src={member.image} alt={member.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-800">
+                                                    <Users className="w-12 h-12 text-slate-400/50" />
+                                                </div>
+                                            )}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
+                                            <div className="absolute bottom-0 left-0 p-4 w-full flex flex-col">
+                                                <h4 className="font-display font-bold text-white text-sm md:text-base truncate w-full drop-shadow-md">
+                                                    {member.name}
+                                                </h4>
+                                                <span className="text-[10px] md:text-xs text-slate-300 truncate w-full drop-shadow-md">
+                                                    {member.role}
+                                                </span>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col items-center w-full">
-                                            <span className="px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan mb-3">
-                                                {member.role}
-                                            </span>
-                                            <h4 className="font-display font-bold text-slate-900 dark:text-white text-base truncate w-full mb-4">
-                                                {member.name}
-                                            </h4>
-                                            
-                                            {/* Social Links Row */}
-                                            <div className="flex items-center justify-center gap-4 text-slate-400 dark:text-slate-500 pt-2 border-t border-border/50 w-full">
-                                                {member.github_url && (
-                                                    <a href={member.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:hover:text-white transition-colors" title="GitHub">
-                                                        <Github size={15} />
-                                                    </a>
-                                                )}
-                                                {member.linkedin_url && (
-                                                    <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-blue transition-colors" title="LinkedIn">
-                                                        <Linkedin size={15} />
-                                                    </a>
-                                                )}
-                                                {member.instagram_url && (
-                                                    <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-aws transition-colors" title="Instagram">
-                                                        <Instagram size={15} />
-                                                    </a>
-                                                )}
-                                                {member.portfolio_url && (
-                                                    <a href={member.portfolio_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-cyan transition-colors" title="Portfolio Website">
-                                                        <Globe size={15} />
-                                                    </a>
-                                                )}
-                                            </div>
+                                        
+                                        {/* Social Links Row */}
+                                        <div className="flex items-center justify-center gap-5 w-full text-slate-500 dark:text-slate-400 px-2 mt-1">
+                                            {member.github_url && (
+                                                <a href={member.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:hover:text-white transition-colors" title="GitHub">
+                                                    <Github size={15} />
+                                                </a>
+                                            )}
+                                            {member.linkedin_url && (
+                                                <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-blue transition-colors" title="LinkedIn">
+                                                    <Linkedin size={15} />
+                                                </a>
+                                            )}
+                                            {member.instagram_url && (
+                                                <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-aws transition-colors" title="Instagram">
+                                                    <Instagram size={15} />
+                                                </a>
+                                            )}
+                                            {member.portfolio_url && (
+                                                <a href={member.portfolio_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-cyan transition-colors" title="Portfolio Website">
+                                                    <Globe size={15} />
+                                                </a>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -749,12 +864,72 @@ export default function SCDYearPage({ params }) {
                     </section>
                 )}
 
+                {/* Venue Section */}
+                <section className="py-24 border-t border-border bg-card/10" id="venue">
+                    <div className="container mx-auto px-6 max-w-4xl">
+                        <div className="text-center mb-16 space-y-4">
+                            <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">The <span className="text-brand-cyan">Venue</span></h2>
+                            <p className="text-slate-600 dark:text-slate-500 max-w-xl mx-auto text-sm font-sans">
+                                Join us at the campus of Dharmsinh Desai University.
+                            </p>
+                        </div>
+
+                        <div className="bg-white dark:bg-card border border-border rounded-2xl overflow-hidden shadow-lg flex flex-col">
+                            {/* Map Image/Iframe */}
+                            <div className="h-64 md:h-80 w-full bg-slate-200 dark:bg-slate-800 relative">
+                                <iframe
+                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3683.473550873177!2d72.85966371496013!3d22.684128585125345!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e5b0005a764d1%3A0xc6eb1e34e56926ed!2sDharmsinh%20Desai%20University!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
+                                    width="100%"
+                                    height="100%"
+                                    style={{ border: 0 }}
+                                    allowFullScreen=""
+                                    loading="lazy"
+                                    referrerPolicy="no-referrer-when-downgrade"
+                                ></iframe>
+                            </div>
+
+                            <div className="p-8 md:p-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-white dark:bg-card">
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <span className="px-4 py-1.5 text-xs font-black uppercase tracking-widest rounded-full bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400">
+                                            VENUE
+                                        </span>
+                                        <span className="text-sm font-bold text-slate-500 dark:text-slate-400">
+                                            {event.date ? new Date(event.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : 'COMING SOON'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white font-display mb-2">
+                                            {event.venue || "Dharmsinh Desai University (DDU)"}
+                                        </h3>
+                                        <p className="text-slate-600 dark:text-slate-400 text-lg">
+                                            College Road, Nadiad, Gujarat
+                                        </p>
+                                    </div>
+                                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400 pt-2">
+                                        Limited seats — exact check-in details emailed to registered attendees.
+                                    </p>
+                                </div>
+                                <a
+                                    href="https://maps.app.goo.gl/3Q8xXjJ6Y1q2hP4p8"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-6 py-3 border border-border rounded-full flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-300 font-bold whitespace-nowrap shadow-sm"
+                                >
+                                    <MapPin size={18} />
+                                    Get directions
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 {/* FAQ Section */}
                 <section className="py-24 border-t border-border bg-card/10">
                     <div className="container mx-auto px-6 max-w-4xl">
                         <div className="text-center mb-16 space-y-4">
                             <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">Frequently Asked <span className="text-brand-cyan">Questions</span></h2>
-                            <p className="text-slate-600 dark:text-slate-450 max-w-xl mx-auto text-sm font-sans">
+                            <p className="text-slate-600 dark:text-slate-500 max-w-xl mx-auto text-sm font-sans">
                                 Find answers to common questions about AWS Students Community Day.
                             </p>
                         </div>
@@ -783,7 +958,7 @@ export default function SCDYearPage({ params }) {
                                             className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-96 opacity-100 border-t border-border/50' : 'max-h-0 opacity-0'
                                                 }`}
                                         >
-                                            <p className="px-6 py-5 text-sm md:text-base text-slate-600 dark:text-slate-350 leading-relaxed font-sans font-medium bg-slate-50/50 dark:bg-white/[0.005]">
+                                            <p className="px-6 py-5 text-sm md:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-sans font-medium bg-slate-50/50 dark:bg-white/[0.005]">
                                                 {faq.a}
                                             </p>
                                         </div>

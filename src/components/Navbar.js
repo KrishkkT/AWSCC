@@ -4,11 +4,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Menu, X, ChevronDown } from "lucide-react";
+import { usePathname } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 
 export default function Navbar() {
     const [scrolled, setScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const pathname = usePathname();
+    const isSCDRoute = pathname?.startsWith('/scd/');
+    const scdYear = isSCDRoute ? pathname.split('/')[2] : null;
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -16,7 +20,14 @@ export default function Navbar() {
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
-    const navLinks = [
+    const navLinks = isSCDRoute ? [
+        { name: "About", href: "#about" },
+        { name: "Workshops", href: "#workshops" },
+        { name: "Agenda", href: "#agenda" },
+        { name: "Speakers", href: "#speakers" },
+        { name: "Venue", href: "#venue" },
+        { name: "Team", href: "#team" },
+    ] : [
         { name: "Home", href: "/" },
         { name: "Team", href: "/team" },
         { name: "Events", href: "/events" },
@@ -27,13 +38,19 @@ export default function Navbar() {
     return (
         <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled && !isMobileMenuOpen ? "py-2.5 bg-background/80 dark:bg-background/95 backdrop-blur-xl border-b border-border shadow-sm" : "py-4 bg-transparent"}`}>
             <div className="container mx-auto px-6 flex items-center justify-between">
-                <Link href="/" className="flex items-center group relative z-10 transition-transform hover:scale-[1.02] duration-300">
+                <Link href={isSCDRoute ? `/scd/${scdYear}` : "/"} className="flex items-center group relative z-10 transition-transform hover:scale-[1.02] duration-300">
                     <div className="h-10 sm:h-12 md:h-14 flex items-center justify-start">
-                        <img
-                            src="/images/ddu-aws-combined.png"
-                            alt="AWS Student Builder Group & DDU Logo"
-                            className="h-full w-auto object-contain brightness-110 dark:brightness-100 drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-none"
-                        />
+                        {isSCDRoute ? (
+                            <span className="font-display font-black text-2xl tracking-tight text-slate-900 dark:text-white flex items-center">
+                                #SCDNadiad<span className="text-brand-aws">{scdYear}</span>
+                            </span>
+                        ) : (
+                            <img
+                                src="/images/ddu-aws-combined.png"
+                                alt="AWS Student Builder Group & DDU Logo"
+                                className="h-full w-auto object-contain brightness-110 dark:brightness-100 drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-none"
+                            />
+                        )}
                     </div>
                 </Link>
 
@@ -47,7 +64,6 @@ export default function Navbar() {
                 </div>
 
                 <div className="hidden lg:flex items-center gap-4">
-                    {/* <ThemeToggle /> */}
                     <Link href="https://www.meetup.com/aws-sbg-ddit/" target="_blank" className="btn-aws !py-2.5 !px-8 text-xs whitespace-nowrap">
                         Join Community
                     </Link>
@@ -55,7 +71,6 @@ export default function Navbar() {
 
                 {/* Mobile Toggle */}
                 <div className="flex items-center gap-4 lg:hidden">
-                    {/* <ThemeToggle /> */}
                     <button
                         className="text-foreground p-2 relative z-[100]"
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
