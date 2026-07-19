@@ -84,9 +84,14 @@
 
 /* Glass Card Utility */
 .glass-card {
-    @apply backdrop-blur-xl border rounded-3xl overflow-hidden shadow-lg;
+    @apply border rounded-3xl shadow-lg relative;
     background-color: color-mix(in srgb, var(--card) 90%, transparent);
     border-color: color-mix(in srgb, var(--border) 60%, transparent);
+}
+.glass-card::before {
+    content: '';
+    @apply absolute inset-0 -z-10 backdrop-blur-xl rounded-3xl;
+    pointer-events: none;
 }
 
 .dark .glass-card {
@@ -243,4 +248,22 @@ textarea:focus {
 
 .reveal-up {
     @apply opacity-0 translate-y-8 animate-fade-up;
+}
+
+/* Konfhub Responsive Adjustments */
+iframe[src*='konfhub'] {
+    max-width: 92vw !important;
+    max-height: 75vh !important;
+    margin-top: 8vh !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    border-radius: 16px !important;
+}
+
+/* Push the Konfhub close button down to match the iframe */
+div:has(> iframe[src*='konfhub']) > *:not(iframe):not(:empty),
+div:has(> iframe[src*='konfhub']) > img,
+div:has(> iframe[src*='konfhub']) > button,
+div:has(> iframe[src*='konfhub']) > svg {
+    margin-top: 8vh !important;
 }

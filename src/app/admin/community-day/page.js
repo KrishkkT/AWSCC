@@ -639,7 +639,7 @@ export default function AdminCommunityDay() {
                             <div className="space-y-4">
                                 <h4 className="text-lg font-black text-brand-cyan border-b border-brand-cyan/20 pb-2 flex items-center justify-between">
                                     Workshops List
-                                    <button type="button" onClick={() => addArrayItem('workshops_data', { title: '', speaker: '', time: '', venue: '', description: '', requirements: '', guide_url: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Workshop</button>
+                                    <button type="button" onClick={() => addArrayItem('workshops_data', { title: '', image: '', speaker: '', time: '', venue: '', description: '', requirements: '', guide_url: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Workshop</button>
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {(formData.workshops_data || []).map((ws, idx) => (
@@ -649,6 +649,11 @@ export default function AdminCommunityDay() {
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black uppercase text-white/30 ml-1">Workshop Title</label>
                                                 <input type="text" value={ws.title} onChange={e => updateArrayItem('workshops_data', idx, 'title', e.target.value)} placeholder="e.g. AWS Serverless Hands-on" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan font-bold transition-all placeholder:text-white/30 placeholder:font-normal" />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase text-white/30 ml-1">Image URL</label>
+                                                <input type="url" value={ws.image || ''} onChange={e => updateArrayItem('workshops_data', idx, 'image', e.target.value)} placeholder="https://..." className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all" />
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-4">

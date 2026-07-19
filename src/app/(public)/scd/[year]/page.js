@@ -1,8 +1,25 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useRef } from "react";
 import { motion } from "framer-motion";
+
+const KonfhubWidget = ({ buttonId }) => {
+    const containerRef = useRef(null);
+    useEffect(() => {
+        if (!containerRef.current) return;
+        containerRef.current.innerHTML = '';
+        const script = document.createElement('script');
+        script.src = 'https://widget.konfhub.com/widget.js';
+        script.setAttribute('button_id', buttonId);
+        script.async = true;
+        containerRef.current.appendChild(script);
+        return () => {
+            if (containerRef.current) containerRef.current.innerHTML = '';
+        };
+    }, [buttonId]);
+    return <div ref={containerRef} className="w-full flex justify-center mt-2" />;
+};
 import Link from "next/link";
 import {
     Calendar,
@@ -401,69 +418,6 @@ export default function SCDYearPage({ params }) {
                     </div>
                 </section>
 
-                {/* Workshops Section */}
-                {workshops.length > 0 && (
-                    <section id="workshops" className="py-24 border-t border-border">
-                        <div className="container mx-auto px-6 max-w-5xl">
-                            <div className="text-center space-y-6 mb-12">
-                                <span className="px-4 py-1.5 rounded-full border border-border bg-card/50 text-[10px] font-black uppercase tracking-widest text-brand-aws shadow-sm inline-block">
-                                    Workshops
-                                </span>
-                                <h3 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white font-display tracking-tight">
-                                    Roll up your sleeves the day before
-                                </h3>
-                                <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-base font-medium leading-relaxed font-sans">
-                                    Hands-on, builder-led and held the day before the conference. Tap a card for the full details and prerequisites. More workshops land here as the lineup locks in.
-                                </p>
-                                <div className="pt-4 flex flex-col items-center gap-2">
-                                    <span className="text-xs text-slate-500 font-medium">Get your workshop tickets</span>
-                                    <a href={registrationUrl || "#"} target="_blank" rel="noopener noreferrer" className="btn-aws !px-6 !py-3 flex items-center gap-2 shadow-[0_0_20px_rgba(255,153,0,0.2)]">
-                                        <ChevronDown className="rotate-90" size={18} /> Workshop Ticket
-                                    </a>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                {workshops.map((ws, wsIdx) => (
-                                    <div key={wsIdx} className="bg-card/40 backdrop-blur-md border border-border hover:border-brand-cyan/30 transition-all rounded-2xl overflow-hidden flex flex-col group shadow-md hover:shadow-lg">
-                                        {ws.image && (
-                                            <div className="w-full h-56 md:h-64 relative overflow-hidden bg-slate-100 dark:bg-slate-800 border-b border-border">
-                                                <img src={ws.image} alt={ws.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                            </div>
-                                        )}
-                                        <div className="p-6 md:p-8 space-y-4 flex flex-col justify-between flex-grow">
-                                            <div>
-                                                {!ws.image && (
-                                                    <div className="flex items-center justify-between mb-4">
-                                                        <span className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans bg-brand-cyan/10 px-3 py-1 rounded-full">
-                                                            <Clock size={12} /> {ws.time}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                <h5 className="text-xl font-black text-slate-900 dark:text-white font-display mb-3">{ws.title}</h5>
-                                                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium font-sans">{ws.description}</p>
-                                            </div>
-                                            
-                                            <div className="mt-6 pt-4 border-t border-border/50 flex items-center justify-between">
-                                                {ws.speaker ? (
-                                                    <div className="text-[11px] font-black uppercase tracking-wider text-brand-aws flex items-center gap-2 font-sans">
-                                                        <Users size={14} /> {ws.speaker}
-                                                    </div>
-                                                ) : <div></div>}
-                                                {ws.image && ws.time && (
-                                                    <span className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans bg-brand-cyan/10 px-3 py-1 rounded-full border border-brand-cyan/20">
-                                                        <Clock size={12} /> {ws.time}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                )}
-
                 {/* Agenda Section */}
                 {agendaBlocks.length > 0 && (
                     <section id="agenda" className="py-24 border-t border-border">
@@ -675,83 +629,6 @@ export default function SCDYearPage({ params }) {
                     </section>
                 )}
 
-                {/* Workshops Section */}
-                {workshops.length > 0 && (
-                    <section className="py-24 border-t border-border">
-                        <div className="container mx-auto px-6 max-w-5xl">
-                            <div className="text-center mb-16 space-y-4">
-                                <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">Hands-on <span className="text-brand-cyan">Workshops</span></h2>
-                                <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto text-sm font-sans font-medium">
-                                    Deep-dive technical sessions. Please check the prerequisites and prepare your environment before attending.
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
-                                {workshops.map((ws, idx) => (
-                                    <div key={idx} className="glass-card p-8 md:p-10 flex flex-col justify-between border-border hover:border-brand-cyan/40 transition-colors shadow-lg animate-float">
-                                        <div className="space-y-6">
-                                            <div className="space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-black uppercase tracking-wider text-brand-cyan flex items-center gap-1.5 font-sans">
-                                                        <Clock size={12} /> {ws.time}
-                                                    </span>
-                                                    {ws.venue && (
-                                                        <span className="text-slate-500 dark:text-slate-400 text-xs font-bold font-sans">
-                                                            {ws.venue}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <h3 className="text-xl font-black text-slate-900 dark:text-white font-display">{ws.title}</h3>
-                                                {ws.speaker && (
-                                                    <p className="text-xs font-black uppercase tracking-wider text-brand-aws flex items-center gap-1.5 font-sans">
-                                                        <Users size={12} /> {ws.speaker}
-                                                    </p>
-                                                )}
-                                                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-sans font-medium pt-2">
-                                                    {ws.description}
-                                                </p>
-                                            </div>
-
-                                            {/* Prerequisites / Notes */}
-                                            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-border/60 space-y-4">
-                                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2 font-display">
-                                                    Prerequisites & Prep
-                                                </h4>
-                                                <ul className="space-y-3">
-                                                    <li className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed font-sans">
-                                                        <Laptop size={14} className="text-brand-cyan shrink-0 mt-0.5" />
-                                                        <span>Bring your own laptop & charger</span>
-                                                    </li>
-                                                    <li className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed font-sans">
-                                                        <Check size={14} className="text-brand-cyan shrink-0 mt-0.5" />
-                                                        <span>
-                                                            Create an AWS account beforehand
-                                                            {ws.guide_url && (
-                                                                <>
-                                                                    {" "}
-                                                                    (<a href={ws.guide_url} target="_blank" rel="noopener noreferrer" className="text-brand-cyan hover:underline inline-flex items-center gap-0.5 font-bold">
-                                                                        Setup Guide <ExternalLink size={10} />
-                                                                    </a>)
-                                                                </>
-                                                            )}
-                                                        </span>
-                                                    </li>
-                                                    {ws.requirements && ws.requirements.split(',').map((req, rIdx) => (
-                                                        <li key={rIdx} className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed font-sans">
-                                                            <Check size={14} className="text-brand-cyan shrink-0 mt-0.5" />
-                                                            <span>{req.trim()}</span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                )}
-
                 {/* Tickets Section */}
                 {tickets.length > 0 && (
                     <section className="py-24 border-t border-border">
@@ -787,19 +664,94 @@ export default function SCDYearPage({ params }) {
                                             </div>
 
                                             <div className="mt-8 pt-4">
-                                                {registrationUrl ? (
-                                                    <a href={registrationUrl} target="_blank" rel="noopener noreferrer" className="btn-aws w-full text-center py-3 flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(0,194,255,0.1)]">
-                                                        Get Ticket <ExternalLink size={14} />
-                                                    </a>
-                                                ) : (
-                                                    <button disabled className="btn-outline w-full py-3 opacity-50 cursor-not-allowed text-xs uppercase font-bold">
-                                                        Unavailable
-                                                    </button>
-                                                )}
+                                                {(() => {
+                                                    const tName = ticket.name.toLowerCase();
+                                                    let btnId = '';
+                                                    if (tName.includes('early bird')) btnId = 'btn_168ec82c90c2';
+                                                    else if (tName.includes('regular')) btnId = 'btn_9be3f420f671';
+                                                    else if (tName.includes('workshop')) btnId = 'btn_f340f876fc8c';
+                                                    else if (tName.includes('professional')) btnId = 'btn_52f2c75663de';
+
+                                                    if (btnId) {
+                                                        return <KonfhubWidget buttonId={btnId} />;
+                                                    }
+
+                                                    // fallback if no match
+                                                    return registrationUrl ? (
+                                                        <a href={registrationUrl} target="_blank" rel="noopener noreferrer" className="btn-aws w-full text-center py-3 flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(0,194,255,0.1)]">
+                                                            Get Ticket <ExternalLink size={14} />
+                                                        </a>
+                                                    ) : (
+                                                        <button disabled className="btn-outline w-full py-3 opacity-50 cursor-not-allowed text-xs uppercase font-bold">
+                                                            Unavailable
+                                                        </button>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     );
                                 })}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {/* Workshops Section */}
+                {workshops.length > 0 && (
+                    <section id="workshops" className="py-24 border-t border-border">
+                        <div className="container mx-auto px-6 max-w-5xl">
+                            <div className="text-center space-y-6 mb-12">
+                                <span className="px-4 py-1.5 rounded-full border border-border bg-card/50 text-[10px] font-black uppercase tracking-widest text-brand-aws shadow-sm inline-block">
+                                    Workshops
+                                </span>
+                                <h3 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white font-display tracking-tight">
+                                    Roll up your sleeves the day before
+                                </h3>
+                                <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-base font-medium leading-relaxed font-sans">
+                                    Hands-on, builder-led and held the day before the conference. Tap a card for the full details and prerequisites. More workshops land here as the lineup locks in.
+                                </p>
+                                <div className="pt-4 flex flex-col items-center gap-2">
+                                    <span className="text-xs text-slate-500 font-medium">Get your workshop tickets</span>
+                                    <KonfhubWidget buttonId="btn_f340f876fc8c" />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {workshops.map((ws, wsIdx) => (
+                                    <div key={wsIdx} className="bg-card/40 backdrop-blur-md border border-border hover:border-brand-cyan/30 transition-all rounded-2xl overflow-hidden flex flex-col group shadow-md hover:shadow-lg">
+                                        {ws.image && (
+                                            <div className="w-full h-56 md:h-64 relative overflow-hidden bg-slate-100 dark:bg-slate-800 border-b border-border">
+                                                <img src={ws.image} alt={ws.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                            </div>
+                                        )}
+                                        <div className="p-6 md:p-8 space-y-4 flex flex-col justify-between flex-grow">
+                                            <div>
+                                                {!ws.image && (
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <span className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans bg-brand-cyan/10 px-3 py-1 rounded-full">
+                                                            <Clock size={12} /> {ws.time}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <h5 className="text-xl font-black text-slate-900 dark:text-white font-display mb-3">{ws.title}</h5>
+                                                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium font-sans">{ws.description}</p>
+                                            </div>
+
+                                            <div className="mt-6 pt-4 border-t border-border/50 flex items-center justify-between">
+                                                {ws.speaker ? (
+                                                    <div className="text-[11px] font-black uppercase tracking-wider text-brand-aws flex items-center gap-2 font-sans">
+                                                        <Users size={14} /> {ws.speaker}
+                                                    </div>
+                                                ) : <div></div>}
+                                                {ws.image && ws.time && (
+                                                    <span className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans bg-brand-cyan/10 px-3 py-1 rounded-full border border-brand-cyan/20">
+                                                        <Clock size={12} /> {ws.time}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </section>
