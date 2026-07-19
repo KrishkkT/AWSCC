@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Image as ImageIcon, Plus, Trash2, Edit2, Save, X, Loader2, Eye, Upload } from "lucide-react";
+import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
 
 export default function AdminGallery() {
@@ -222,7 +223,7 @@ export default function AdminGallery() {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-cyan ml-1">Photo Source</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-cyan ml-1">Photo Source (Ratio: 16:9 Recommended)</label>
                                 <div className="flex gap-3 items-stretch">
                                     <input
                                         required

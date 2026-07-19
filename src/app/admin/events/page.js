@@ -3,8 +3,9 @@
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Calendar, Plus, Search, Edit2, Trash2, Clock, Users, MapPin, X, Check, Loader2 } from "lucide-react";
+import { Calendar, Plus, Search, Edit2, Trash2, Clock, Users, MapPin, X, Check, Loader2, ArrowLeft, Upload, FileDown, ShieldCheck, Mail, Info, FileSpreadsheet } from "lucide-react";
 import Toast from "@/components/Toast";
+import { logActivity } from "@/utils/logger";
 
 export default function AdminEvents() {
     const [events, setEvents] = useState([]);
@@ -107,6 +108,7 @@ export default function AdminEvents() {
             });
             const result = await response.json();
             if (response.ok) {
+                await logActivity(supabase, 'Batch Issued Certificates', `Issued ${result.count} certificates for event ID ${eventId}`, 'success');
                 showFeedback(`Successfully issued ${result.count} certificates!`);
             } else {
                 showFeedback(`Issuance failed: ${result.error}`, 'error');
@@ -184,6 +186,7 @@ export default function AdminEvents() {
             });
             const result = await response.json();
             if (response.ok) {
+                await logActivity(supabase, 'Bulk Imported Participants', `Imported ${importData.length} participants to event ID ${selectedEventForImport.id}`, 'success');
                 showFeedback(result.message);
                 setShowImportModal(false);
                 setImportData([]);
@@ -236,6 +239,7 @@ export default function AdminEvents() {
                 .update({ certificate_issued: true })
                 .eq('id', participant.id);
 
+            await logActivity(supabase, 'Issued Certificate', `Issued certificate to ${participant.full_name} for event ${editingEvent?.title}`, 'success');
             showFeedback(`Certificate issued to ${participant.full_name}!`);
             fetchParticipants(participant.event_id);
         } catch (err) {
@@ -256,6 +260,7 @@ export default function AdminEvents() {
         if (error) {
             showFeedback('Failed to delete participant', 'error');
         } else {
+            await logActivity(supabase, 'Removed Participant', `Removed participant ID ${participantId} from event`, 'warning');
             showFeedback('Participant removed.');
             fetchParticipants(editingEvent.id);
         }
@@ -354,6 +359,7 @@ export default function AdminEvents() {
             console.error('Save event error:', result.error);
             showFeedback(`Error: ${result.error.message}`, 'error');
         } else {
+            await logActivity(supabase, editingEvent ? 'Updated Event' : 'Created Event', `Event title: ${payload.title}`, 'success');
             showFeedback(editingEvent ? 'Event updated!' : 'Event created!');
             resetForm();
             fetchEvents();
@@ -369,6 +375,7 @@ export default function AdminEvents() {
             console.error('Delete event error:', error);
             showFeedback(`Error: ${error.message}`, 'error');
         } else {
+            await logActivity(supabase, 'Deleted Event', `Deleted event ID: ${id}`, 'warning');
             showFeedback('Event deleted.');
             fetchEvents();
         }
@@ -472,7 +479,7 @@ export default function AdminEvents() {
                             <input type="url" value={formData.registration_link} onChange={e => setFormData({ ...formData, registration_link: e.target.value })} placeholder="https://..." className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-cyan outline-none font-bold placeholder-white/15" />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Event Image</label>
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Event Image (Ratio: 16:9)</label>
                             <div className="flex flex-col gap-3">
                                 <div className="flex gap-2">
                                     <input

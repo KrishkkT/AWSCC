@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Users, Plus, Trash2, Edit2, Github, Linkedin, Twitter, Save, X, Loader2, Upload, Link as LinkIcon, Image as ImageIcon, Instagram } from "lucide-react";
+import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
 
 // Force recompile trigger for modal layout update
@@ -229,7 +230,7 @@ export default function AdminTeam() {
 
                             <div className="space-y-4 p-6 bg-white/5 rounded-2xl border border-white/10">
                                 <div className="flex items-center justify-between mb-2">
-                                    <label className="text-[10px] font-black uppercase text-white/30">Profile Image</label>
+                                    <label className="text-[10px] font-black uppercase text-white/30">Profile Image (Ratio: 1:1)</label>
                                     <div className="flex bg-white/5 rounded-lg p-1">
                                         <button type="button" onClick={() => setImageSource('url')} className={`px-3 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${imageSource === 'url' ? 'bg-brand-cyan text-brand-dark' : 'text-white/40 hover:text-white'}`}>
                                             <LinkIcon size={10} /> URL

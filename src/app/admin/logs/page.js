@@ -27,7 +27,7 @@ export default function AdminLogs() {
         const { data, error } = await supabase
             .from('audit_logs')
             .select('*, profiles(role, full_name)')
-            .order('timestamp', { ascending: false });
+            .order('created_at', { ascending: false });
 
         if (!error) setLogs(data || []);
         setLoading(false);
@@ -106,7 +106,7 @@ export default function AdminLogs() {
                                                 <Shield size={10} /> {log.profiles?.role || 'Service'}
                                             </span>
                                             <span className="flex items-center gap-1.5 text-white/20">
-                                                <Clock size={10} /> {new Date(log.timestamp).toLocaleString()}
+                                                <Clock size={10} /> {new Date(log.created_at).toLocaleString()}
                                             </span>
                                         </div>
                                     </div>

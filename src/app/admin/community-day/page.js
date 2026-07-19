@@ -3,7 +3,8 @@
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Calendar, Plus, Search, Edit2, Trash2, Eye, EyeOff, X, Check, Loader2, Code2, Users, Award, Ticket, Clock, FileText, Laptop } from "lucide-react";
+import { Calendar, Plus, Search, Edit2, Trash2, Eye, EyeOff, X, Check, Loader2, Code2, Users, Award, Ticket, Clock, FileText, Laptop, Upload } from "lucide-react";
+import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
 
 const DEFAULT_AGENDA = [
@@ -174,6 +175,23 @@ export default function AdminCommunityDay() {
         if (uploadError) throw uploadError;
         const { data: { publicUrl } } = supabase.storage.from('event-images').getPublicUrl(filePath);
         return publicUrl;
+    };
+
+    const handleWorkshopImageUpload = async (e, idx) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            showFeedback('Please upload an image file', 'error');
+            return;
+        }
+        showFeedback('Uploading workshop image...', 'info');
+        try {
+            const url = await uploadImage(file);
+            updateArrayItem('workshops_data', idx, 'image', url);
+            showFeedback('Workshop image uploaded successfully!');
+        } catch (err) {
+            showFeedback(`Upload Error: ${err.message}`, 'error');
+        }
     };
 
     async function handleSubmit(e) {
@@ -356,7 +374,7 @@ export default function AdminCommunityDay() {
                                 </div>
                                 
                                 <div className="md:col-span-2 space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-[0.2em] text-white/70">Landing Popup Image (Desktop - Landscape)</label>
+                                    <label className="text-xs font-black uppercase tracking-[0.2em] text-white/70">Landing Popup Image (Desktop - Landscape, Ratio: 16:9)</label>
                                     <div className="flex gap-4 items-start">
                                         <label className="shrink-0 flex flex-col justify-center items-center w-32 h-32 border-2 border-dashed border-white/20 rounded-xl hover:border-brand-cyan/50 hover:bg-brand-cyan/5 transition-all cursor-pointer relative overflow-hidden group">
                                             {popupImageFile ? (
@@ -379,7 +397,7 @@ export default function AdminCommunityDay() {
                                 </div>
 
                                 <div className="md:col-span-2 space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-[0.2em] text-white/70">Landing Popup Image (Mobile - Portrait)</label>
+                                    <label className="text-xs font-black uppercase tracking-[0.2em] text-white/70">Landing Popup Image (Mobile - Portrait, Ratio: 9:16)</label>
                                     <div className="flex gap-4 items-start">
                                         <label className="shrink-0 flex flex-col justify-center items-center w-32 h-32 border-2 border-dashed border-white/20 rounded-xl hover:border-brand-cyan/50 hover:bg-brand-cyan/5 transition-all cursor-pointer relative overflow-hidden group">
                                             {mobileImageFile ? (
@@ -652,7 +670,13 @@ export default function AdminCommunityDay() {
                                             </div>
 
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase text-white/30 ml-1">Image URL</label>
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[10px] font-black uppercase text-white/30 ml-1">Image URL (Ratio: 16:9)</label>
+                                                    <label className="text-[10px] font-black uppercase text-brand-cyan hover:underline cursor-pointer flex items-center gap-1">
+                                                        <Upload size={12} /> From Device
+                                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handleWorkshopImageUpload(e, idx)} />
+                                                    </label>
+                                                </div>
                                                 <input type="url" value={ws.image || ''} onChange={e => updateArrayItem('workshops_data', idx, 'image', e.target.value)} placeholder="https://..." className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all" />
                                             </div>
 

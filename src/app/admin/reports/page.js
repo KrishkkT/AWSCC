@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
 import { FileText, Download, BarChart3, Users, Calendar, TrendingUp, Loader2 } from "lucide-react";
 import { generateProfessionalReport } from "@/utils/pdfGenerator";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import html2canvas from "html2canvas";
 
 export default function AdminReports() {
     const [stats, setStats] = useState({ members: 0, events: 0, activeMembers: 0 });
@@ -14,15 +16,38 @@ export default function AdminReports() {
 
     const fetchStats = useCallback(async () => {
         setLoading(true);
-        const [membersRes, eventsRes, activeRes] = await Promise.all([
+        const [membersRes, eventsRes, activeRes, allProfiles, allEvents, logsRes] = await Promise.all([
             supabase.from('profiles').select('id', { count: 'exact', head: true }),
             supabase.from('events').select('id', { count: 'exact', head: true }),
             supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_active', true),
+            supabase.from('profiles').select('role'),
+            supabase.from('events').select('status'),
+            supabase.from('audit_logs').select('level')
         ]);
+        
+        const roles = allProfiles.data?.reduce((acc, p) => {
+            acc[p.role] = (acc[p.role] || 0) + 1;
+            return acc;
+        }, {}) || {};
+        
+        const evStatus = allEvents.data?.reduce((acc, e) => {
+            acc[e.status] = (acc[e.status] || 0) + 1;
+            return acc;
+        }, {}) || {};
+
+        const logLevels = logsRes.data?.reduce((acc, l) => {
+            acc[l.level || 'info'] = (acc[l.level || 'info'] || 0) + 1;
+            return acc;
+        }, {}) || {};
+
         setStats({
             members: membersRes.count || 0,
             events: eventsRes.count || 0,
             activeMembers: activeRes.count || 0,
+            roleData: Object.keys(roles).map(key => ({ name: key, value: roles[key] })),
+            eventData: Object.keys(evStatus).map(key => ({ name: key, value: evStatus[key] })),
+            auditLogsTotal: logsRes.data?.length || 0,
+            auditLogLevels: logLevels
         });
         setLoading(false);
     }, [supabase]);
@@ -59,34 +84,59 @@ export default function AdminReports() {
     async function handleExport(report) {
         setExporting(report.title);
 
-        // Fetch detailed data for the report
-        const { data: profiles } = await supabase.from('profiles').select('role, is_active');
-        const { data: events } = await supabase.from('events').select('type, status');
+        let reportData = {};
+        const chartImages = [];
 
-        const roleBreakdown = profiles?.reduce((acc, p) => {
-            acc[p.role] = (acc[p.role] || 0) + 1;
-            return acc;
-        }, {}) || {};
+        try {
+            const chartElem1 = document.getElementById('report-chart-1');
+            const chartElem2 = document.getElementById('report-chart-2');
+            
+            let canvas1 = null, canvas2 = null;
+            if (chartElem1) canvas1 = await html2canvas(chartElem1, { backgroundColor: '#ffffff' });
+            if (chartElem2) canvas2 = await html2canvas(chartElem2, { backgroundColor: '#ffffff' });
 
-        const eventStatus = events?.reduce((acc, e) => {
-            acc[e.status] = (acc[e.status] || 0) + 1;
-            return acc;
-        }, {}) || {};
+            if (report.title === "Membership Summary") {
+                reportData = {
+                    "Total Community Members": stats.members,
+                    "Active Members": stats.activeMembers,
+                    "Member Engagement Rate": `${Math.round((stats.activeMembers / (stats.members || 1)) * 100)}%`,
+                    "Role Distribution": stats.roleData?.map(r => `${r.name.toUpperCase()}: ${r.value}`).join(' | ') || 'N/A',
+                };
+                if (canvas1) chartImages.push(canvas1.toDataURL('image/png'));
+            } else if (report.title === "Event Analytics") {
+                reportData = {
+                    "Total Events Hosted": stats.events,
+                    "Event Status Breakdown": stats.eventData?.map(e => `${e.name.toUpperCase()}: ${e.value}`).join(' | ') || 'N/A',
+                };
+                if (canvas2) chartImages.push(canvas2.toDataURL('image/png'));
+            } else if (report.title === "Activity Report") {
+                reportData = {
+                    "Total Admin Actions Logged": stats.auditLogsTotal,
+                    "Log Level Breakdown": Object.entries(stats.auditLogLevels || {}).map(([k,v]) => `${k.toUpperCase()}: ${v}`).join(' | ') || 'N/A',
+                    "System Integrity": "Verified (Secure SSL)",
+                };
+            } else {
+                // HOD Annual Report (Everything)
+                reportData = {
+                    "Total Community Members": stats.members,
+                    "Member Engagement Rate": `${Math.round((stats.activeMembers / (stats.members || 1)) * 100)}%`,
+                    "Total Events Hosted": stats.events,
+                    "Total Admin Actions Logged": stats.auditLogsTotal,
+                    "Role Distribution": stats.roleData?.map(r => `${r.name.toUpperCase()}: ${r.value}`).join(' | ') || 'N/A',
+                    "Event Status Breakdown": stats.eventData?.map(e => `${e.name.toUpperCase()}: ${e.value}`).join(' | ') || 'N/A',
+                };
+                if (canvas1) chartImages.push(canvas1.toDataURL('image/png'));
+                if (canvas2) chartImages.push(canvas2.toDataURL('image/png'));
+            }
+        } catch (err) {
+            console.error('Failed to capture charts:', err);
+        }
 
-        const reportData = {
-            "Total Community Members": stats.members,
-            "Active Members": stats.activeMembers,
-            "Member Allocation": Object.entries(roleBreakdown).map(([r, c]) => `${r.toUpperCase()}: ${c}`).join(', '),
-            "Total Events": stats.events,
-            "Event Distribution": Object.entries(eventStatus).map(([s, c]) => `${s.toUpperCase()}: ${c}`).join(', '),
-            "Community Engagement": `${Math.round((stats.activeMembers / (stats.members || 1)) * 100)}%`,
-            "System Integrity": "Verified (Secure SSL)",
-            "Generated By": "AWS Student Builder Group Admin"
-        };
-
-        await generateProfessionalReport(reportData, report.title);
+        await generateProfessionalReport(reportData, report.title, chartImages);
         setExporting(null);
     }
+
+    const COLORS = ['#00C2FF', '#00B77A', '#FFB800', '#FF3B30', '#8A2BE2'];
 
     return (
         <div className="space-y-10">
@@ -138,6 +188,33 @@ export default function AdminReports() {
                         <div className="text-[10px] font-black uppercase tracking-widest text-brand-cyan">{report.stats}</div>
                     </motion.div>
                 ))}
+            </div>
+
+            {/* Hidden Charts for PDF Generation */}
+            <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+                <div id="report-chart-1" style={{ width: '800px', height: '450px', padding: '20px', background: 'white' }}>
+                    <h2 style={{ color: '#0B5394', fontFamily: 'sans-serif', textAlign: 'center' }}>Role Distribution</h2>
+                    <PieChart width={760} height={380}>
+                        <Pie data={stats.roleData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={150} label>
+                            {stats.roleData?.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                    </PieChart>
+                </div>
+                <div id="report-chart-2" style={{ width: '800px', height: '450px', padding: '20px', background: 'white' }}>
+                    <h2 style={{ color: '#0B5394', fontFamily: 'sans-serif', textAlign: 'center' }}>Event Status Overview</h2>
+                    <BarChart width={760} height={380} data={stats.eventData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="value" fill="#00C2FF" />
+                    </BarChart>
+                </div>
             </div>
         </div>
     );

@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Users, Search, Shield, Mail, UserCheck, Crown, X, Check, Trash2, Loader2, RotateCcw } from "lucide-react";
 import Toast from "@/components/Toast";
+import { logActivity } from "@/utils/logger";
 
 export default function AdminMembers() {
     const [members, setMembers] = useState([]);
@@ -67,6 +68,7 @@ export default function AdminMembers() {
             console.error('Add member error:', error);
             showFeedback(`Error: ${error.message}`, 'error');
         } else {
+            await logActivity(supabase, 'Added Member', `Added new member: ${newMember.full_name} (${newMember.role})`, 'success');
             showFeedback('Member added successfully!');
             setShowAddModal(false);
             setNewMember({ full_name: '', email: '', role: 'member' });
@@ -102,6 +104,8 @@ export default function AdminMembers() {
             console.error('Role update error:', error);
             showFeedback(`Error: ${error.message}`, 'error');
         } else {
+            const mName = members.find(m => m.id === memberId)?.full_name || memberId;
+            await logActivity(supabase, 'Updated Member Role', `Changed role of ${mName} to ${newRole}`, 'info');
             showFeedback(`Role updated to ${newRole}`);
             fetchMembers();
         }
@@ -112,11 +116,13 @@ export default function AdminMembers() {
         if (!confirm('Are you sure you want to delete this member?')) return;
 
         setProcessingId(memberId);
+        const mName = members.find(m => m.id === memberId)?.full_name || memberId;
         const { error } = await supabase.from('profiles').delete().eq('id', memberId);
         if (error) {
             console.error('Delete member error:', error);
             showFeedback(`Error: ${error.message}`, 'error');
         } else {
+            await logActivity(supabase, 'Deleted Member', `Deleted member: ${mName}`, 'warning');
             showFeedback('Member deleted successfully');
             fetchMembers();
         }
@@ -126,11 +132,13 @@ export default function AdminMembers() {
     async function toggleActive(memberId, currentStatus) {
         setProcessingId(memberId);
         const newStatus = !currentStatus;
+        const mName = members.find(m => m.id === memberId)?.full_name || memberId;
         const { error } = await supabase.from('profiles').update({ is_active: newStatus }).eq('id', memberId);
         if (error) {
             console.error('Toggle active error:', error);
             showFeedback(`Error: ${error.message}`, 'error');
         } else {
+            await logActivity(supabase, 'Toggled Member Status', `Set ${mName} to ${newStatus ? 'active' : 'inactive'}`, 'info');
             showFeedback(newStatus ? 'Member activated' : 'Member deactivated');
             fetchMembers();
         }

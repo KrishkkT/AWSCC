@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Plus, Trash2, Edit2, Save, X, Loader2, Eye, FileText } from "lucide-react";
+import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
 
 export default function AdminKnowledge() {

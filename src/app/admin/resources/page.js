@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Bookmark, Plus, Trash2, Edit2, Link as LinkIcon, FileText, Video, Wrench, Save, Loader2 } from "lucide-react";
+import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
 
 export default function AdminResources() {

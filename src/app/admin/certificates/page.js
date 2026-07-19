@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Award, Search, Download, Plus, Eye, Trash2, FileText, Loader2, X, ShieldCheck, Upload } from "lucide-react";
+import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
 import { generateCertificatePDF } from "@/utils/pdfGenerator";
 
