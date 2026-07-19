@@ -329,9 +329,9 @@ export default function SCDYearPage({ params }) {
 
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-6">
                                     {[
-                                        { count: "10+", label: "Expert Sessions", icon: <Cpu size={18} className="text-brand-cyan" /> },
-                                        { count: "3+", label: "Tracks", icon: <Rocket size={18} className="text-brand-aws" /> },
-                                        { count: "12+", label: "Industry Speakers", icon: <Users size={18} className="text-brand-cyan" /> },
+                                        { count: "9+", label: "Expert Sessions", icon: <Cpu size={18} className="text-brand-cyan" /> },
+                                        { count: "3", label: "Tracks", icon: <Rocket size={18} className="text-brand-aws" /> },
+                                        { count: "10", label: "Industry Speakers", icon: <Users size={18} className="text-brand-cyan" /> },
                                         { count: "500+", label: "Builders Expected", icon: <Award size={18} className="text-brand-aws" /> }
                                     ].map((stat, idx) => (
                                         <div key={idx} className="bg-card border border-border rounded-2xl p-4 text-center hover:border-border/80 transition-colors shadow-sm">
