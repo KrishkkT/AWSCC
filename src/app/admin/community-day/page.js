@@ -657,7 +657,7 @@ export default function AdminCommunityDay() {
                             <div className="space-y-4">
                                 <h4 className="text-lg font-black text-brand-cyan border-b border-brand-cyan/20 pb-2 flex items-center justify-between">
                                     Workshops List
-                                    <button type="button" onClick={() => addArrayItem('workshops_data', { title: '', image: '', speaker: '', time: '', venue: '', description: '', requirements: '', guide_url: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Workshop</button>
+                                    <button type="button" onClick={() => addArrayItem('workshops_data', { title: '', image: '', speaker: '', time: '', venue: '', description: '', requirements: '', setup: '', guide_url: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Workshop</button>
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {(formData.workshops_data || []).map((ws, idx) => (
@@ -709,7 +709,12 @@ export default function AdminCommunityDay() {
 
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black uppercase text-white/30 ml-1">Additional Requirements (comma-separated)</label>
-                                                <input type="text" value={ws.requirements} onChange={e => updateArrayItem('workshops_data', idx, 'requirements', e.target.value)} placeholder="e.g. Git installed, AWS CLI configured" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all" />
+                                                <input type="text" value={ws.requirements || ''} onChange={e => updateArrayItem('workshops_data', idx, 'requirements', e.target.value)} placeholder="e.g. Git installed, Basic Python knowledge" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all" />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase text-white/30 ml-1">Setup Instructions</label>
+                                                <textarea rows={2} value={ws.setup || ''} onChange={e => updateArrayItem('workshops_data', idx, 'setup', e.target.value)} placeholder="e.g. Create a free tier AWS account, install VS Code" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan resize-none transition-all"></textarea>
                                             </div>
                                         </div>
                                     ))}

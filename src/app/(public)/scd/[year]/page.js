@@ -42,7 +42,10 @@ import {
     Linkedin,
     Instagram,
     Coffee,
-    Camera
+    Camera,
+    X,
+    BookOpen,
+    Terminal
 } from "lucide-react";
 import CloudBackground from "@/components/CloudBackground";
 
@@ -54,6 +57,7 @@ export default function SCDYearPage({ params }) {
     const [loading, setLoading] = useState(true);
     const [activeBlockIdx, setActiveBlockIdx] = useState(0);
     const [activeFaqIdx, setActiveFaqIdx] = useState(null);
+    const [activeWorkshop, setActiveWorkshop] = useState(null);
 
     useEffect(() => {
         async function fetchEventDetails() {
@@ -163,10 +167,6 @@ export default function SCDYearPage({ params }) {
         {
             q: "Who can attend this event?",
             a: "Students, fresh graduates, developers, academicians, and anyone interested in learning about cloud technology are welcome to register and attend. No prior knowledge of AWS is required!"
-        },
-        {
-            q: "Is there any registration fee for the event?",
-            a: "No, registrations are completely free. However, seats are limited, and entry is based on registration approval. Please register early to secure your spot."
         },
         {
             q: "Will I receive a certificate of participation?",
@@ -718,7 +718,11 @@ export default function SCDYearPage({ params }) {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 {workshops.map((ws, wsIdx) => (
-                                    <div key={wsIdx} className="bg-card/40 backdrop-blur-md border border-border hover:border-brand-cyan/30 transition-all rounded-2xl overflow-hidden flex flex-col group shadow-md hover:shadow-lg">
+                                    <div
+                                        key={wsIdx}
+                                        onClick={() => setActiveWorkshop(ws)}
+                                        className="bg-card/40 backdrop-blur-md border border-border hover:border-brand-cyan/30 transition-all rounded-2xl overflow-hidden flex flex-col group shadow-md hover:shadow-lg cursor-pointer"
+                                    >
                                         {ws.image && (
                                             <div className="w-full h-56 md:h-64 relative overflow-hidden bg-slate-100 dark:bg-slate-800 border-b border-border">
                                                 <img src={ws.image} alt={ws.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -858,7 +862,7 @@ export default function SCDYearPage({ params }) {
                             {/* Map Image/Iframe */}
                             <div className="h-64 md:h-80 w-full bg-slate-200 dark:bg-slate-800 relative">
                                 <iframe
-                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3683.473550873177!2d72.85966371496013!3d22.684128585125345!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e5b0005a764d1%3A0xc6eb1e34e56926ed!2sDharmsinh%20Desai%20University!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
+                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3681.3072706642474!2d72.87820267391233!3d22.679602629042737!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e5adf2c171355%3A0xe1e974ce083657fb!2sDharmsinh%20Desai%20University!5e0!3m2!1sen!2sin!4v1784460641004!5m2!1sen!2sin"
                                     width="100%"
                                     height="100%"
                                     style={{ border: 0 }}
@@ -949,6 +953,105 @@ export default function SCDYearPage({ params }) {
                     </div>
                 </section>
             </div>
+
+            {/* Workshop Modal */}
+            {activeWorkshop && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setActiveWorkshop(null)}></div>
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="relative w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+                    >
+                        {/* Modal Header */}
+                        <div className="flex items-start justify-between p-6 md:p-8 border-b border-border bg-slate-50/50 dark:bg-white/[0.02]">
+                            <div className="pr-8">
+                                <h3 className="text-2xl font-black text-slate-900 dark:text-white font-display leading-tight mb-3">
+                                    {activeWorkshop.title}
+                                </h3>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    {activeWorkshop.time && (
+                                        <span className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans bg-brand-cyan/10 px-3 py-1 rounded-full border border-brand-cyan/20">
+                                            <Clock size={12} /> {activeWorkshop.time}
+                                        </span>
+                                    )}
+                                    {activeWorkshop.speaker && (
+                                        <span className="text-[11px] font-black uppercase tracking-wider text-brand-aws flex items-center gap-2 font-sans">
+                                            <Users size={14} /> {activeWorkshop.speaker}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setActiveWorkshop(null)}
+                                className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-full transition-colors absolute top-6 right-6"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 md:p-8 overflow-y-auto space-y-8">
+                            {/* What will be done */}
+                            <div className="space-y-3">
+                                <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                                    <BookOpen size={16} className="text-brand-cyan" /> What You'll Learn
+                                </h4>
+                                <p className="text-slate-700 dark:text-slate-300 font-medium font-sans leading-relaxed whitespace-pre-wrap">
+                                    {activeWorkshop.description || "Detailed description coming soon."}
+                                </p>
+                            </div>
+
+                            {/* Pre-requisites */}
+                            {activeWorkshop.requirements && (
+                                <div className="space-y-3">
+                                    <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                                        <Check size={16} className="text-brand-cyan" /> Prerequisites
+                                    </h4>
+                                    <ul className="space-y-2">
+                                        {activeWorkshop.requirements.split(',').map((req, i) => (
+                                            <li key={i} className="flex items-start gap-2 text-slate-700 dark:text-slate-300 font-medium font-sans text-sm">
+                                                <div className="mt-1 w-1.5 h-1.5 rounded-full bg-brand-cyan shrink-0"></div>
+                                                {req.trim()}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {/* Setup Instructions */}
+                            {activeWorkshop.setup && (
+                                <div className="space-y-3">
+                                    <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                                        <Terminal size={16} className="text-brand-aws" /> Setup Instructions
+                                    </h4>
+                                    <p className="text-slate-700 dark:text-slate-300 font-medium font-sans text-sm leading-relaxed whitespace-pre-wrap bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-border">
+                                        {activeWorkshop.setup}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Additional Info */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-border">
+                                {activeWorkshop.venue && (
+                                    <div className="bg-slate-50 dark:bg-white/[0.02] p-4 rounded-xl border border-border">
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Venue / Lab</div>
+                                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><MapPin size={14} className="text-brand-cyan" /> {activeWorkshop.venue}</div>
+                                    </div>
+                                )}
+                                {activeWorkshop.guide_url && (
+                                    <div className="bg-slate-50 dark:bg-white/[0.02] p-4 rounded-xl border border-border flex flex-col justify-center items-start">
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Resources</div>
+                                        <a href={activeWorkshop.guide_url} target="_blank" rel="noopener noreferrer" className="font-bold text-brand-aws hover:underline flex items-center gap-2 text-sm">
+                                            <ExternalLink size={14} /> Workshop Guide
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 }
