@@ -7,6 +7,6 @@ export default function robots() {
         disallow: ['/admin/', '/api/'],
       },
     ],
-    sitemap: 'https://awscc-ddu.vercel.app/sitemap.xml',
+    sitemap: 'https://aws.ddu.ac.in/sitemap.xml',
   }
 }

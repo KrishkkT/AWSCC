@@ -25,7 +25,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata = {
-    metadataBase: new URL("https://awscc-ddu.vercel.app"),
+    metadataBase: new URL("https://aws.ddu.ac.in"),
     title: {
         default: "AWS Student Builder Group | Dharmsinh Desai University (DDU)",
         template: "%s | AWS Student Builder Group DDU"
@@ -45,9 +45,19 @@ export const metadata = {
         "AWS Certifications",
         "Cloud Workshops",
         "DDU IT Department",
-        "AWS Student Builder Group Nadiad"
+        "aws ddu",
+        "aws ddit",
+        "ddu nadiad",
+        "aws nadiad",
+        "awscc ddu",
+        "awscc ddit",
+        "AWS Student Builder Group Nadiad",
+        "What is AWS Student Builder Group DDU",
+        "AWS Cloud Club DDU",
+        "Cloud Computing Student Community in Gujarat",
+        "How to join AWS community in DDU"
     ],
-    authors: [{ name: "AWS Student Builder Group DDU", url: "https://awscc-ddu.vercel.app" }],
+    authors: [{ name: "AWS Student Builder Group DDU", url: "https://aws.ddu.ac.in" }],
     creator: "AWS Student Builder Group DDU",
     publisher: "AWS Student Builder Group DDU",
     robots: {
@@ -118,6 +128,34 @@ export default function RootLayout({ children }) {
                     </div>
                     {children}
                 </ThemeProvider>
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{
+                        __html: JSON.stringify({
+                            "@context": "https://schema.org",
+                            "@type": "EducationalOrganization",
+                            "name": "AWS Student Builder Group DDU",
+                            "alternateName": ["AWSCC DDU", "aws ddu", "aws ddit", "aws nadiad", "AWS Cloud Club DDU", "AWS Student Community Nadiad"],
+                            "url": "https://aws.ddu.ac.in",
+                            "logo": "https://aws.ddu.ac.in/images/og-image.jpg",
+                            "description": "The official AWS Student Builder Group at Dharmsinh Desai University (DDU). A student-led cloud community focused on AWS services, cloud computing, and technical skill development.",
+                            "parentOrganization": {
+                                "@type": "CollegeOrUniversity",
+                                "name": "Dharmsinh Desai University",
+                                "url": "https://www.ddu.ac.in/"
+                            },
+                            "address": {
+                                "@type": "PostalAddress",
+                                "addressLocality": "Nadiad",
+                                "addressRegion": "Gujarat",
+                                "addressCountry": "IN"
+                            },
+                            "sameAs": [
+                                "https://aws.ddu.ac.in"
+                            ]
+                        })
+                    }}
+                />
             </body>
         </html>
     );

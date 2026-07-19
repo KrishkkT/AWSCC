@@ -1,5 +1,5 @@
 export default function sitemap() {
-  const baseUrl = 'https://awscc-ddu.vercel.app';
+  const baseUrl = 'https://aws.ddu.ac.in';
 
   const routes = [
     '',

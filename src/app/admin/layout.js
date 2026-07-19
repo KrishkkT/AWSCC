@@ -5,6 +5,10 @@ import AdminLayoutClient from "@/components/admin/AdminLayoutClient";
 export const metadata = {
     title: "Admin Portal | AWS Student Builder Group",
     description: "Secure Management Portal",
+    robots: {
+        index: false,
+        follow: false,
+    },
 };
 
 export default function AdminLayout({ children }) {
