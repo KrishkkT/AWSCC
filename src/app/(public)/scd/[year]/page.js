@@ -157,7 +157,47 @@ export default function SCDYearPage({ params }) {
     const registrationUrl = safeObject(event.ticket_data).konfhub_url || "";
 
     const totalTracks = Math.max(...agendaBlocks.filter(b => b.type === 'parallel').map(b => safeArray(b.tracks).length), 0);
-    const totalSessions = agendaBlocks.reduce((acc, block) => acc + (block.type === 'parallel' ? safeArray(block.tracks).reduce((tAcc, t) => tAcc + safeArray(t.sessions).length, 0) : safeArray(block.sessions).length), 0);
+    const isExpertSession = (title) => {
+        if (!title) return false;
+        const t = title.toLowerCase();
+        const exclusions = ['registration', 'check', 'lunch', 'break', 'tea', 'networking', 'concluding', 'swag', 'breakfast', 'dinner', 'opening', 'closing'];
+        return !exclusions.some(kw => t.includes(kw));
+    };
+
+    let totalSessions = 0;
+    agendaBlocks.forEach(block => {
+        if (block.type === 'parallel') {
+            const tracks = safeArray(block.tracks);
+            const allTimeSlots = [];
+            tracks.forEach(track => {
+                safeArray(track.sessions).forEach(session => {
+                    if (!allTimeSlots.includes(session.time)) allTimeSlots.push(session.time);
+                });
+            });
+            allTimeSlots.forEach(time => {
+                const trackSessions = tracks.map(track => safeArray(track.sessions).find(s => s.time === time));
+                const nonNullSessions = trackSessions.filter(s => s != null);
+                if (nonNullSessions.length === 0) return;
+                
+                const uniqueSessions = new Set(nonNullSessions.map(s => ((s.title || '').trim().toLowerCase() + '|' + (s.description || '').trim().toLowerCase())));
+                const titleStr = nonNullSessions[0].title.trim();
+                const isSessionPlaceholder = /^Session \d+/i.test(titleStr) || titleStr.toUpperCase() === 'TBA';
+                const isCommonSession = uniqueSessions.size === 1 && !isSessionPlaceholder;
+                
+                if (isCommonSession) {
+                    if (isExpertSession(nonNullSessions[0].title)) totalSessions += 1;
+                } else {
+                    nonNullSessions.forEach(s => {
+                        if (isExpertSession(s.title)) totalSessions += 1;
+                    });
+                }
+            });
+        } else {
+            safeArray(block.sessions).forEach(s => {
+                if (isExpertSession(s.title)) totalSessions++;
+            });
+        }
+    });
 
     const faqs = [
         {
@@ -459,7 +499,21 @@ export default function SCDYearPage({ params }) {
                                                 }
                                             });
                                         });
-                                        allTimeSlots.sort();
+                                        allTimeSlots.sort((a, b) => {
+                                            const parseTime = (t) => {
+                                                if (!t) return 0;
+                                                const match = t.split('-')[0].trim().match(/^(\d+):(\d+)\s*(am|pm|AM|PM)?/);
+                                                if (!match) return 0;
+                                                let h = parseInt(match[1], 10);
+                                                let m = parseInt(match[2], 10);
+                                                let ampm = match[3] ? match[3].toLowerCase() : null;
+                                                if (ampm === 'pm' && h < 12) h += 12;
+                                                if (ampm === 'am' && h === 12) h = 0;
+                                                if (!ampm && h >= 1 && h <= 7) h += 12;
+                                                return h * 60 + m;
+                                            };
+                                            return parseTime(a) - parseTime(b);
+                                        });
 
                                         return (
                                             <div className="w-full overflow-x-auto no-scrollbar pb-6">
@@ -484,8 +538,14 @@ export default function SCDYearPage({ params }) {
                                                             );
 
                                                             const nonNullSessions = trackSessions.filter(s => s != null);
-                                                            const uniqueTitles = new Set(nonNullSessions.map(s => s.title.trim()));
-                                                            const isCommonSession = nonNullSessions.length > 0 && uniqueTitles.size === 1;
+                                                            const uniqueSessions = new Set(nonNullSessions.map(s => {
+                                                                const t = (s.title || '').trim().toLowerCase();
+                                                                const d = (s.description || '').trim().toLowerCase();
+                                                                return t + '|' + d;
+                                                            }));
+                                                            const titleStr = nonNullSessions.length > 0 ? nonNullSessions[0].title.trim() : "";
+                                                            const isSessionPlaceholder = /^Session \d+/i.test(titleStr) || titleStr.toUpperCase() === 'TBA';
+                                                            const isCommonSession = nonNullSessions.length > 0 && uniqueSessions.size === 1 && !isSessionPlaceholder;
 
                                                             return (
                                                                 <div
@@ -510,6 +570,11 @@ export default function SCDYearPage({ params }) {
                                                                                 <div className="mt-2 text-xs font-black uppercase tracking-wider text-brand-aws flex items-center justify-center gap-1.5 font-sans">
                                                                                     <Users size={12} className="shrink-0" /> {nonNullSessions[0].speaker}
                                                                                 </div>
+                                                                            )}
+                                                                            {nonNullSessions[0].description && (
+                                                                                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed font-sans max-w-lg mx-auto">
+                                                                                    {nonNullSessions[0].description}
+                                                                                </p>
                                                                             )}
                                                                         </div>
                                                                     ) : (
