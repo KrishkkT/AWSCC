@@ -152,6 +152,7 @@ export default function SCDYearPage({ params }) {
     const speakers = safeArray(event.speakers_data);
     const sponsors = safeArray(event.sponsors_data);
     const team = safeArray(event.team_data);
+    const committee = safeArray(event.committee_data);
     const workshops = safeArray(event.workshops_data);
     const tickets = safeArray(safeObject(event.ticket_data).tickets);
     const registrationUrl = safeObject(event.ticket_data).konfhub_url || "";
@@ -905,6 +906,58 @@ export default function SCDYearPage({ params }) {
                                                     <Globe size={15} />
                                                 </a>
                                             )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {/* SCD Committee Section */}
+                {committee.length > 0 && (
+                    <section className="py-24 border-t border-border bg-card/5">
+                        <div className="container mx-auto px-6 max-w-6xl">
+                            <div className="text-center mb-16 space-y-4">
+                                <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">SCD <span className="text-brand-cyan">Committee</span></h2>
+                                <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto text-sm font-sans">
+                                    The dedicated individuals leading various departments to make this event possible.
+                                </p>
+                            </div>
+
+                            <div className="space-y-20">
+                                {committee.map((dept, dIdx) => (
+                                    <div key={dIdx} className="space-y-10">
+                                        <div className="text-center">
+                                            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-display inline-block border-b-2 border-brand-cyan pb-2">{dept.department}</h3>
+                                        </div>
+                                        <div className="flex flex-wrap justify-center gap-10">
+                                            {safeArray(dept.members).map((member, mIdx) => (
+                                                <div key={mIdx} className="flex flex-col items-center group w-32 md:w-40">
+                                                    <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden shadow-sm mb-4 border-2 border-transparent group-hover:border-brand-cyan transition-all duration-300">
+                                                        {member.image ? (
+                                                            <img src={member.image} alt={member.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-800">
+                                                                <Users className="w-8 h-8 text-slate-400/50" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <h4 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base text-center w-full truncate mb-1">
+                                                        {member.name}
+                                                    </h4>
+                                                    {member.role && (
+                                                        <span className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 truncate w-full text-center mb-1">
+                                                            {member.role}
+                                                        </span>
+                                                    )}
+                                                    {member.linkedin_url && (
+                                                        <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-brand-blue transition-colors">
+                                                            <Linkedin size={16} />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 ))}

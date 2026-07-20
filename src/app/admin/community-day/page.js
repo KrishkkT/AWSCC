@@ -85,6 +85,7 @@ export default function AdminCommunityDay() {
         speakers_data: [],
         sponsors_data: [],
         team_data: [],
+        committee_data: [],
         workshops_data: [],
         ticket_data: { konfhub_url: '', tickets: [] },
         popup_image_url: '',
@@ -125,6 +126,7 @@ export default function AdminCommunityDay() {
             speakers_data: [],
             sponsors_data: [],
             team_data: [],
+            committee_data: [],
             workshops_data: [],
             ticket_data: { konfhub_url: '', tickets: [] },
             popup_image_url: '',
@@ -153,6 +155,7 @@ export default function AdminCommunityDay() {
             speakers_data: safeArray(event.speakers_data, []),
             sponsors_data: safeArray(event.sponsors_data, []),
             team_data: safeArray(event.team_data, []),
+            committee_data: safeArray(event.committee_data, []),
             workshops_data: safeArray(event.workshops_data, []),
             ticket_data: { 
                 konfhub_url: safeObject(event.ticket_data, {}).konfhub_url || '', 
@@ -240,12 +243,16 @@ export default function AdminCommunityDay() {
             }));
         };
 
-        let processedSpeakers, processedSponsors, processedTeam;
+        let processedSpeakers, processedSponsors, processedTeam, processedCommittee;
 
         try {
             processedSpeakers = await processArrayImages(formData.speakers_data, 'imageFile', 'image');
             processedSponsors = await processArrayImages(formData.sponsors_data, 'logoFile', 'logo');
             processedTeam = await processArrayImages(formData.team_data, 'imageFile', 'image');
+            processedCommittee = await Promise.all(safeArray(formData.committee_data).map(async (dept) => {
+                const members = await processArrayImages(safeArray(dept.members), 'imageFile', 'image');
+                return { ...dept, members };
+            }));
         } catch (err) {
             showFeedback(`Array Image Upload Error: ${err.message}`, 'error');
             setSaving(false);
@@ -266,6 +273,7 @@ export default function AdminCommunityDay() {
             speakers_data: processedSpeakers,
             sponsors_data: processedSponsors,
             team_data: processedTeam,
+            committee_data: processedCommittee,
             workshops_data: formData.workshops_data || [],
             hero_data: heroDataObj,
             about_data: formData.about_data,
@@ -777,6 +785,77 @@ export default function AdminCommunityDay() {
                                                     </div>
                                                 </div>
                                             </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-4 md:col-span-2 mt-4 border-t border-white/10 pt-6">
+                                    <h4 className="text-lg font-black text-white border-b border-white/10 pb-2 flex items-center justify-between">
+                                        SCD Committee
+                                        <button type="button" onClick={() => addArrayItem('committee_data', { department: '', members: [] })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Department</button>
+                                    </h4>
+                                    <div className="space-y-6">
+                                        {safeArray(formData.committee_data).map((dept, dIdx) => (
+                                           <div key={dIdx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 relative space-y-4">
+                                               <button type="button" onClick={() => removeArrayItem('committee_data', dIdx)} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full"><X size={14}/></button>
+                                               <input type="text" value={dept.department} onChange={e => {
+                                                   const a = [...formData.committee_data];
+                                                   a[dIdx].department = e.target.value;
+                                                   setFormData({...formData, committee_data: a});
+                                               }} placeholder="Department / Role Name (e.g. Design Team)" className="w-full max-w-sm bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan font-bold" />
+                                               
+                                               <div className="space-y-2">
+                                                   <div className="flex justify-between items-center text-xs text-white/50 font-bold uppercase tracking-wider border-b border-white/5 pb-2">
+                                                       <span>Members</span>
+                                                       <button type="button" onClick={() => {
+                                                           const a = [...formData.committee_data];
+                                                           if(!a[dIdx].members) a[dIdx].members = [];
+                                                           a[dIdx].members.push({ name: '', role: '', image: '', linkedin_url: '' });
+                                                           setFormData({...formData, committee_data: a});
+                                                       }} className="text-brand-cyan hover:underline flex items-center gap-1"><Plus size={12} /> Add Member</button>
+                                                   </div>
+                                                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                       {safeArray(dept.members).map((member, mIdx) => (
+                                                           <div key={mIdx} className="bg-white/5 border border-white/10 rounded-xl p-3 relative flex items-start gap-3">
+                                                               <button type="button" onClick={() => {
+                                                                   const a = [...formData.committee_data];
+                                                                   a[dIdx].members.splice(mIdx, 1);
+                                                                   setFormData({...formData, committee_data: a});
+                                                               }} className="absolute top-1 right-1 text-white/30 hover:text-red-400"><X size={12}/></button>
+                                                               
+                                                               <label className="w-12 h-12 shrink-0 rounded-full bg-black/20 border border-white/20 hover:border-brand-cyan/50 flex items-center justify-center cursor-pointer relative overflow-hidden group">
+                                                                   {member.image ? <img src={member.image} className="w-full h-full object-cover" /> : <Users size={14} className="text-white/40 group-hover:text-brand-cyan"/>}
+                                                                   <input type="file" accept="image/*" className="hidden" onChange={e => {
+                                                                       if (!e.target.files[0]) return;
+                                                                       const a = [...formData.committee_data];
+                                                                       a[dIdx].members[mIdx].imageFile = e.target.files[0];
+                                                                       a[dIdx].members[mIdx].image = URL.createObjectURL(e.target.files[0]);
+                                                                       setFormData({...formData, committee_data: a});
+                                                                   }} />
+                                                               </label>
+                                                               
+                                                               <div className="flex-1 space-y-2 pr-4">
+                                                                   <input type="text" value={member.name} onChange={e => {
+                                                                       const a = [...formData.committee_data];
+                                                                       a[dIdx].members[mIdx].name = e.target.value;
+                                                                       setFormData({...formData, committee_data: a});
+                                                                   }} placeholder="Name" className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan font-bold" />
+                                                                   <input type="text" value={member.role || ''} onChange={e => {
+                                                                       const a = [...formData.committee_data];
+                                                                       a[dIdx].members[mIdx].role = e.target.value;
+                                                                       setFormData({...formData, committee_data: a});
+                                                                   }} placeholder="Role (Optional)" className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-white text-[10px] outline-none focus:border-brand-cyan" />
+                                                                   <input type="text" value={member.linkedin_url || ''} onChange={e => {
+                                                                       const a = [...formData.committee_data];
+                                                                       a[dIdx].members[mIdx].linkedin_url = e.target.value;
+                                                                       setFormData({...formData, committee_data: a});
+                                                                   }} placeholder="LinkedIn URL" className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-white text-[10px] outline-none focus:border-brand-cyan" />
+                                                               </div>
+                                                           </div>
+                                                       ))}
+                                                   </div>
+                                               </div>
+                                           </div>
                                         ))}
                                     </div>
                                 </div>
