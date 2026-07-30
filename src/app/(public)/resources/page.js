@@ -87,23 +87,27 @@ export default function ResourcesPage() {
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
                                 transition={{ delay: i * 0.1 }}
-                                className="card-professional p-10 flex flex-col sm:flex-row items-start gap-10 group shadow-sm border-border hover:border-brand-aws/20"
+                                className="bg-white dark:bg-[#1A1F2B] rounded-2xl p-10 flex flex-col sm:flex-row items-start gap-10 border border-gray-200 dark:border-white/5 group-hover:border-[#0073BB] dark:group-hover:border-white/20 transition-colors relative overflow-hidden group shadow-sm"
                             >
-                                <div className="w-20 h-20 shrink-0 rounded-3xl bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-brand-aws group-hover:bg-brand-aws/10 border border-border/50 shadow-inner transition-all duration-300">
+                                <div className="absolute inset-0 bg-gradient-to-b from-gray-50 dark:from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                                <div className="w-20 h-20 shrink-0 rounded-3xl bg-[#0073BB]/10 flex items-center justify-center text-[#0073BB] group-hover:bg-[#0073BB] group-hover:text-white transition-all duration-300 border border-border/50 shadow-inner relative z-10">
                                     {getTypeIcon(resource.type)}
                                 </div>
-                                <div className="flex-grow min-w-0">
+                                <div className="flex-grow min-w-0 relative z-10">
                                     <div className="flex items-center gap-3 mb-4">
-                                        <span className="px-3 py-1 rounded-lg bg-secondary text-[10px] font-bold uppercase tracking-widest text-muted-foreground border border-border/50">{resource.category}</span>
+                                        <span className="px-3 py-1 rounded-lg bg-gray-100 dark:bg-white/5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border border-gray-200 dark:border-white/5">{resource.category}</span>
                                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40"> {resource.type}</span>
                                     </div>
                                     <h3 className="text-2xl font-display font-bold text-foreground mb-4 truncate group-hover:text-brand-aws transition-colors leading-tight">{resource.title}</h3>
                                     <p className="text-muted-foreground font-medium mb-8 leading-relaxed line-clamp-2">{resource.description}</p>
                                     <button
                                         onClick={() => window.open(resource.url, '_blank')}
-                                        className="btn-outline w-full sm:w-auto px-10 py-3.5 text-xs font-bold border-border hover:border-brand-aws flex items-center justify-center gap-2"
+                                        className="relative overflow-hidden group/btn w-full sm:w-auto border-2 border-[#0C111D] dark:border-white/30 text-[#0C111D] dark:text-white font-bold text-xs px-10 py-3.5 flex items-center justify-center tracking-wider transition-all duration-300"
                                     >
-                                        Inspect {resource.type} <ExternalLink size={14} />
+                                        <span className="relative z-10 flex items-center gap-2 group-hover/btn:text-white dark:group-hover/btn:text-[#0C111D] transition-colors duration-300">
+                                            INSPECT {resource.type.toUpperCase()} <ExternalLink size={14} />
+                                        </span>
+                                        <div className="absolute inset-0 bg-[#0C111D] dark:bg-white transform scale-0 rounded-full group-hover/btn:scale-[2.5] transition-transform duration-500 ease-out origin-center"></div>
                                     </button>
                                 </div>
                             </motion.div>

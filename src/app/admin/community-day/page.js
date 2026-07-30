@@ -89,7 +89,8 @@ export default function AdminCommunityDay() {
         workshops_data: [],
         ticket_data: { konfhub_url: '', tickets: [] },
         popup_image_url: '',
-        mobile_image_url: ''
+        mobile_image_url: '',
+        show_timeslot: true
     });
 
     const supabase = createClient();
@@ -130,7 +131,8 @@ export default function AdminCommunityDay() {
             workshops_data: [],
             ticket_data: { konfhub_url: '', tickets: [] },
             popup_image_url: '',
-            mobile_image_url: ''
+            mobile_image_url: '',
+            show_timeslot: true
         });
         setPopupImageFile(null);
         setMobileImageFile(null);
@@ -162,7 +164,8 @@ export default function AdminCommunityDay() {
                 tickets: Array.isArray(safeObject(event.ticket_data, {}).tickets) ? safeObject(event.ticket_data, {}).tickets : [] 
             },
             popup_image_url: event.hero_data?.popup_image || '',
-            mobile_image_url: event.hero_data?.mobile_image || ''
+            mobile_image_url: event.hero_data?.mobile_image || '',
+            show_timeslot: safeObject(event.about_data, {}).show_timeslot ?? true
         });
         setActiveTab('general');
         setShowForm(true);
@@ -276,7 +279,7 @@ export default function AdminCommunityDay() {
             committee_data: processedCommittee,
             workshops_data: formData.workshops_data || [],
             hero_data: heroDataObj,
-            about_data: formData.about_data,
+            about_data: { ...formData.about_data, show_timeslot: formData.show_timeslot },
             ticket_data: formData.ticket_data
         };
 
@@ -427,7 +430,7 @@ export default function AdminCommunityDay() {
                                     </div>
                                 </div>
                                 
-                                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <div className="flex items-center gap-4 bg-[#05080f] border border-white/10 rounded-xl px-5 py-4 cursor-pointer hover:bg-white/5 transition-all group" onClick={() => setFormData({ ...formData, is_active: !formData.is_active })}>
                                         <div className={`w-12 h-6 rounded-full relative transition-colors ${formData.is_active ? 'bg-green-500' : 'bg-white/10'}`}>
                                             <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.is_active ? 'right-1' : 'left-1'}`} />
@@ -439,6 +442,12 @@ export default function AdminCommunityDay() {
                                             <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.visibility_toggled ? 'right-1' : 'left-1'}`} />
                                         </div>
                                         <div><div className="text-sm font-bold text-white group-hover:text-green-500">Global Visibility Enabled</div></div>
+                                    </div>
+                                    <div className="flex items-center gap-4 bg-[#05080f] border border-white/10 rounded-xl px-5 py-4 cursor-pointer hover:bg-white/5 transition-all group" onClick={() => setFormData({ ...formData, show_timeslot: !formData.show_timeslot })}>
+                                        <div className={`w-12 h-6 rounded-full relative transition-colors ${formData.show_timeslot ? 'bg-green-500' : 'bg-white/10'}`}>
+                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.show_timeslot ? 'right-1' : 'left-1'}`} />
+                                        </div>
+                                        <div><div className="text-sm font-bold text-white group-hover:text-green-400">Show Timeslots</div></div>
                                     </div>
                                 </div>
                             </div>

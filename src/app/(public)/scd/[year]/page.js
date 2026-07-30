@@ -2,8 +2,28 @@
 
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, use, useRef } from "react";
-import { motion } from "framer-motion";
+import Link from "next/link";
+import {
+    MapPin,
+    Check,
+    ArrowRight,
+    Zap,
+    Users,
+    Award,
+    ChevronDown,
+    Laptop,
+    Linkedin,
+    Github,
+    Instagram,
+    Globe,
+    Coffee,
+    Camera,
+    X
+} from "lucide-react";
 
+/* ─────────────────────────────────────────────────────────────
+   KONFHUB WIDGET
+───────────────────────────────────────────────────────────── */
 const KonfhubWidget = ({ buttonId }) => {
     const containerRef = useRef(null);
     useEffect(() => {
@@ -14,41 +34,45 @@ const KonfhubWidget = ({ buttonId }) => {
         script.setAttribute('button_id', buttonId);
         script.async = true;
         containerRef.current.appendChild(script);
-        return () => {
-            if (containerRef.current) containerRef.current.innerHTML = '';
-        };
+        return () => { if (containerRef.current) containerRef.current.innerHTML = ''; };
     }, [buttonId]);
-    return <div ref={containerRef} className="w-full flex justify-center mt-2" />;
+    return <div ref={containerRef} className="w-full flex justify-center p-0 m-0" />;
 };
-import Link from "next/link";
-import {
-    Calendar,
-    MapPin,
-    ExternalLink,
-    Clock,
-    Check,
-    ArrowRight,
-    Cloud,
-    Zap,
-    Users,
-    Award,
-    Cpu,
-    Rocket,
-    Info,
-    ChevronDown,
-    Globe,
-    Laptop,
-    Github,
-    Linkedin,
-    Instagram,
-    Coffee,
-    Camera,
-    X,
-    BookOpen,
-    Terminal
-} from "lucide-react";
-import CloudBackground from "@/components/CloudBackground";
 
+/* ─────────────────────────────────────────────────────────────
+   ANIMATED COUNTER COMPONENT
+───────────────────────────────────────────────────────────── */
+const AnimatedCounter = ({ target }) => {
+    const [count, setCount] = useState(0);
+    const numericPart = parseInt(target) || 0;
+    const suffix = target.replace(/^[0-9]+/, '');
+
+    useEffect(() => {
+        let start = 0;
+        const duration = 1200;
+        const stepTime = 30;
+        const steps = duration / stepTime;
+        const increment = numericPart / steps;
+
+        const timer = setInterval(() => {
+            start += increment;
+            if (start >= numericPart) {
+                setCount(numericPart);
+                clearInterval(timer);
+            } else {
+                setCount(Math.floor(start));
+            }
+        }, stepTime);
+
+        return () => clearInterval(timer);
+    }, [numericPart]);
+
+    return <span>{count}{suffix}</span>;
+};
+
+/* ─────────────────────────────────────────────────────────────
+   MAIN PAGE
+───────────────────────────────────────────────────────────── */
 export default function SCDYearPage({ params }) {
     const { year } = use(params);
     const supabase = createClient();
@@ -58,6 +82,38 @@ export default function SCDYearPage({ params }) {
     const [activeBlockIdx, setActiveBlockIdx] = useState(0);
     const [activeFaqIdx, setActiveFaqIdx] = useState(null);
     const [activeWorkshop, setActiveWorkshop] = useState(null);
+    const [activeSpeakerIdx, setActiveSpeakerIdx] = useState(0);
+    const [activeTicketBtnId, setActiveTicketBtnId] = useState(null);
+    const [teamMembersState, setTeamMembersState] = useState([]);
+
+    // Dragging state for tickets section
+    const ticketScrollRef = useRef(null);
+    const [isTicketDragging, setIsTicketDragging] = useState(false);
+    const [ticketStartX, setTicketStartX] = useState(0);
+    const [ticketScrollLeft, setTicketScrollLeft] = useState(0);
+
+    const handleTicketMouseDown = (e) => {
+        if (!ticketScrollRef.current) return;
+        setIsTicketDragging(true);
+        setTicketStartX(e.pageX - ticketScrollRef.current.offsetLeft);
+        setTicketScrollLeft(ticketScrollRef.current.scrollLeft);
+    };
+
+    const handleTicketMouseLeave = () => {
+        setIsTicketDragging(false);
+    };
+
+    const handleTicketMouseUp = () => {
+        setIsTicketDragging(false);
+    };
+
+    const handleTicketMouseMove = (e) => {
+        if (!isTicketDragging || !ticketScrollRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - ticketScrollRef.current.offsetLeft;
+        const walk = (x - ticketStartX) * 1.5;
+        ticketScrollRef.current.scrollLeft = ticketScrollLeft - walk;
+    };
 
     useEffect(() => {
         async function fetchEventDetails() {
@@ -68,12 +124,23 @@ export default function SCDYearPage({ params }) {
                     .select("*")
                     .eq("year", parseInt(year))
                     .maybeSingle();
-
                 if (!error && data) {
                     setEvent(data);
+                    const embedded = (Array.isArray(data.team_data) && data.team_data.length > 0)
+                        ? data.team_data
+                        : (Array.isArray(data.organizers_data) && data.organizers_data.length > 0 ? data.organizers_data : []);
+                    if (embedded.length > 0) {
+                        setTeamMembersState(embedded);
+                    } else {
+                        const { data: dbTeam } = await supabase
+                            .from('team_members')
+                            .select('*')
+                            .order('display_order', { ascending: true });
+                        if (dbTeam) setTeamMembersState(dbTeam);
+                    }
                 }
             } catch (err) {
-                console.error("Error fetching community day event details:", err);
+                console.error("Error fetching event details:", err);
             } finally {
                 setLoading(false);
             }
@@ -83,27 +150,23 @@ export default function SCDYearPage({ params }) {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background flex flex-col items-center justify-center relative overflow-hidden">
-                <CloudBackground />
-                <div className="relative z-10 flex flex-col items-center space-y-4">
-                    <div className="w-14 h-14 border-4 border-muted border-t-brand-cyan rounded-full animate-spin"></div>
-                    <p className="text-slate-600 dark:text-slate-400 font-bold uppercase tracking-[0.3em] text-xs animate-pulse">Syncing Event Details...</p>
-                </div>
+            <div className="min-h-screen bg-[#EFF0F3] flex flex-col items-center justify-center">
+                <div className="w-12 h-12 border-4 border-[#23303E]/10 border-t-[#4F8EF7] animate-spin mb-4 rounded-full" />
+                <p className="text-[#23303E]/50 font-mono text-xs font-bold uppercase tracking-widest">Loading Event...</p>
             </div>
         );
     }
 
     if (!event) {
         return (
-            <div className="min-h-screen bg-background flex flex-col items-center justify-center text-center px-6 relative overflow-hidden">
-                <CloudBackground />
-                <div className="relative z-10 max-w-md bg-card/90 dark:bg-card/40 backdrop-blur-md border border-border rounded-3xl p-10 flex flex-col items-center shadow-xl">
-                    <Award size={64} className="text-brand-cyan/60 mb-6 animate-float" />
-                    <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2 font-display">Event Not Found</h2>
-                    <p className="text-slate-600 dark:text-slate-300 mb-8 text-sm leading-relaxed font-sans">
-                        We couldn&apos;t find the AWS Students Community Day details for the year {year}. It might still be in draft mode or being set up.
+            <div className="min-h-screen bg-[#EFF0F3] flex flex-col items-center justify-center text-center px-6">
+                <div className="max-w-md bg-white border-2 border-[#23303E] p-10 flex flex-col items-center rounded-3xl shadow-xl">
+                    <Award size={64} className="text-[#4F8EF7] mb-6" />
+                    <h2 className="text-3xl font-black text-[#23303E] mb-2 uppercase">Event Not Found</h2>
+                    <p className="text-slate-600 mb-8 text-sm leading-relaxed font-mono">
+                        We couldn&apos;t find AWS Students Community Day {year}.
                     </p>
-                    <Link href="/" className="btn-aws shadow-lg shadow-brand-aws/20 w-full py-3.5">
+                    <Link href="/" className="bg-[#23303E] rounded-xl text-white font-bold px-8 py-4 uppercase font-mono text-sm tracking-wider w-full text-center hover:bg-[#4F8EF7] transition-colors">
                         Back to Homepage
                     </Link>
                 </div>
@@ -111,14 +174,9 @@ export default function SCDYearPage({ params }) {
         );
     }
 
-    // Helper functions for safe database arrays and objects
     const safeArray = (data) => Array.isArray(data) ? data : [];
     const safeObject = (data) => (data && typeof data === 'object' && !Array.isArray(data)) ? data : {};
 
-    const desktopImage = event.hero_data?.popup_image || event.hero_data?.image || null;
-    const mobileImage = event.hero_data?.mobile_image || desktopImage;
-
-    // Normalize agenda data for parallel blocks to support the new structure with backward compatibility
     const rawAgendaBlocks = safeArray(event.agenda_data);
     const agendaBlocks = rawAgendaBlocks.map(block => {
         if (block.type === 'parallel') {
@@ -128,22 +186,15 @@ export default function SCDYearPage({ params }) {
                     const sessions = safeArray(block.sessions).map(session => {
                         const item = Array.isArray(session.tracks) ? session.tracks[tIdx] : null;
                         return {
-                            time: session.time || '09:00 - 09:30',
+                            time: session.time || '',
                             title: item?.title || (typeof item === 'string' ? item : '') || '',
                             speaker: item?.speaker || '',
                             description: item?.description || ''
                         };
                     }).filter(s => s.title);
-                    return {
-                        name: trackName,
-                        sessions
-                    };
+                    return { name: trackName, sessions };
                 });
-                return {
-                    ...block,
-                    tracks,
-                    sessions: []
-                };
+                return { ...block, tracks, sessions: [] };
             }
         }
         return block;
@@ -151,13 +202,16 @@ export default function SCDYearPage({ params }) {
 
     const speakers = safeArray(event.speakers_data);
     const sponsors = safeArray(event.sponsors_data);
-    const team = safeArray(event.team_data);
-    const committee = safeArray(event.committee_data);
     const workshops = safeArray(event.workshops_data);
+    const teamMembers = teamMembersState.length > 0
+        ? teamMembersState
+        : (safeArray(event.team_data).length > 0 ? safeArray(event.team_data) : safeArray(event.organizers_data));
     const tickets = safeArray(safeObject(event.ticket_data).tickets);
     const registrationUrl = safeObject(event.ticket_data).konfhub_url || "";
 
-    const totalTracks = Math.max(...agendaBlocks.filter(b => b.type === 'parallel').map(b => safeArray(b.tracks).length), 0);
+    // Retrieve original hero image
+    const desktopImage = event.hero_data?.desktop_image || event.hero_data?.popup_image || event.hero_data?.image || event.hero_data?.mobile_image || event.hero_data?.url;
+
     const isExpertSession = (title) => {
         if (!title) return false;
         const t = title.toLowerCase();
@@ -170,1004 +224,719 @@ export default function SCDYearPage({ params }) {
         if (block.type === 'parallel') {
             const tracks = safeArray(block.tracks);
             const allTimeSlots = [];
-            tracks.forEach(track => {
-                safeArray(track.sessions).forEach(session => {
-                    if (!allTimeSlots.includes(session.time)) allTimeSlots.push(session.time);
-                });
-            });
+            tracks.forEach(track => safeArray(track.sessions).forEach(s => { if (!allTimeSlots.includes(s.time)) allTimeSlots.push(s.time); }));
             allTimeSlots.forEach(time => {
                 const trackSessions = tracks.map(track => safeArray(track.sessions).find(s => s.time === time));
                 const nonNullSessions = trackSessions.filter(s => s != null);
-                if (nonNullSessions.length === 0) return;
-                
+                if (!nonNullSessions.length) return;
                 const uniqueSessions = new Set(nonNullSessions.map(s => ((s.title || '').trim().toLowerCase() + '|' + (s.description || '').trim().toLowerCase())));
                 const titleStr = nonNullSessions[0].title.trim();
-                const isSessionPlaceholder = /^Session \d+/i.test(titleStr) || titleStr.toUpperCase() === 'TBA';
-                const isCommonSession = uniqueSessions.size === 1 && !isSessionPlaceholder;
-                
-                if (isCommonSession) {
-                    if (isExpertSession(nonNullSessions[0].title)) totalSessions += 1;
-                } else {
-                    nonNullSessions.forEach(s => {
-                        if (isExpertSession(s.title)) totalSessions += 1;
-                    });
-                }
+                const isPlaceholder = /^Session \d+/i.test(titleStr) || titleStr.toUpperCase() === 'TBA';
+                const isCommon = uniqueSessions.size === 1 && !isPlaceholder;
+                if (isCommon) { if (isExpertSession(nonNullSessions[0].title)) totalSessions++; }
+                else nonNullSessions.forEach(s => { if (isExpertSession(s.title)) totalSessions++; });
             });
         } else {
-            safeArray(block.sessions).forEach(s => {
-                if (isExpertSession(s.title)) totalSessions++;
-            });
+            safeArray(block.sessions).forEach(s => { if (isExpertSession(s.title)) totalSessions++; });
         }
     });
 
+    const showTimeslot = event.about_data?.show_timeslot !== false;
+
     const faqs = [
-        {
-            q: `What is AWS Students Community Day ${event?.year || year}?`,
-            a: `AWS Students Community Day is a flagship annual event organized by the AWS Student Builder Group at Dharmsinh Desai University. It is a peer-to-peer learning environment designed by students, for students, to explore cloud computing, GenAI, serverless technology, DevOps, and more.`
-        },
-        {
-            q: "Who can attend this event?",
-            a: "Students, fresh graduates, developers, academicians, and anyone interested in learning about cloud technology are welcome to register and attend. No prior knowledge of AWS is required!"
-        },
-        {
-            q: "Will I receive a certificate of participation?",
-            a: "Yes, all approved attendees who participate in the event sessions will receive an official digital participation certificate from the AWS Student Builder Group."
-        },
-        {
-            q: "What should I bring to the event?",
-            a: "Please bring a laptop if you plan to participate in hands-on workshops, along with a charger and your college ID card. Ensure you have an active AWS account (the free tier is perfect) set up beforehand."
-        }
+        { q: `What is AWS Students Community Day ${event?.year || year}?`, a: `AWS Students Community Day is a flagship annual event organized by the AWS Student Builder Group at Dharmsinh Desai University. It is a peer-to-peer learning environment designed by students, for students, to explore cloud computing, GenAI, serverless technology, DevOps, and more.` },
+        { q: "Who can attend this event?", a: "Students, fresh graduates, developers, academicians, and anyone interested in learning about cloud technology are welcome to register and attend. No prior knowledge of AWS is required!" },
+        { q: "Will I receive a certificate of participation?", a: "Yes, all approved attendees who participate in the event sessions will receive an official digital participation certificate from the AWS Student Builder Group." },
+        { q: "What should I bring to the event?", a: "Please bring a laptop if you plan to participate in hands-on workshops, along with a charger and your college ID card. Ensure you have an active AWS account (the free tier is perfect) set up beforehand." }
+    ];
+    const eventDate = event.date
+        ? new Date(event.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+        : null;
+
+    const perkItems = [
+        { label: 'E-Certificate', icon: <Award size={15} /> },
+        { label: 'Networking', icon: <Users size={15} /> },
+        { label: 'AWS Swag', icon: <Zap size={15} /> },
+        { label: 'Free Meals', icon: <Coffee size={15} /> },
+        { label: 'Photo Booth', icon: <Camera size={15} /> },
+        { label: 'Workshops', icon: <Laptop size={15} /> },
     ];
 
-    const hasMobileImage = !!event.hero_data?.mobile_image;
-
     return (
-        <div className="min-h-screen bg-background text-slate-900 dark:text-white relative overflow-hidden transition-colors duration-500">
-            {/* Cinematic Floating Cloud Background */}
-            <CloudBackground />
+        <div className="min-h-screen bg-[#EFF0F3] text-[#23303E] selection:bg-[#4F8EF7]/30">
 
-            {/* Glowing Accent Orbs - low opacity to prevent overlaying white screen */}
-            <div className="absolute top-[20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-brand-aws/5 dark:bg-brand-aws/10 blur-[150px] pointer-events-none" />
-            <div className="absolute bottom-[20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-brand-cyan/5 dark:bg-brand-cyan/10 blur-[150px] pointer-events-none" />
+            {/* ══════════════════════════════════════
+                HERO — Dark Cinematic & Network Graphic
+            ══════════════════════════════════════ */}
+            <section
+                className="relative min-h-screen flex flex-col justify-center pb-20 pt-40 -mt-16 overflow-hidden bg-[#081018] text-white"
+            >
+                {/* Ambient Glowing Orbs & Network Background */}
+                <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-40 -left-40 w-[650px] h-[650px] bg-[#4F8EF7]/15 rounded-full blur-[140px]" />
+                    <div className="absolute top-1/3 -right-40 w-[550px] h-[550px] bg-[#FF9900]/10 rounded-full blur-[130px]" />
+                    <img
+                        src="/images/hero_network.png"
+                        alt="Hero Network Pattern"
+                        className="absolute inset-0 w-full h-full object-cover object-center opacity-30 mix-blend-screen pointer-events-none"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#081018] via-transparent to-transparent opacity-80" />
+                </div>
 
-            <div className="relative z-10">
-                {/* Hero Section */}
-                <section className="relative min-h-[80vh] flex flex-col justify-center items-center pt-20 pb-16 px-6 lg:px-8 overflow-hidden">
-                    {/* Unique Background Setup */}
-                    {desktopImage && (
-                        <div className="absolute inset-0 z-0">
-                            {/* The actual image with low opacity and blend mode for a dark, immersive look */}
-                            <img src={desktopImage} className="w-full h-full object-cover opacity-20 dark:opacity-20 mix-blend-luminosity object-center scale-105" alt="Background" />
-                            {/* Gradients to fade out the edges into the background color */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/30" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
-                            <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-transparent opacity-80" />
-                        </div>
-                    )}
+                {/* Subtle Grain Overlay */}
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
 
-                    <div className="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center max-w-7xl relative z-10">
-                        {/* Left Column: Text & Buttons */}
-                        <div className="flex flex-col space-y-8 text-left">
-                            <div className="inline-flex items-center gap-2">
-                                <span className="font-display font-black text-xl tracking-tight text-brand-aws">
-                                    #SCD{event.year?.toString().substring(2)}
-                                </span>
-                                <span className="text-sm font-bold text-slate-500 uppercase tracking-widest px-2 border-l border-border">
-                                    AWS Students Community Day
-                                </span>
-                            </div>
 
-                            <h1 className="text-5xl lg:text-7xl font-black text-slate-900 dark:text-white leading-[1.1] font-display tracking-tight drop-shadow-sm">
-                                A full day of AWS, <br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-aws to-brand-cyan">built by students</span>
+                {/* Content */}
+                <div className="relative z-10 container mx-auto px-6 lg:px-12 max-w-6xl">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-12 mb-16">
+                        <div className="flex-1 max-w-3xl">
+                            <h1 className="text-3xl sm:text-5xl lg:text-7xl font-black text-[#EFF0F3] leading-[1.02] tracking-tight mb-8">
+                                <br className="hidden sm:block" /> A full day of AWS,<br className="hidden sm:block" /> built by Students
                             </h1>
+                            <p className="text-1xl sm:text-2xl lg:text-2xl text-[#EFF0F3] leading-[1.02] tracking-tight mb-8">AWS Students Community Day Nadiad 2026 is a student-led technology conference organized by the AWS Student Builder Group at Dharmsinh Desai University.</p>
+                        </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 border-t border-slate-300 pt-8">
+                        <div className="flex flex-col sm:flex-row gap-8">
+                            <div>
+                                <p className="text-slate-400 font-mono text-xs font-bold uppercase tracking-widest mb-1">Location</p>
+                                <p className="font-mono font-bold text-[#EFF0F3] text-sm uppercase tracking-wider">NADIAD, GUJARAT, INDIA</p>
+                            </div>
+                            {eventDate && (
+                                <div>
+                                    <p className="text-slate-400 font-mono text-xs font-bold uppercase tracking-widest mb-1">Date</p>
+                                    <p className="font-mono font-bold text-[#EFF0F3] text-sm uppercase tracking-wider">{eventDate.toUpperCase()}</p>
+                                </div>
+                            )}
+                            <div>
+                                <p className="text-slate-400 font-mono text-xs font-bold uppercase tracking-widest mb-1">Edition</p>
+                                <p className="font-mono font-bold text-[#EFF0F3] text-sm uppercase tracking-wider">SCD {event.year}</p>
+                            </div>
+                        </div>
+                        {registrationUrl ? (
+                            <a href="#tickets"
+                                className="inline-flex items-center gap-3 bg-[#4F8EF7] hover:bg-[#3b7ad6] text-white shadow-lg shadow-[#4F8EF7]/20 rounded-2xl font-bold font-mono uppercase tracking-wider text-sm px-8 py-4 transition-all duration-300 active:scale-95">
+                                GET TICKETS <ArrowRight size={15} />
+                            </a>
+                        ) : (
+                            <div className="inline-flex items-center gap-3 bg-slate-200 text-slate-500 rounded-2xl font-bold font-mono uppercase tracking-wider text-sm px-8 py-4 cursor-not-allowed">
+                                REGISTRATIONS CLOSED
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </section>
 
-                            <p className="text-lg lg:text-xl text-slate-600 dark:text-slate-300 font-medium max-w-xl leading-relaxed">
-                                Deep-dives, real-world stories, and the hallway-track conversations you&apos;ll remember for years. The AWS Student Builder Group is back for the most awaited edition yet.
+            {/* ══════════════════════════════════════
+                STATS STRIP - White background with Animated Counter
+            ══════════════════════════════════════ */}
+            <section className="bg-white border-b border-slate-200 relative z-10 py-4">
+                <div className="container mx-auto max-w-6xl">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-slate-200 divide-y sm:divide-y-0">
+                        {[
+                            { value: speakers.length > 0 ? `${speakers.length}+` : '10+', label: 'Expert Speakers' },
+                            { value: totalSessions > 0 ? `${totalSessions}+` : '9+', label: 'Tech Sessions' },
+                            { value: workshops.length > 0 ? `${workshops.length}` : '3', label: 'Workshops' },
+                            { value: '500+', label: 'Builders Expected' },
+                        ].map((stat, idx) => (
+                            <div key={idx} className="px-8 py-8 group hover:bg-slate-50/80 transition-colors">
+                                <div className="text-4xl sm:text-5xl font-black font-mono text-[#23303E] tracking-tight flex items-center gap-1 group-hover:text-[#4F8EF7] transition-colors">
+                                    <AnimatedCounter target={stat.value} />
+                                </div>
+                                <div className="label-teal mt-2 font-mono text-xs font-bold uppercase tracking-wider">{stat.label}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ══════════════════════════════════════
+                ABOUT — swipeable perks instead of marquee
+            ══════════════════════════════════════ */}
+            <section id="about" className="py-24 bg-[#EFF0F3]">
+                <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start mb-12">
+                        <div className="lg:col-span-4">
+                            <p className="label-teal mb-5">ABOUT THE EVENT</p>
+                            <h2 className="text-4xl sm:text-5xl font-black text-[#23303E] leading-tight tracking-tight">
+                                Built by<br />students,<br />for students.
+                            </h2>
+                        </div>
+                        <div className="lg:col-span-8">
+                            <p className="text-lg text-[#23303E]/70 leading-relaxed font-medium">
+                                {event.about_data?.text || "AWS Students Community Day is a flagship annual conference conceptualized and hosted by the AWS Student Builder Group at Dharmsinh Desai University. Crafted exclusively by students, for students, it gathers tech leaders, developers, and cloud enthusiasts to explore cloud architecture, serverless systems, DevOps, and Artificial Intelligence."}
                             </p>
+                        </div>
+                    </div>
+                    {/* Wrap flex instead of marquee */}
+                    <div className="flex flex-wrap gap-4 mt-8">
+                        {perkItems.map((item, idx) => (
+                            <div key={idx}
+                                className="bg-white border border-slate-200 hover:-translate-y-1 hover:shadow-lg hover:border-[#4F8EF7]/40 transition-all duration-300 px-6 py-4 rounded-2xl flex items-center gap-3 cursor-default">
+                                <span className="text-[#4F8EF7]">{item.icon}</span>
+                                <span className="font-mono text-xs font-bold uppercase tracking-wide text-[#23303E]">{item.label}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
 
-                            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                                {registrationUrl ? (
-                                    <a href={registrationUrl} target="_blank" rel="noopener noreferrer" className="btn-aws !px-10 !py-4 text-base shadow-[0_0_20px_rgba(0,194,255,0.2)] flex items-center justify-center gap-2 group w-fit hover:shadow-[0_0_30px_rgba(0,194,255,0.4)] transition-all">
-                                        Register Now <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                                    </a>
-                                ) : (
-                                    <button disabled className="btn-outline !px-10 !py-4 text-base opacity-50 cursor-not-allowed w-fit">
-                                        Registrations Closed
+            {/* ══════════════════════════════════════
+                SPEAKERS — Light theme
+            ══════════════════════════════════════ */}
+            {speakers.length > 0 && (
+                <section id="speakers" className="bg-white py-24 border-t border-slate-200">
+                    <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+                        <div className="mb-12">
+                            <p className="label-teal mb-4">KEYNOTE & TECH SPEAKERS</p>
+                            <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">Speakers</h2>
+                        </div>
+                        <div className="flex flex-col lg:flex-row border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm">
+                            <div className="flex-1 divide-y divide-slate-100">
+                                {speakers.map((speaker, idx) => (
+                                    <button key={idx} onClick={() => setActiveSpeakerIdx(idx)}
+                                        className={`w-full text-left px-8 py-6 flex items-center justify-between transition-colors cursor-pointer ${activeSpeakerIdx === idx ? 'bg-slate-50' : 'hover:bg-slate-50/70'}`}>
+                                        <div>
+                                            <h3 className="text-xl sm:text-2xl font-bold text-[#23303E] mb-1">{speaker.name}</h3>
+                                            {(speaker.role || speaker.company) && (
+                                                <p className="label-teal opacity-90">
+                                                    {speaker.role}{speaker.role && speaker.company ? ' \u00b7 ' : ''}{speaker.company}
+                                                </p>
+                                            )}
+                                        </div>
+                                        {speaker.linkedin && (
+                                            <a href={speaker.linkedin} target="_blank" rel="noopener noreferrer"
+                                                className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#4F8EF7] hover:border-[#4F8EF7] bg-white transition-all shrink-0 ml-4 hover:shadow-md"
+                                                onClick={e => e.stopPropagation()}>
+                                                <Linkedin size={16} />
+                                            </a>
+                                        )}
                                     </button>
+                                ))}
+                            </div>
+                            <div className="lg:w-80 xl:w-96 border-t lg:border-t-0 lg:border-l border-slate-200 bg-slate-100 flex items-center justify-center min-h-[320px] relative overflow-hidden">
+                                {speakers[activeSpeakerIdx]?.image ? (
+                                    <img src={speakers[activeSpeakerIdx].image} alt={speakers[activeSpeakerIdx].name}
+                                        className="w-full h-full object-cover object-top absolute inset-0" />
+                                ) : (
+                                    <div className="flex flex-col items-center gap-3">
+                                        <Users size={64} className="text-slate-300" />
+                                        <p className="font-mono text-xs uppercase tracking-wider text-slate-400">Photo TBA</p>
+                                    </div>
                                 )}
-                                <a href="#agenda" className="btn-outline !px-10 !py-4 text-base w-fit hover:bg-white/5 transition-colors">
-                                    View Schedule
-                                </a>
-                            </div>
-                        </div>
-
-                        {/* Right Column: Stacked Cards */}
-                        <div className="flex flex-col space-y-4 relative">
-                            {/* Unique glowing backplate for cards */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-brand-cyan/5 blur-[100px] rounded-full pointer-events-none" />
-
-                            {/* Date Card */}
-                            <div className="glass-card relative z-10 p-6 flex justify-between items-center bg-card/60 backdrop-blur-xl border-border/50 shadow-lg">
-                                <div className="flex items-center gap-3">
-                                    <Calendar className="text-brand-aws w-5 h-5" />
-                                    <span className="font-bold text-sm tracking-wider uppercase text-slate-900 dark:text-white drop-shadow-sm">
-                                        {event.date ? new Date(event.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'COMING SOON'}
-                                    </span>
-                                </div>
-                                <div className="text-xs font-black uppercase tracking-widest text-slate-500">
-                                    {event.venue?.split(',')[0] || "Dharmsinh Desai University"}
-                                </div>
-                            </div>
-
-                            {/* Workshops Card */}
-                            <a href="#workshops" className="glass-card relative z-10 p-6 group hover:border-brand-cyan/50 hover:bg-card/80 bg-card/60 backdrop-blur-xl transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,194,255,0.15)] hover:-translate-y-1 cursor-pointer flex items-center justify-between">
-                                <div className="flex items-center gap-6">
-                                    <div className="text-5xl font-black text-slate-900 dark:text-white font-display group-hover:text-brand-cyan transition-colors drop-shadow-sm">
-                                        {workshops.length}
-                                    </div>
-                                    <div className="space-y-1">
-                                        <div className="text-[10px] font-black text-brand-aws uppercase tracking-widest flex items-center gap-1.5">
-                                            <Zap size={12} /> LEARN & BUILD
-                                        </div>
-                                        <h3 className="text-base font-bold text-slate-900 dark:text-white drop-shadow-sm">Interactive Workshops</h3>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Hands-on sessions to level up your cloud skills.</p>
-                                    </div>
-                                </div>
-                                <ArrowRight className="text-slate-400 group-hover:text-brand-cyan group-hover:translate-x-1 transition-all" size={20} />
-                            </a>
-
-                            {/* Talks Card */}
-                            <a href="#agenda" className="glass-card relative z-10 p-6 group hover:border-brand-cyan/50 hover:bg-card/80 bg-card/60 backdrop-blur-xl transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,194,255,0.15)] hover:-translate-y-1 cursor-pointer flex items-center justify-between">
-                                <div className="flex items-center gap-6">
-                                    <div className="text-5xl font-black text-slate-900 dark:text-white font-display group-hover:text-brand-cyan transition-colors drop-shadow-sm">
-                                        {totalSessions}
-                                    </div>
-                                    <div className="space-y-1">
-                                        <div className="text-[10px] font-black text-brand-aws uppercase tracking-widest flex items-center gap-1.5">
-                                            <Globe size={12} /> EXPERT SESSIONS
-                                        </div>
-                                        <h3 className="text-base font-bold text-slate-900 dark:text-white drop-shadow-sm">{totalTracks > 0 ? `${totalTracks} parallel tracks` : 'Insightful Talks'}</h3>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Deep-dives into architecture, GenAI, and more.</p>
-                                    </div>
-                                </div>
-                                <ArrowRight className="text-slate-400 group-hover:text-brand-cyan group-hover:translate-x-1 transition-all" size={20} />
-                            </a>
-
-                            {/* Speakers Card */}
-                            <a href="#speakers" className="glass-card relative z-10 p-6 group hover:border-brand-cyan/50 hover:bg-card/80 bg-card/60 backdrop-blur-xl transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,194,255,0.15)] hover:-translate-y-1 cursor-pointer flex items-center justify-between">
-                                <div className="flex items-center gap-6">
-                                    <div className="text-5xl font-black text-slate-900 dark:text-white font-display group-hover:text-brand-cyan transition-colors drop-shadow-sm">
-                                        {speakers.length}
-                                    </div>
-                                    <div className="space-y-1">
-                                        <div className="text-[10px] font-black text-brand-aws uppercase tracking-widest flex items-center gap-1.5">
-                                            <Users size={12} /> INDUSTRY LEADERS
-                                        </div>
-                                        <h3 className="text-base font-bold text-slate-900 dark:text-white drop-shadow-sm">Expert Speakers</h3>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Learn from AWS heroes and community pros.</p>
-                                    </div>
-                                </div>
-                                <ArrowRight className="text-slate-400 group-hover:text-brand-cyan group-hover:translate-x-1 transition-all" size={20} />
-                            </a>
-                        </div>
-                    </div>
-                </section>
-
-                {/* About Section */}
-                <section className="py-24 border-t border-border bg-card/10">
-                    <div className="container mx-auto px-6 max-w-5xl">
-                        {/* About Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
-                            <div className="md:col-span-4 space-y-4">
-                                <h3 className="text-2xl md:text-3xl font-black tracking-tight font-display text-slate-900 dark:text-white">About The <span className="text-brand-cyan">Event</span></h3>
-                                <div className="w-12 h-1.5 bg-brand-cyan rounded-full" />
-                            </div>
-                            <div className="md:col-span-8 space-y-6">
-                                <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed font-sans font-medium">
-                                    {event.about_data?.text || "AWS Students Community Day is a flagship annual event conceptualized and hosted by the AWS Student Builder Group at Dharmsinh Desai University. Crafted exclusively by students, for students, it gathers industry leaders, technology evangelists, developers, and aspiring cloud builders to discuss advancements in modern architecture, containerization, serverless compute, DevOps, and Artificial Intelligence."}
-                                </p>
-
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-6">
-                                    {[
-                                        { count: "9+", label: "Expert Sessions", icon: <Cpu size={18} className="text-brand-cyan" /> },
-                                        { count: "3", label: "Tracks", icon: <Rocket size={18} className="text-brand-aws" /> },
-                                        { count: "10", label: "Industry Speakers", icon: <Users size={18} className="text-brand-cyan" /> },
-                                        { count: "500+", label: "Builders Expected", icon: <Award size={18} className="text-brand-aws" /> }
-                                    ].map((stat, idx) => (
-                                        <div key={idx} className="bg-card border border-border rounded-2xl p-4 text-center hover:border-border/80 transition-colors shadow-sm">
-                                            <div className="flex justify-center mb-2">{stat.icon}</div>
-                                            <div className="text-2xl font-black text-slate-900 dark:text-white font-display">{stat.count}</div>
-                                            <div className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold">{stat.label}</div>
-                                        </div>
-                                    ))}
+                                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#23303E]/90 to-transparent pointer-events-none">
+                                    <p className="font-bold text-white text-xl mb-1">{speakers[activeSpeakerIdx]?.name}</p>
+                                    {speakers[activeSpeakerIdx]?.role && <p className="font-mono text-xs font-bold text-white/80 uppercase tracking-widest">{speakers[activeSpeakerIdx].role}</p>}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </section>
+            )}
 
-                {/* Benefits Section */}
-                <section className="py-24 border-t border-border bg-card/10">
-                    <div className="container mx-auto px-6 max-w-5xl">
-                        <div className="text-center mb-16 space-y-4">
-                            <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">Event <span className="text-brand-cyan">Benefits</span></h2>
-                            <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-sm font-sans font-medium leading-relaxed">
-                                Join the event and unlock opportunities to learn, connect, and grow. From gaining new insights to meeting like-minded people, this experience is designed to support your journey in tech.
+            {/* ══════════════════════════════════════
+                TICKETS — Swipeable row
+            ══════════════════════════════════════ */}
+            {tickets.length > 0 && (
+                <section id="tickets" className="py-24 bg-[#EFF0F3] border-t border-slate-200 overflow-hidden">
+                    <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+                        <div className="mb-12">
+                            <p className="label-teal mb-4">REGISTRATION TIERS</p>
+                            <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight mb-3">
+                                Tickets for every builder
+                            </h2>
+                            <p className="text-[#23303E]/60 text-lg font-medium">
+                                Join AWS Students Community Day {event.year}.
                             </p>
                         </div>
+                    </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {[
-                                {
-                                    title: "E-Certificate",
-                                    desc: "Receive an official digital participation certificate to recognize your attendance and learning.",
-                                    icon: <Award className="w-8 h-8 text-brand-cyan" />,
-                                    color: "from-brand-cyan/20 to-brand-blue/5"
-                                },
-                                {
-                                    title: "Networking",
-                                    desc: "Connect with industry leaders, expert speakers, and like-minded peers to expand your professional network.",
-                                    icon: <Users className="w-8 h-8 text-brand-aws" />,
-                                    color: "from-brand-aws/20 to-brand-blue/5"
-                                },
-                                {
-                                    title: "Prizes & Swag",
-                                    desc: "Participate in quizzes, hands-on labs, and activities to win exclusive AWS goodies, swags, and prizes.",
-                                    icon: <Zap className="w-8 h-8 text-yellow-500" />,
-                                    color: "from-yellow-500/20 to-amber-500/5"
-                                },
-                                {
-                                    title: "Complimentary Catering",
-                                    desc: "Enjoy delicious complimentary lunch, refreshments, and snacks provided during the event.",
-                                    icon: <Coffee className="w-8 h-8 text-emerald-500" />,
-                                    color: "from-emerald-500/20 to-teal-500/5"
-                                },
-                                {
-                                    title: "Photo Booth",
-                                    desc: "Capture memorable moments at the event with our custom-themed photo experiences and backdrops.",
-                                    icon: <Camera className="w-8 h-8 text-pink-500" />,
-                                    color: "from-pink-500/20 to-rose-500/5"
-                                },
-                                {
-                                    title: "Hands-on Labs",
-                                    desc: "Gain practical cloud experience with guided workshops and labs led by AWS experts.",
-                                    icon: <Laptop className="w-8 h-8 text-purple-500" />,
-                                    color: "from-purple-500/20 to-indigo-500/5"
+                    {/* Swipeable container */}
+                    <div className="w-full px-6 lg:px-12 mx-auto max-w-6xl">
+                        <div
+                            ref={ticketScrollRef}
+                            onMouseDown={handleTicketMouseDown}
+                            onMouseLeave={handleTicketMouseLeave}
+                            onMouseUp={handleTicketMouseUp}
+                            onMouseMove={handleTicketMouseMove}
+                            className={`flex flex-col md:flex-row md:overflow-x-auto md:snap-x md:snap-mandatory gap-6 pb-12 pt-4 no-scrollbar items-center md:items-stretch justify-start md:justify-start ${isTicketDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+                        >
+                            {tickets.map((ticket, idx) => {
+                                const perks = ticket.points ? ticket.points.split(',').map(p => p.trim()) : [];
+                                const tName = ticket.name.toLowerCase();
+                                let btnId = '';
+                                if (tName.includes('super early bird')) btnId = 'btn_bc19856f20d1';
+                                else if (tName.includes('early bird')) btnId = 'btn_168ec82c90c2';
+                                else if (tName.includes('regular')) btnId = 'btn_9be3f420f671';
+                                else if (tName.includes('workshop')) btnId = 'btn_f340f876fc8c';
+                                else if (tName.includes('golden ticket')) btnId = 'btn_52f2c75663de'
+                                return (
+                                    <div key={idx}
+                                        className="w-full max-w-[340px] md:w-[320px] md:flex-none flex flex-col bg-white border border-slate-200 rounded-3xl md:snap-center hover:shadow-2xl hover:border-[#4F8EF7]/30 transition-shadow duration-300">
+                                        <div className="p-8 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
+                                            <div className="flex items-start justify-between mb-4">
+                                                <h3 className="text-sm font-bold text-[#23303E] font-mono uppercase tracking-wide leading-tight flex-1">{ticket.name}</h3>
+                                                {ticket.status === 'sold_out' && (
+                                                    <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-white bg-rose-500 rounded-full px-2.5 py-1 shrink-0 ml-2 shadow-sm">SOLD OUT</span>
+                                                )}
+                                            </div>
+                                            <div className="text-4xl font-black text-[#23303E] font-mono tracking-tight">{ticket.price}</div>
+                                        </div>
+                                        <div className="p-8 flex-grow">
+                                            {perks.length > 0 && (
+                                                <ul className="space-y-3">
+                                                    {perks.slice(0, 5).map((perk, pIdx) => (
+                                                        <li key={pIdx} className="flex items-start gap-3 text-sm text-slate-600 font-medium">
+                                                            <div className="w-5 h-5 rounded-full bg-[#4F8EF7]/10 flex items-center justify-center shrink-0 mt-0.5">
+                                                                <Check size={10} className="text-[#4F8EF7]" />
+                                                            </div>
+                                                            <span className="leading-relaxed">{perk}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                        <div className="px-8 pb-8">
+                                            {btnId ? (
+                                                <KonfhubWidget buttonId={btnId} />
+                                            ) : registrationUrl ? (
+                                                <a href={registrationUrl} target="_blank" rel="noopener noreferrer"
+                                                    className="w-full flex items-center justify-center gap-2 bg-[#23303E] text-white rounded-2xl font-bold font-mono uppercase tracking-wider text-xs px-6 py-4 hover:bg-[#4F8EF7] shadow-md transition-all duration-300 active:scale-95">
+                                                    Buy Now <ArrowRight size={14} />
+                                                </a>
+                                            ) : (
+                                                <div className="w-full flex items-center justify-center bg-slate-100 text-slate-400 rounded-2xl font-bold font-mono uppercase tracking-wider text-xs px-6 py-4 cursor-not-allowed">
+                                                    Unavailable
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="hidden md:flex justify-center mt-[-10px]">
+                            <p className="label-teal opacity-50">&larr; Swipe to view more &rarr;</p>
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            {/* ══════════════════════════════════════
+                SCHEDULE — Light Slate Theme (#EFF0F3)
+            ══════════════════════════════════════ */}
+            {agendaBlocks.length > 0 && (
+                <section id="agenda" className="py-24 bg-[#EFF0F3] text-[#23303E] border-t border-slate-200 relative overflow-hidden">
+                    <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+                        <div className="mb-12">
+                            <p className="label-teal mb-4">EVENT TIMELINE</p>
+                            <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight font-display">Schedule</h2>
+                        </div>
+                        {agendaBlocks.length > 1 && (
+                            <div className="flex gap-3 mb-10 overflow-x-auto pb-2 no-scrollbar">
+                                {agendaBlocks.map((block, idx) => (
+                                    <button key={idx} onClick={() => setActiveBlockIdx(idx)}
+                                        className={`px-6 py-3 text-xs font-mono font-bold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer rounded-xl ${activeBlockIdx === idx ? 'bg-[#23303E] text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-[#23303E]'}`}>
+                                        {block.title || `Block ${idx + 1}`}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {agendaBlocks[activeBlockIdx]?.type === 'parallel' ? (
+                            (() => {
+                                const tracks = safeArray(agendaBlocks[activeBlockIdx]?.tracks);
+                                if (!tracks.length) return <div className="text-center text-slate-400 py-8 font-mono text-sm">No tracks available</div>;
+
+                                const maxSessions = Math.max(...tracks.map(t => safeArray(t.sessions).length));
+                                const sessionRows = [];
+                                for (let i = 0; i < maxSessions; i++) {
+                                    sessionRows.push(tracks.map(t => safeArray(t.sessions)[i] || null));
                                 }
-                            ].map((benefit, idx) => (
-                                <div
-                                    key={idx}
-                                    className="glass-card p-8 flex flex-col justify-between border-border hover:border-brand-cyan/30 hover:shadow-[0_0_30px_rgba(0,194,255,0.1)] transition-all duration-300 relative group bg-card/40 backdrop-blur-md"
-                                >
-                                    <div className="space-y-6">
-                                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${benefit.color} border border-white/5 dark:border-white/10 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500`}>
-                                            {benefit.icon}
+
+                                const isCommonKeyword = (titleStr) => {
+                                    if (!titleStr) return false;
+                                    const t = titleStr.toLowerCase().trim();
+                                    const commonKeywords = [
+                                        'registration', 'keynote', 'opening', 'closing', 'concluding',
+                                        'speech', 'remarks', 'lunch', 'break', 'tea', 'swag', 'networking',
+                                        'ceremony', 'welcome', 'dinner', 'breakfast', 'thanks', 'valedictory'
+                                    ];
+                                    return commonKeywords.some(kw => t.includes(kw));
+                                };
+
+                                return (
+                                    <div className="w-full overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
+                                        <table className="w-full text-left border-collapse min-w-[700px]">
+                                            <thead>
+                                                <tr className="bg-slate-50 border-b border-slate-200">
+                                                    {showTimeslot && (
+                                                    <th className="py-4 px-6 font-mono text-xs font-bold text-slate-500 uppercase tracking-wider w-36 border-r border-slate-200">
+                                                        Slot
+                                                    </th>
+                                                    )}
+                                                    {tracks.map((track, tIdx) => (
+                                                        <th key={tIdx} className="py-4 px-6 font-mono text-xs font-bold text-[#23303E] uppercase tracking-wider border-r last:border-r-0 border-slate-200">
+                                                            {track.name || `Track ${tIdx + 1}`}
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-200 text-sm">
+                                                {sessionRows.map((trackSessions, rowIdx) => {
+                                                    const nonNull = trackSessions.filter(s => s != null);
+                                                    if (nonNull.length === 0) return null;
+
+                                                    const firstSession = nonNull[0];
+                                                    const firstTitle = (firstSession.title || '').trim();
+                                                    const firstTitleLower = firstTitle.toLowerCase();
+
+                                                    const isPlaceholder = /^session\s*\d+/i.test(firstTitleLower) || firstTitleLower === 'tba' || firstTitleLower === 'to be announced';
+                                                    const uniqueTitles = new Set(nonNull.map(s => (s.title || '').trim().toLowerCase()));
+                                                    const isCommon = uniqueTitles.size === 1 && !isPlaceholder && isCommonKeyword(firstTitleLower);
+
+                                                    const slotLabel = firstSession.time || `Session ${rowIdx + 1}`;
+
+                                                    if (isCommon) {
+                                                        return (
+                                                            <tr key={rowIdx} className="bg-slate-50/70 hover:bg-slate-100/60 transition-colors">
+                                                                {showTimeslot && (
+                                                                <td className="py-4 px-6 font-mono text-xs font-bold text-slate-400 border-r border-slate-200 whitespace-nowrap align-middle">
+                                                                    {slotLabel}
+                                                                </td>
+                                                                )}
+                                                                <td colSpan={tracks.length} className="py-6 px-6 text-center align-middle">
+                                                                    <div className="font-bold text-[#23303E] text-base">{firstSession.title}</div>
+                                                                    {firstSession.speaker && <div className="label-teal inline-block mt-1">{firstSession.speaker}</div>}
+                                                                    {firstSession.description && <p className="text-xs text-slate-500 mt-1 max-w-xl mx-auto leading-relaxed">{firstSession.description}</p>}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    } else {
+                                                        return (
+                                                            <tr key={rowIdx} className="hover:bg-slate-50/30 transition-colors">
+                                                                {showTimeslot && (
+                                                                <td className="py-4 px-6 font-mono text-xs font-bold text-slate-400 border-r border-slate-200 whitespace-nowrap align-top">
+                                                                    {slotLabel}
+                                                                </td>
+                                                                )}
+                                                                {trackSessions.map((session, colIdx) => (
+                                                                    <td key={colIdx} className="py-5 px-6 border-r last:border-r-0 border-slate-200 align-top">
+                                                                        {session ? (
+                                                                            <div className="space-y-1">
+                                                                                <div className="font-bold text-[#23303E] leading-snug">{session.title}</div>
+                                                                                {session.speaker && <div className="label-teal text-xs mt-1 inline-block">{session.speaker}</div>}
+                                                                                {session.description && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{session.description}</p>}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-xs text-slate-300 font-mono">—</span>
+                                                                        )}
+                                                                    </td>
+                                                                ))}
+                                                            </tr>
+                                                        );
+                                                    }
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                );
+                            })()
+                        ) : (
+                            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                                {safeArray(agendaBlocks[activeBlockIdx]?.sessions).map((session, sIdx) => (
+                                    <div key={sIdx}
+                                        className="px-8 py-6 flex flex-col gap-2 border-b border-slate-200 last:border-0 transition-colors bg-white hover:bg-slate-50"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-base font-bold text-[#23303E]">{session.title}</h4>
+                                            {showTimeslot && session.time && <span className="font-mono text-xs text-slate-400">{session.time}</span>}
                                         </div>
-                                        <div className="space-y-3">
-                                            <h3 className="text-xl font-bold text-slate-900 dark:text-white font-display">
-                                                {benefit.title}
-                                            </h3>
-                                            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-sans font-medium">
-                                                {benefit.desc}
-                                            </p>
+                                        {session.speaker && <span className="label-teal">{session.speaker}</span>}
+                                        {session.description && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{session.description}</p>}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {/* ══════════════════════════════════════
+                WORKSHOPS - With image
+            ══════════════════════════════════════ */}
+            {workshops.length > 0 && (
+                <section id="workshops" className="py-24 bg-[#EFF0F3] border-t border-slate-200">
+                    <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+                        <div className="mb-12">
+                            <p className="label-teal mb-4">HANDS-ON BOOTCAMPS</p>
+                            <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">Workshops</h2>
+                            <p className="text-slate-500 text-base font-medium mt-3 max-w-xl">Practical, mentor-guided cloud labs held prior to the main talks.</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-6">
+                            {workshops.map((ws, wsIdx) => (
+                                <div key={wsIdx} onClick={() => setActiveWorkshop(ws)} className="bg-white rounded-3xl border border-slate-200 shadow-sm group cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:border-[#4F8EF7]/30 transition-all duration-300 overflow-hidden">
+                                    <div className="flex flex-col-reverse md:flex-row">
+                                        <div className="flex-1 flex flex-col justify-between p-8">
+                                            <div>
+                                                {ws.time && <span className="label-teal inline-block mb-4">&#9200; {ws.time}</span>}
+                                                <h5 className="text-xl md:text-2xl font-bold text-[#23303E] mb-3 group-hover:text-[#4F8EF7] transition-colors">{ws.title}</h5>
+                                                <p className="text-sm text-slate-500 leading-relaxed mb-6 line-clamp-3">{ws.description}</p>
+                                            </div>
+                                            <div>
+                                                {ws.speaker && <p className="font-mono text-xs font-bold text-[#23303E]/50 uppercase tracking-wider mb-4">&#128100; {ws.speaker}</p>}
+                                                <div className="flex items-center gap-2 label-teal group-hover:gap-3 transition-all">
+                                                    View Details <ArrowRight size={12} />
+                                                </div>
+                                            </div>
                                         </div>
+                                        {ws.image && (
+                                            <div className="w-full h-52 sm:h-64 md:h-auto md:w-[50%] lg:w-[45%] shrink-0 bg-slate-100 border-b md:border-b-0 md:border-l border-slate-200 relative">
+                                                <img src={ws.image} alt={ws.title} className="w-full h-full object-cover absolute inset-0 group-hover:scale-105 transition-transform duration-500" />
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
                 </section>
+            )}
 
-                {/* Agenda Section */}
-                {agendaBlocks.length > 0 && (
-                    <section id="agenda" className="py-24 border-t border-border">
-                        <div className="container mx-auto px-6 max-w-5xl">
-                            <div className="text-center mb-16 space-y-4">
-                                <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">Event <span className="text-brand-cyan">Schedule</span></h2>
-                                <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto text-sm font-sans">
-                                    Curate your learning journey. Swap between sessions, workshops, and multi-track panels.
-                                </p>
-                            </div>
-
-                            {/* Block Tabs Selector */}
-                            {agendaBlocks.length > 1 && (
-                                <div className="flex justify-center gap-2 mb-12 overflow-x-auto no-scrollbar pb-2">
-                                    {agendaBlocks.map((block, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => setActiveBlockIdx(idx)}
-                                            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${activeBlockIdx === idx ? 'bg-brand-cyan text-white shadow-[0_0_15px_rgba(0,194,255,0.2)]' : 'bg-card border border-border text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-secondary/40'}`}
-                                        >
-                                            {block.title || `Block ${idx + 1}`}
-                                        </button>
-                                    ))}
+            {/* ══════════════════════════════════════
+                SPONSORS
+            ══════════════════════════════════════ */}
+            {sponsors.length > 0 && (
+                <section className="py-24 bg-white">
+                    <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+                        <div className="mb-12 text-center">
+                            <p className="label-teal mb-4">OUR SUPPORTERS</p>
+                            <h2 className="text-4xl sm:text-5xl font-black text-[#23303E] leading-tight tracking-tight">Sponsors</h2>
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-4">
+                            {sponsors.map((sponsor, idx) => (
+                                <div key={idx} className="bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center p-8 w-48 hover:shadow-md hover:border-[#4F8EF7]/30 transition-all duration-300">
+                                    {sponsor.logo ? (
+                                        <img src={sponsor.logo} alt={sponsor.name} className="max-h-12 max-w-[120px] object-contain grayscale hover:grayscale-0 transition-all" />
+                                    ) : (
+                                        <span className="font-mono text-xs font-bold text-[#23303E]/40 uppercase text-center">{sponsor.name}</span>
+                                    )}
                                 </div>
-                            )}
-
-                            {/* Display current block sessions (Table for parallel tracks, Timeline for single track) */}
-                            {agendaBlocks[activeBlockIdx]?.type === 'parallel' ? (
-                                <>
-                                    {(() => {
-                                        const tracks = safeArray(agendaBlocks[activeBlockIdx]?.tracks);
-                                        if (tracks.length === 0) return <div className="text-center text-slate-500 py-8">No tracks available</div>;
-
-                                        const allTimeSlots = [];
-                                        tracks.forEach(track => {
-                                            safeArray(track.sessions).forEach(session => {
-                                                if (!allTimeSlots.includes(session.time)) {
-                                                    allTimeSlots.push(session.time);
-                                                }
-                                            });
-                                        });
-                                        allTimeSlots.sort((a, b) => {
-                                            const parseTime = (t) => {
-                                                if (!t) return 0;
-                                                const match = t.split('-')[0].trim().match(/^(\d+):(\d+)\s*(am|pm|AM|PM)?/);
-                                                if (!match) return 0;
-                                                let h = parseInt(match[1], 10);
-                                                let m = parseInt(match[2], 10);
-                                                let ampm = match[3] ? match[3].toLowerCase() : null;
-                                                if (ampm === 'pm' && h < 12) h += 12;
-                                                if (ampm === 'am' && h === 12) h = 0;
-                                                if (!ampm && h >= 1 && h <= 7) h += 12;
-                                                return h * 60 + m;
-                                            };
-                                            return parseTime(a) - parseTime(b);
-                                        });
-
-                                        return (
-                                            <div className="w-full overflow-x-auto no-scrollbar pb-6">
-                                                <div className="min-w-[800px] border border-border/50 rounded-2xl overflow-hidden bg-card/40 backdrop-blur-md shadow-xl">
-                                                    {/* Header Row */}
-                                                    <div className="grid bg-slate-900 text-white divide-x divide-white/10 border-b border-white/10"
-                                                        style={{ gridTemplateColumns: `150px repeat(${tracks.length}, minmax(0, 1fr))` }}
-                                                    >
-                                                        <div className="p-4 font-black uppercase tracking-wider text-brand-cyan text-sm flex items-center justify-center text-center">TIME</div>
-                                                        {tracks.map((track, tIdx) => (
-                                                            <div key={tIdx} className="p-4 font-black uppercase tracking-wider text-brand-aws text-sm flex items-center justify-center text-center">
-                                                                {track.name || `Track ${tIdx + 1}`}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-
-                                                    {/* Data Rows */}
-                                                    <div className="divide-y divide-border/50">
-                                                        {allTimeSlots.map((time, rowIdx) => {
-                                                            const trackSessions = tracks.map(track =>
-                                                                safeArray(track.sessions).find(s => s.time === time)
-                                                            );
-
-                                                            const nonNullSessions = trackSessions.filter(s => s != null);
-                                                            const uniqueSessions = new Set(nonNullSessions.map(s => {
-                                                                const t = (s.title || '').trim().toLowerCase();
-                                                                const d = (s.description || '').trim().toLowerCase();
-                                                                return t + '|' + d;
-                                                            }));
-                                                            const titleStr = nonNullSessions.length > 0 ? nonNullSessions[0].title.trim() : "";
-                                                            const isSessionPlaceholder = /^Session \d+/i.test(titleStr) || titleStr.toUpperCase() === 'TBA';
-                                                            const isCommonSession = nonNullSessions.length > 0 && uniqueSessions.size === 1 && !isSessionPlaceholder;
-
-                                                            return (
-                                                                <div
-                                                                    key={rowIdx}
-                                                                    className="grid divide-x divide-border/50 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors"
-                                                                    style={{ gridTemplateColumns: `150px repeat(${tracks.length}, minmax(0, 1fr))` }}
-                                                                >
-                                                                    {/* Time Column */}
-                                                                    <div className="p-4 flex items-center justify-center border-r border-border/50 bg-slate-50/30 dark:bg-slate-900/20">
-                                                                        <div className="text-brand-cyan text-xs font-black font-sans whitespace-nowrap text-center">
-                                                                            {time}
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Session Columns */}
-                                                                    {isCommonSession ? (
-                                                                        <div className="p-4 md:p-6 flex flex-col justify-center text-center items-center bg-brand-cyan/5 dark:bg-brand-cyan/10" style={{ gridColumn: `span ${tracks.length}` }}>
-                                                                            <h4 className="text-base font-bold text-slate-900 dark:text-white leading-snug font-display">
-                                                                                {nonNullSessions[0].title}
-                                                                            </h4>
-                                                                            {nonNullSessions[0].speaker && (
-                                                                                <div className="mt-2 text-xs font-black uppercase tracking-wider text-brand-aws flex items-center justify-center gap-1.5 font-sans">
-                                                                                    <Users size={12} className="shrink-0" /> {nonNullSessions[0].speaker}
-                                                                                </div>
-                                                                            )}
-                                                                            {nonNullSessions[0].description && (
-                                                                                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed font-sans max-w-lg mx-auto">
-                                                                                    {nonNullSessions[0].description}
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                    ) : (
-                                                                        trackSessions.map((session, colIdx) => (
-                                                                            <div key={colIdx} className="p-4 md:p-5 flex flex-col justify-start">
-                                                                                {session ? (
-                                                                                    <div className="space-y-2">
-                                                                                        <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug font-display">
-                                                                                            {session.title}
-                                                                                        </h4>
-                                                                                        {session.speaker && (
-                                                                                            <div className="text-[10px] font-black uppercase tracking-wider text-brand-aws flex items-center gap-1.5 font-sans">
-                                                                                                <Users size={12} className="shrink-0" /> {session.speaker}
-                                                                                            </div>
-                                                                                        )}
-                                                                                        {session.description && (
-                                                                                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed font-sans pt-1">
-                                                                                                {session.description}
-                                                                                            </p>
-                                                                                        )}
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-600 text-xs italic opacity-50">
-                                                                                        No Session
-                                                                                    </div>
-                                                                                )}
-                                                                            </div>
-                                                                        ))
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
-
-                                </>
-                            ) : (
-                                /* Timeline display for single track */
-                                <div className="relative border-l border-border ml-4 md:ml-32 space-y-8 pl-8 py-2">
-                                    {safeArray(agendaBlocks[activeBlockIdx]?.sessions).map((session, sIdx) => (
-                                        <div key={sIdx} className="relative group">
-                                            {/* Left timeline dot */}
-                                            <div className="absolute -left-[41px] top-1.5 w-6 h-6 rounded-full bg-background border-2 border-brand-cyan flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                <span className="w-2 h-2 rounded-full bg-brand-cyan"></span>
-                                            </div>
-
-                                            {/* Time label on the left (Desktop) */}
-                                            <div className="hidden md:block absolute -left-40 top-1.5 text-right w-28 text-brand-cyan text-sm font-black tracking-tight">
-                                                {session.time}
-                                            </div>
-
-                                            <div className="glass-card p-6 md:p-8 hover:border-brand-cyan/30 transition-all flex flex-col space-y-4">
-                                                {/* Time label for mobile */}
-                                                <div className="md:hidden text-brand-cyan text-xs font-black flex items-center gap-1.5">
-                                                    <Clock size={12} /> {session.time}
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    <h4 className="text-xl font-bold text-slate-900 dark:text-white leading-snug group-hover:text-brand-cyan transition-colors font-display">
-                                                        {session.title}
-                                                    </h4>
-                                                    {session.speaker && (
-                                                        <div className="text-xs font-black uppercase tracking-wider text-brand-aws flex items-center gap-1.5 font-sans">
-                                                            <Users size={12} className="shrink-0" /> {session.speaker}
-                                                        </div>
-                                                    )}
-                                                    {session.description && (
-                                                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed font-sans max-w-3xl">
-                                                            {session.description}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                            ))}
                         </div>
-                    </section>
-                )}
+                    </div>
+                </section>
+            )}
 
-                {/* Speakers Section */}
-                {speakers.length > 0 && (
-                    <section className="py-24 border-t border-border bg-card/10">
-                        <div className="container mx-auto px-6 max-w-6xl">
-                            <div className="text-center mb-16 space-y-4">
-                                <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">Distinguished <span className="text-brand-cyan">Speakers</span></h2>
-                                <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto text-sm font-sans">
-                                    Learn from engineers, community leaders, and advocates representing global technology organizations.
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-                                {speakers.map((speaker, idx) => (
-                                    <div key={idx} className="card-professional p-0 group flex flex-col overflow-hidden border border-border shadow-md">
-                                        <div className="aspect-square bg-secondary relative overflow-hidden">
-                                            {speaker.image ? (
-                                                <img src={speaker.image} alt={speaker.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                            ) : (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-card">
-                                                    <Users className="w-16 h-16 text-slate-400/30 dark:text-slate-600/30" />
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="p-6 space-y-2 flex-grow flex flex-col justify-end">
-                                            <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight font-display">{speaker.name}</h3>
-                                            <p className="text-xs text-brand-cyan font-bold leading-tight font-sans">{speaker.role}</p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-sans">{speaker.company}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+            {/* ══════════════════════════════════════
+                SPEAKERS — Light Premium Theme
+            ══════════════════════════════════════ */}
+            {speakers.length > 0 && (
+                <section id="speakers" className="py-24 bg-[#EFF0F3]">
+                    <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+                        <div className="mb-12">
+                            <p className="label-teal mb-4">INDUSTRY EXPERTS</p>
+                            <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">Speakers</h2>
+                            <p className="text-slate-500 text-base font-medium mt-3 max-w-xl">Learn from AWS Heroes, cloud architects, and tech leaders shaping the future.</p>
                         </div>
-                    </section>
-                )}
-
-                {/* Tickets Section */}
-                {tickets.length > 0 && (
-                    <section className="py-24 border-t border-border">
-                        <div className="container mx-auto px-6 max-w-5xl">
-                            <div className="text-center mb-16 space-y-4">
-                                <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">Secure Your <span className="text-brand-cyan">Seat</span></h2>
-                                <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto text-sm font-sans">
-                                    Tickets are highly limited to verify credentials. Choose your tier and register early.
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-                                {tickets.map((ticket, idx) => {
-                                    const perks = ticket.points ? ticket.points.split(',').map(p => p.trim()) : [];
-                                    return (
-                                        <div key={idx} className="glass-card p-8 md:p-10 flex flex-col justify-between border-border relative hover:border-brand-cyan/40 transition-colors shadow-lg">
-                                            <div className="space-y-6">
-                                                <div className="space-y-2">
-                                                    <h3 className="text-xl font-black text-slate-900 dark:text-white font-display">{ticket.name}</h3>
-                                                    <div className="text-3xl font-black text-brand-cyan font-display">{ticket.price}</div>
-                                                </div>
-
-                                                {perks.length > 0 && (
-                                                    <ul className="space-y-3">
-                                                        {perks.map((perk, pIdx) => (
-                                                            <li key={pIdx} className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed font-sans">
-                                                                <Check size={14} className="text-brand-cyan shrink-0 mt-0.5" />
-                                                                <span>{perk}</span>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                )}
-                                            </div>
-
-                                            <div className="mt-8 pt-4">
-                                                {(() => {
-                                                    const tName = ticket.name.toLowerCase();
-                                                    let btnId = '';
-                                                    if (tName.includes('early bird')) btnId = 'btn_168ec82c90c2';
-                                                    else if (tName.includes('regular')) btnId = 'btn_9be3f420f671';
-                                                    else if (tName.includes('workshop')) btnId = 'btn_f340f876fc8c';
-                                                    else if (tName.includes('professional')) btnId = 'btn_52f2c75663de';
-
-                                                    if (btnId) {
-                                                        return <KonfhubWidget buttonId={btnId} />;
-                                                    }
-
-                                                    // fallback if no match
-                                                    return registrationUrl ? (
-                                                        <a href={registrationUrl} target="_blank" rel="noopener noreferrer" className="btn-aws w-full text-center py-3 flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(0,194,255,0.1)]">
-                                                            Get Ticket <ExternalLink size={14} />
-                                                        </a>
-                                                    ) : (
-                                                        <button disabled className="btn-outline w-full py-3 opacity-50 cursor-not-allowed text-xs uppercase font-bold">
-                                                            Unavailable
-                                                        </button>
-                                                    );
-                                                })()}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </section>
-                )}
-
-                {/* Workshops Section */}
-                {workshops.length > 0 && (
-                    <section id="workshops" className="py-24 border-t border-border">
-                        <div className="container mx-auto px-6 max-w-5xl">
-                            <div className="text-center space-y-6 mb-12">
-                                <span className="px-4 py-1.5 rounded-full border border-border bg-card/50 text-[10px] font-black uppercase tracking-widest text-brand-aws shadow-sm inline-block">
-                                    Workshops
-                                </span>
-                                <h3 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white font-display tracking-tight">
-                                    Roll up your sleeves the day before
-                                </h3>
-                                <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-base font-medium leading-relaxed font-sans">
-                                    Hands-on, builder-led and held the day before the conference. Tap a card for the full details and prerequisites. More workshops land here as the lineup locks in.
-                                </p>
-                                <div className="pt-4 flex flex-col items-center gap-2">
-                                    <span className="text-xs text-slate-500 font-medium">Get your workshop tickets</span>
-                                    <KonfhubWidget buttonId="btn_f340f876fc8c" />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                {workshops.map((ws, wsIdx) => (
-                                    <div
-                                        key={wsIdx}
-                                        onClick={() => setActiveWorkshop(ws)}
-                                        className="bg-card/40 backdrop-blur-md border border-border hover:border-brand-cyan/30 transition-all rounded-2xl overflow-hidden flex flex-col group shadow-md hover:shadow-lg cursor-pointer"
-                                    >
-                                        {ws.image && (
-                                            <div className="w-full h-56 md:h-64 relative overflow-hidden bg-slate-100 dark:bg-slate-800 border-b border-border">
-                                                <img src={ws.image} alt={ws.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                            </div>
-                                        )}
-                                        <div className="p-6 md:p-8 space-y-4 flex flex-col justify-between flex-grow">
-                                            <div>
-                                                {!ws.image && (
-                                                    <div className="flex items-center justify-between mb-4">
-                                                        <span className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans bg-brand-cyan/10 px-3 py-1 rounded-full">
-                                                            <Clock size={12} /> {ws.time}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                <h5 className="text-xl font-black text-slate-900 dark:text-white font-display mb-3">{ws.title}</h5>
-                                                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium font-sans">{ws.description}</p>
-                                            </div>
-
-                                            <div className="mt-6 pt-4 border-t border-border/50 flex items-center justify-between">
-                                                {ws.speaker ? (
-                                                    <div className="text-[11px] font-black uppercase tracking-wider text-brand-aws flex items-center gap-2 font-sans">
-                                                        <Users size={14} /> {ws.speaker}
-                                                    </div>
-                                                ) : <div></div>}
-                                                {ws.image && ws.time && (
-                                                    <span className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans bg-brand-cyan/10 px-3 py-1 rounded-full border border-brand-cyan/20">
-                                                        <Clock size={12} /> {ws.time}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                )}
-
-                {/* Sponsors Section */}
-                {sponsors.length > 0 && (
-                    <section className="py-24 border-t border-border bg-card/10">
-                        <div className="container mx-auto px-6 max-w-5xl">
-                            <div className="text-center mb-16 space-y-4">
-                                <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 font-display">Supported By</h2>
-                                <div className="w-12 h-1 bg-border mx-auto rounded-full" />
-                            </div>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-8 items-center justify-center">
-                                {sponsors.map((sponsor, idx) => (
-                                    <div key={idx} className="bg-card border border-border hover:border-border/80 transition-all p-6 rounded-2xl flex items-center justify-center aspect-[2/1] group shadow-sm">
-                                        {sponsor.logo ? (
-                                            <img src={sponsor.logo} alt={sponsor.name} className="max-h-12 max-w-full object-contain filter dark:brightness-90 dark:group-hover:brightness-100 group-hover:scale-105 transition-all duration-300" />
+                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 lg:grid-cols-5 gap-4 sm:gap-8">
+                            {speakers.map((speaker, sIdx) => (
+                                <div key={sIdx} className="bg-white border border-slate-200 rounded-3xl p-6 text-center shadow-sm hover:shadow-xl hover:border-[#4F8EF7]/30 transition-all duration-300 group">
+                                    <div className="w-28 h-28 mx-auto mb-6 rounded-full overflow-hidden bg-slate-100 border-2 border-slate-200 group-hover:border-[#4F8EF7] group-hover:scale-105 transition-all duration-300">
+                                        {speaker.image ? (
+                                            <img src={speaker.image} alt={speaker.name} className="w-full h-full object-cover" />
                                         ) : (
-                                            <span className="font-bold text-sm text-slate-500 dark:text-slate-400">{sponsor.name}</span>
+                                            <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
+                                                <Users size={40} />
+                                            </div>
                                         )}
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                )}
-
-                {/* Team Section */}
-                {team.length > 0 && (
-                    <section className="py-24 border-t border-border">
-                        <div className="container mx-auto px-6 max-w-5xl">
-                            <div className="text-center mb-16 space-y-4">
-                                <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">Organizing <span className="text-brand-cyan">Team</span></h2>
-                                <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto text-sm font-sans">
-                                    The students behind the design, architecture, logistics, and planning of AWS SCD {event.year}.
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                {team.map((member, idx) => (
-                                    <div key={idx} className="flex flex-col group">
-                                        <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden shadow-sm mb-3">
-                                            {member.image ? (
-                                                <img src={member.image} alt={member.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-800">
-                                                    <Users className="w-12 h-12 text-slate-400/50" />
-                                                </div>
-                                            )}
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
-                                            <div className="absolute bottom-0 left-0 p-4 w-full flex flex-col">
-                                                <h4 className="font-display font-bold text-white text-sm md:text-base truncate w-full drop-shadow-md">
-                                                    {member.name}
-                                                </h4>
-                                                <span className="text-[10px] md:text-xs text-slate-300 truncate w-full drop-shadow-md">
-                                                    {member.role}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Social Links Row */}
-                                        <div className="flex items-center justify-center gap-5 w-full text-slate-500 dark:text-slate-400 px-2 mt-1">
-                                            {member.github_url && (
-                                                <a href={member.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:hover:text-white transition-colors" title="GitHub">
-                                                    <Github size={15} />
-                                                </a>
-                                            )}
-                                            {member.linkedin_url && (
-                                                <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-blue transition-colors" title="LinkedIn">
-                                                    <Linkedin size={15} />
-                                                </a>
-                                            )}
-                                            {member.instagram_url && (
-                                                <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-aws transition-colors" title="Instagram">
-                                                    <Instagram size={15} />
-                                                </a>
-                                            )}
-                                            {member.portfolio_url && (
-                                                <a href={member.portfolio_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-cyan transition-colors" title="Portfolio Website">
-                                                    <Globe size={15} />
-                                                </a>
-                                            )}
-                                        </div>
+                                    <h4 className="text-lg font-bold text-[#23303E] mb-1 group-hover:text-[#4F8EF7] transition-colors">{speaker.name}</h4>
+                                    {speaker.role && <p className="font-mono text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{speaker.role}</p>}
+                                    {speaker.company && <p className="text-xs font-semibold text-[#4F8EF7] mb-4">{speaker.company}</p>}
+                                    {speaker.bio && <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed mb-4">{speaker.bio}</p>}
+                                    <div className="flex items-center justify-center gap-3 text-slate-400 pt-2 border-t border-slate-100">
+                                        {speaker.linkedin_url && (
+                                            <a href={speaker.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-[#4F8EF7] transition-colors">
+                                                <Linkedin size={16} />
+                                            </a>
+                                        )}
+                                        {speaker.twitter_url && (
+                                            <a href={speaker.twitter_url} target="_blank" rel="noopener noreferrer" className="hover:text-[#23303E] transition-colors">
+                                                <Globe size={16} />
+                                            </a>
+                                        )}
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                )}
-
-                {/* SCD Committee Section */}
-                {committee.length > 0 && (
-                    <section className="py-24 border-t border-border bg-card/5">
-                        <div className="container mx-auto px-6 max-w-6xl">
-                            <div className="text-center mb-16 space-y-4">
-                                <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">SCD <span className="text-brand-cyan">Committee</span></h2>
-                                <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto text-sm font-sans">
-                                    The dedicated individuals leading various departments to make this event possible.
-                                </p>
-                            </div>
-
-                            <div className="space-y-20">
-                                {committee.map((dept, dIdx) => (
-                                    <div key={dIdx} className="space-y-10">
-                                        <div className="text-center">
-                                            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-display inline-block border-b-2 border-brand-cyan pb-2">{dept.department}</h3>
-                                        </div>
-                                        <div className="flex flex-wrap justify-center gap-10">
-                                            {safeArray(dept.members).map((member, mIdx) => (
-                                                <div key={mIdx} className="flex flex-col items-center group w-32 md:w-40">
-                                                    <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden shadow-sm mb-4 border-2 border-transparent group-hover:border-brand-cyan transition-all duration-300">
-                                                        {member.image ? (
-                                                            <img src={member.image} alt={member.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-800">
-                                                                <Users className="w-8 h-8 text-slate-400/50" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <h4 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base text-center w-full truncate mb-1">
-                                                        {member.name}
-                                                    </h4>
-                                                    {member.role && (
-                                                        <span className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 truncate w-full text-center mb-1">
-                                                            {member.role}
-                                                        </span>
-                                                    )}
-                                                    {member.linkedin_url && (
-                                                        <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-brand-blue transition-colors">
-                                                            <Linkedin size={16} />
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                )}
-
-                {/* Venue Section */}
-                <section className="py-24 border-t border-border bg-card/10" id="venue">
-                    <div className="container mx-auto px-6 max-w-4xl">
-                        <div className="text-center mb-16 space-y-4">
-                            <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">The <span className="text-brand-cyan">Venue</span></h2>
-                            <p className="text-slate-600 dark:text-slate-500 max-w-xl mx-auto text-sm font-sans">
-                                Join us at the campus of Dharmsinh Desai University.
-                            </p>
-                        </div>
-
-                        <div className="bg-white dark:bg-card border border-border rounded-2xl overflow-hidden shadow-lg flex flex-col">
-                            {/* Map Image/Iframe */}
-                            <div className="h-64 md:h-80 w-full bg-slate-200 dark:bg-slate-800 relative">
-                                <iframe
-                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3681.3072706642474!2d72.87820267391233!3d22.679602629042737!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e5adf2c171355%3A0xe1e974ce083657fb!2sDharmsinh%20Desai%20University!5e0!3m2!1sen!2sin!4v1784460641004!5m2!1sen!2sin"
-                                    width="100%"
-                                    height="100%"
-                                    style={{ border: 0 }}
-                                    allowFullScreen=""
-                                    loading="lazy"
-                                    referrerPolicy="no-referrer-when-downgrade"
-                                ></iframe>
-                            </div>
-
-                            <div className="p-8 md:p-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-white dark:bg-card">
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-4">
-                                        <span className="px-4 py-1.5 text-xs font-black uppercase tracking-widest rounded-full bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400">
-                                            VENUE
-                                        </span>
-                                        <span className="text-sm font-bold text-slate-500 dark:text-slate-400">
-                                            {event.date ? new Date(event.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : 'COMING SOON'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white font-display mb-2">
-                                            {event.venue || "Dharmsinh Desai University (DDU)"}
-                                        </h3>
-                                        <p className="text-slate-600 dark:text-slate-400 text-lg">
-                                            College Road, Nadiad, Gujarat
-                                        </p>
-                                    </div>
-                                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400 pt-2">
-                                        Limited seats — exact check-in details emailed to registered attendees.
-                                    </p>
                                 </div>
-                                <a
-                                    href="https://maps.app.goo.gl/3Q8xXjJ6Y1q2hP4p8"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="px-6 py-3 border border-border rounded-full flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-300 font-bold whitespace-nowrap shadow-sm"
-                                >
-                                    <MapPin size={18} />
-                                    Get directions
-                                </a>
-                            </div>
+                            ))}
                         </div>
                     </div>
                 </section>
+            )}
 
-                {/* FAQ Section */}
-                <section className="py-24 border-t border-border bg-card/10">
-                    <div className="container mx-auto px-6 max-w-4xl">
-                        <div className="text-center mb-16 space-y-4">
-                            <h2 className="text-3xl md:text-5xl font-black tracking-tight font-display text-slate-900 dark:text-white">Frequently Asked <span className="text-brand-cyan">Questions</span></h2>
-                            <p className="text-slate-600 dark:text-slate-500 max-w-xl mx-auto text-sm font-sans">
-                                Find answers to common questions about AWS Students Community Day.
-                            </p>
+            {/* ══════════════════════════════════════
+                TEAM & ORGANIZERS — Light Premium Theme
+            ══════════════════════════════════════ */}
+            {teamMembers.length > 0 && (
+                <section id="team" className="py-24 bg-white">
+                    <div className="container mx-auto px-6 lg:px-12 max-w-7xl">
+                        <div className="mb-12">
+                            <p className="label-teal mb-4">THE MINDS BEHIND THE EVENT</p>
+                            <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">Organizing Team</h2>
+                            <p className="text-slate-500 text-base font-medium mt-3 max-w-xl">Student leaders and community organizers who made AWS Students Community Day possible.</p>
                         </div>
-
-                        <div className="space-y-4">
-                            {faqs.map((faq, idx) => {
-                                const isOpen = activeFaqIdx === idx;
-                                return (
-                                    <div
-                                        key={idx}
-                                        className="bg-card border border-border rounded-2xl overflow-hidden transition-all duration-300 shadow-sm"
-                                    >
-                                        <button
-                                            type="button"
-                                            onClick={() => setActiveFaqIdx(isOpen ? null : idx)}
-                                            className="w-full px-6 py-5 flex items-center justify-between text-left font-semibold text-slate-900 dark:text-white font-sans text-base md:text-lg hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-all"
-                                        >
-                                            <span>{faq.q}</span>
-                                            <ChevronDown
-                                                size={18}
-                                                className={`text-brand-cyan shrink-0 transition-transform duration-300 ${isOpen ? 'transform rotate-180' : ''}`}
-                                            />
-                                        </button>
-
-                                        <div
-                                            className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-96 opacity-100 border-t border-border/50' : 'max-h-0 opacity-0'
-                                                }`}
-                                        >
-                                            <p className="px-6 py-5 text-sm md:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-sans font-medium bg-slate-50/50 dark:bg-white/[0.005]">
-                                                {faq.a}
-                                            </p>
-                                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 lg:grid-cols-5 gap-4 sm:gap-8">
+                            {teamMembers.map((member, tIdx) => (
+                                <div key={tIdx} className="bg-slate-50 border border-slate-200 rounded-3xl p-6 text-center shadow-sm hover:shadow-xl hover:border-[#4F8EF7]/30 transition-all duration-300 group">
+                                    <div className="w-28 h-28 mx-auto mb-6 rounded-2xl overflow-hidden bg-white border border-slate-200 group-hover:scale-105 transition-transform duration-300">
+                                        <img
+                                            src={member.image || member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || member.full_name || 'Team')}&background=EFF0F3&color=23303E`}
+                                            alt={member.name || member.full_name}
+                                            className="w-full h-full object-cover"
+                                        />
                                     </div>
-                                );
-                            })}
+                                    <h4 className="text-lg font-bold text-[#23303E] mb-1 group-hover:text-[#4F8EF7] transition-colors">{member.name || member.full_name}</h4>
+                                    <p className="font-mono text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">{member.role || member.role_title || 'Organizer'}</p>
+                                    <div className="flex items-center justify-center gap-4 text-slate-400">
+                                        {member.github_url && (
+                                            <a href={member.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-[#23303E] transition-colors">
+                                                <Github size={16} />
+                                            </a>
+                                        )}
+                                        {member.linkedin_url && (
+                                            <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-[#4F8EF7] transition-colors">
+                                                <Linkedin size={16} />
+                                            </a>
+                                        )}
+                                        {member.instagram_url && (
+                                            <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="hover:text-pink-500 transition-colors">
+                                                <Instagram size={16} />
+                                            </a>
+                                        )}
+                                        {member.portfolio_url && (
+                                            <a href={member.portfolio_url} target="_blank" rel="noopener noreferrer" className="hover:text-[#4F8EF7] transition-colors" title="Portfolio">
+                                                <Globe size={16} />
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </section>
-            </div>
+            )}
 
-            {/* Workshop Modal */}
+            {/* ══════════════════════════════════════
+                VENUE
+            ══════════════════════════════════════ */}
+            <section id="venue" className="py-24 bg-[#EFF0F3]">
+                <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+                    <div className="mb-12">
+                        <p className="label-teal mb-4">CAMPUS LOCATION</p>
+                        <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">Venue</h2>
+                    </div>
+                    <div className="border border-slate-200 bg-white overflow-hidden rounded-3xl shadow-sm">
+                        <div className="h-72 md:h-96 w-full">
+                            <iframe
+                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3681.3072706642474!2d72.87820267391233!3d22.679602629042737!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e5adf2c171355%3A0xe1e974ce083657fb!2sDharmsinh%20Desai%20University!5e0!3m2!1sen!2sin!4v1785051382336!5m2!1sen!2sin"
+                                width="100%" height="100%" style={{ border: 0 }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade"
+                            />
+                        </div>
+                        <div className="p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                            <div>
+                                <h3 className="text-2xl font-bold text-[#23303E] mb-2">{event.venue || "Dharmsinh Desai University (DDU)"}</h3>
+                                <p className="text-slate-500 font-mono text-sm">College Road, Nadiad, Gujarat 387001</p>
+                            </div>
+                            <a href="https://maps.app.goo.gl/3Q8xXjJ6Y1q2hP4p8" target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-3 bg-[#23303E] hover:bg-[#4F8EF7] rounded-2xl text-white font-bold font-mono uppercase tracking-wider text-xs px-8 py-4 transition-all duration-300 active:scale-95 whitespace-nowrap shadow-md">
+                                <MapPin size={16} /> View Directions
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ══════════════════════════════════════
+                FAQ
+            ══════════════════════════════════════ */}
+            <section className="py-24 bg-white">
+                <div className="container mx-auto px-6 lg:px-12 max-w-4xl">
+                    <div className="mb-12 text-center">
+                        <p className="label-teal mb-4">QUESTIONS & ANSWERS</p>
+                        <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">FAQ</h2>
+                    </div>
+                    <div className="divide-y divide-slate-100 border border-slate-200 bg-white rounded-3xl overflow-hidden shadow-sm">
+                        {faqs.map((faq, idx) => {
+                            const isOpen = activeFaqIdx === idx;
+                            return (
+                                <div key={idx}>
+                                    <button type="button" onClick={() => setActiveFaqIdx(isOpen ? null : idx)}
+                                        className="w-full px-8 py-6 flex items-center justify-between text-left font-bold text-base text-[#23303E] hover:bg-slate-50 transition-colors cursor-pointer">
+                                        <span>{faq.q}</span>
+                                        <ChevronDown size={20} className={`text-[#4F8EF7] shrink-0 transition-transform duration-300 ml-4 ${isOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    {isOpen && (
+                                        <div className="px-8 pb-8 text-sm text-slate-600 leading-relaxed pt-2">{faq.a}</div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </section>
+
+            {/* ══════════════════════════════════════
+                WORKSHOP MODAL
+            ══════════════════════════════════════ */}
             {activeWorkshop && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setActiveWorkshop(null)}></div>
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="relative w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
-                    >
-                        {/* Modal Header */}
-                        <div className="flex items-start justify-between p-6 md:p-8 border-b border-border bg-slate-50/50 dark:bg-white/[0.02]">
-                            <div className="pr-8">
-                                <h3 className="text-2xl font-black text-slate-900 dark:text-white font-display leading-tight mb-3">
-                                    {activeWorkshop.title}
-                                </h3>
-                                <div className="flex flex-wrap items-center gap-3">
-                                    {activeWorkshop.time && (
-                                        <span className="text-brand-cyan text-xs font-black flex items-center gap-1.5 font-sans bg-brand-cyan/10 px-3 py-1 rounded-full border border-brand-cyan/20">
-                                            <Clock size={12} /> {activeWorkshop.time}
-                                        </span>
-                                    )}
-                                    {activeWorkshop.speaker && (
-                                        <span className="text-[11px] font-black uppercase tracking-wider text-brand-aws flex items-center gap-2 font-sans">
-                                            <Users size={14} /> {activeWorkshop.speaker}
-                                        </span>
-                                    )}
-                                </div>
+                    <div className="absolute inset-0 bg-[#23303E]/40 backdrop-blur-sm" onClick={() => setActiveWorkshop(null)} />
+                    <div className="relative w-full max-w-2xl bg-white rounded-3xl overflow-hidden max-h-[90vh] flex flex-col z-10 shadow-2xl">
+                        <div className="flex items-start justify-between p-8 border-b border-slate-100 bg-slate-50">
+                            <div className="pr-8 space-y-2">
+                                <h3 className="text-2xl font-bold text-[#23303E]">{activeWorkshop.title}</h3>
+                                {activeWorkshop.time && <span className="label-teal">&#9200; {activeWorkshop.time}</span>}
                             </div>
-                            <button
-                                onClick={() => setActiveWorkshop(null)}
-                                className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-full transition-colors absolute top-6 right-6"
-                            >
+                            <button onClick={() => setActiveWorkshop(null)} className="p-2 text-slate-400 hover:text-[#23303E] bg-white border border-slate-200 hover:border-slate-300 transition-colors cursor-pointer rounded-xl shadow-sm">
                                 <X size={20} />
                             </button>
                         </div>
-
-                        {/* Modal Body */}
-                        <div className="p-6 md:p-8 overflow-y-auto space-y-8">
-                            {/* What will be done */}
-                            <div className="space-y-3">
-                                <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                                    <BookOpen size={16} className="text-brand-cyan" /> What You&apos;ll Learn
-                                </h4>
-                                <p className="text-slate-700 dark:text-slate-300 font-medium font-sans leading-relaxed whitespace-pre-wrap">
-                                    {activeWorkshop.description || "Detailed description coming soon."}
-                                </p>
+                        <div className="p-8 overflow-y-auto space-y-6 text-sm text-slate-700">
+                            <div className="space-y-2">
+                                <h4 className="label-teal">WHAT YOU&apos;LL LEARN</h4>
+                                <p className="leading-relaxed text-slate-600">{activeWorkshop.description}</p>
                             </div>
-
-                            {/* Pre-requisites */}
                             {activeWorkshop.requirements && (
-                                <div className="space-y-3">
-                                    <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                                        <Check size={16} className="text-brand-cyan" /> Prerequisites
-                                    </h4>
-                                    <ul className="space-y-2">
-                                        {activeWorkshop.requirements.split(',').map((req, i) => (
-                                            <li key={i} className="flex items-start gap-2 text-slate-700 dark:text-slate-300 font-medium font-sans text-sm">
-                                                <div className="mt-1 w-1.5 h-1.5 rounded-full bg-brand-cyan shrink-0"></div>
-                                                {req.trim()}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                <div className="space-y-2">
+                                    <h4 className="label-teal">PREREQUISITES</h4>
+                                    <p className="leading-relaxed text-slate-600">{activeWorkshop.requirements}</p>
                                 </div>
                             )}
-
-                            {/* Setup Instructions */}
-                            {activeWorkshop.setup && (
-                                <div className="space-y-3">
-                                    <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                                        <Terminal size={16} className="text-brand-aws" /> Setup Instructions
-                                    </h4>
-                                    <p className="text-slate-700 dark:text-slate-300 font-medium font-sans text-sm leading-relaxed whitespace-pre-wrap bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-border">
-                                        {activeWorkshop.setup}
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Additional Info */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-border">
-                                {activeWorkshop.venue && (
-                                    <div className="bg-slate-50 dark:bg-white/[0.02] p-4 rounded-xl border border-border">
-                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Venue / Lab</div>
-                                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><MapPin size={14} className="text-brand-cyan" /> {activeWorkshop.venue}</div>
-                                    </div>
-                                )}
-                                {activeWorkshop.guide_url && (
-                                    <div className="bg-slate-50 dark:bg-white/[0.02] p-4 rounded-xl border border-border flex flex-col justify-center items-start">
-                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Resources</div>
-                                        <a href={activeWorkshop.guide_url} target="_blank" rel="noopener noreferrer" className="font-bold text-brand-aws hover:underline flex items-center gap-2 text-sm">
-                                            <ExternalLink size={14} /> Workshop Guide
-                                        </a>
-                                    </div>
-                                )}
-                            </div>
                         </div>
-                    </motion.div>
+                    </div>
+                </div>
+            )}
+
+            {/* KONFHUB FULL-SCREEN POPUP MODAL */}
+            {activeTicketBtnId && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setActiveTicketBtnId(null);
+                    }}
+                >
+                    {/* Fixed Top-Right Close Button */}
+                    <button
+                        onClick={() => setActiveTicketBtnId(null)}
+                        className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[110] text-white bg-slate-800/90 hover:bg-slate-700 p-2.5 rounded-full transition-all cursor-pointer shadow-2xl backdrop-blur-md flex items-center justify-center border border-white/20 hover:scale-105"
+                        title="Close Modal"
+                    >
+                        <X size={22} strokeWidth={2.5} />
+                    </button>
+
+                    {/* Widget Wrapper */}
+                    <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto my-auto flex justify-center items-center">
+                        <KonfhubWidget buttonId={activeTicketBtnId} />
+                    </div>
                 </div>
             )}
         </div>

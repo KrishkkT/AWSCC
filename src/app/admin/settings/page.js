@@ -13,6 +13,7 @@ export default function Settings() {
     const [feedback, setFeedback] = useState(null);
     const [globalSettings, setGlobalSettings] = useState({
         maintenance_mode: false,
+        show_glimpse_gallery: true,
         announcement_banner: '',
         join_link: '',
         instagram_url: '',
@@ -132,16 +133,16 @@ export default function Settings() {
                                 </div>
                                 <div className="space-y-3">
                                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 ml-1">Universal Announcement</label>
-                                    <input type="text" value={globalSettings.announcement_banner} onChange={e => setGlobalSettings({ ...globalSettings, announcement_banner: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold" />
+                                    <input type="text" value={globalSettings.announcement_banner || ''} onChange={e => setGlobalSettings({ ...globalSettings, announcement_banner: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold" />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-3">
                                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 ml-1">Instagram Link</label>
-                                        <input type="text" value={globalSettings.instagram_url} onChange={e => setGlobalSettings({ ...globalSettings, instagram_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold" />
+                                        <input type="text" value={globalSettings.instagram_url || ''} onChange={e => setGlobalSettings({ ...globalSettings, instagram_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold" />
                                     </div>
                                     <div className="space-y-3">
                                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 ml-1">LinkedIn Link</label>
-                                        <input type="text" value={globalSettings.linkedin_url} onChange={e => setGlobalSettings({ ...globalSettings, linkedin_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold" />
+                                        <input type="text" value={globalSettings.linkedin_url || ''} onChange={e => setGlobalSettings({ ...globalSettings, linkedin_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold" />
                                     </div>
                                 </div>
                             </div>

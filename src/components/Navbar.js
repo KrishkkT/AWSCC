@@ -2,23 +2,46 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { Menu, X, ChevronDown } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import ThemeToggle from "./ThemeToggle";
 
 export default function Navbar() {
     const [scrolled, setScrolled] = useState(false);
+    const [hidden, setHidden] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pathname = usePathname();
     const isSCDRoute = pathname?.startsWith('/scd/');
     const scdYear = isSCDRoute ? pathname.split('/')[2] : null;
+    const lastScrollY = useRef(0);
 
     useEffect(() => {
-        const handleScroll = () => setScrolled(window.scrollY > 20);
-        window.addEventListener("scroll", handleScroll);
+        const handleScroll = () => {
+            const currentScrollY = window.scrollY;
+            
+            if (currentScrollY > 10) {
+                setScrolled(true);
+            } else {
+                setScrolled(false);
+            }
+
+            if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+                // scrolling down
+                setHidden(true);
+            } else if (currentScrollY < lastScrollY.current) {
+                // scrolling up
+                setHidden(false);
+            }
+            
+            lastScrollY.current = currentScrollY;
+        };
+        window.addEventListener("scroll", handleScroll, { passive: true });
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
+
+    // Close mobile menu on route change
+    useEffect(() => {
+        setIsMobileMenuOpen(false);
+    }, [pathname]);
 
     const navLinks = isSCDRoute ? [
         { name: "About", href: "#about" },
@@ -35,92 +58,100 @@ export default function Navbar() {
         { name: "Contact", href: "/contact" },
     ];
 
+    const isActive = (href) => {
+        if (href.startsWith('#')) return false;
+        return pathname === href;
+    };
+
     return (
-        <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled && !isMobileMenuOpen ? "py-2.5 bg-background/80 dark:bg-background/95 backdrop-blur-xl border-b border-border shadow-sm" : "py-4 bg-transparent"}`}>
-            <div className="container mx-auto px-6 flex items-center justify-between">
-                <Link href={isSCDRoute ? `/scd/${scdYear}` : "/"} className="flex items-center group relative z-10 transition-transform hover:scale-[1.02] duration-300">
-                    <div className="h-10 sm:h-12 md:h-14 flex items-center justify-start">
-                        {isSCDRoute ? (
-                            <span className="font-display font-black text-2xl tracking-tight text-slate-900 dark:text-white flex items-center">
-                                #SCDNadiad<span className="text-brand-aws">{scdYear}</span>
-                            </span>
-                        ) : (
-                            <img
-                                src="/images/ddu-aws-combined.png"
-                                alt="AWS Student Builder Group & DDU Logo"
-                                className="h-full w-auto object-contain brightness-110 dark:brightness-100 drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-none"
-                            />
-                        )}
-                    </div>
-                </Link>
-
-                {/* Desktop Navigation */}
-                <div className="hidden lg:flex items-center gap-10">
-                    {navLinks.map((link) => (
-                        <Link key={link.name} href={link.href} className="nav-link font-display text-sm tracking-wide">
-                            {link.name}
-                        </Link>
-                    ))}
-                </div>
-
-                <div className="hidden lg:flex items-center gap-4">
-                    <Link href="https://www.meetup.com/aws-sbg-ddit/" target="_blank" className="btn-aws !py-2.5 !px-8 text-xs whitespace-nowrap">
-                        Join Community
+        <>
+            <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-deep-navy shadow-lg' : 'bg-transparent'} ${hidden ? '-translate-y-full' : 'translate-y-0'}`}>
+                <div className="flex items-center justify-between px-6 md:px-10 py-6 max-w-7xl mx-auto">
+                    <Link href={isSCDRoute ? `/scd/${scdYear}` : "/"} className="flex items-center">
+                        <img src="/images/ddu-aws-combined.png" alt="AWS Student Builder Group DDU" className="h-8 md:h-10 w-auto object-contain" />
                     </Link>
-                </div>
 
-                {/* Mobile Toggle */}
-                <div className="flex items-center gap-4 lg:hidden">
-                    <button
-                        className="text-foreground p-2 relative z-[100]"
-                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                        aria-label="Toggle Menu"
-                    >
-                        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                    </button>
-                </div>
-            </div>
+                    <nav className="hidden md:flex items-center gap-10">
+                        {navLinks.map((link) => (
+                            <Link
+                                key={link.name}
+                                href={link.href}
+                                className={`text-[15px] font-medium tracking-wide transition-colors relative group py-1 ${isActive(link.href) ? 'text-[#0073BB]' : 'text-white hover:text-gray-200'}`}
+                            >
+                                {link.name}
+                                <span className={`absolute bottom-0 left-0 w-full h-[2px] bg-[#0073BB] transition-transform duration-300 origin-left ${isActive(link.href) ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`}></span>
+                            </Link>
+                        ))}
+                    </nav>
 
+                    <div className="flex items-center gap-4">
+                        <Link
+                            href="https://www.meetup.com/aws-sbg-ddit/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="relative overflow-hidden group bg-[#0073BB] text-white text-[13px] font-bold px-6 py-2.5 tracking-wider hidden md:block rounded-full border border-[#0073BB]"
+                        >
+                            <span className="relative z-10 group-hover:text-[#0C111D] transition-colors duration-300">JOIN COMMUNITY</span>
+                            <div className="absolute inset-0 bg-white transform scale-0 rounded-full group-hover:scale-[2.5] transition-transform duration-500 ease-out origin-center"></div>
+                        </Link>
+
+                        <button
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                            className="md:hidden flex items-center justify-center p-2 text-white hover:text-gray-300 transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                {isMobileMenuOpen ? (
+                                    <>
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </>
+                                ) : (
+                                    <>
+                                        <line x1="4" y1="12" x2="20" y2="12"></line>
+                                        <line x1="4" y1="6" x2="20" y2="6"></line>
+                                        <line x1="4" y1="18" x2="20" y2="18"></line>
+                                    </>
+                                )}
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            {/* Mobile Menu */}
             <AnimatePresence>
                 {isMobileMenuOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 h-screen w-full bg-background/10 backdrop-blur-2xl z-[90] lg:hidden flex flex-col justify-center items-center"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                        <div
-                            className="container mx-auto px-10 flex flex-col justify-center gap-12"
-                            onClick={(e) => e.stopPropagation()}
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-40 bg-deep-navy md:hidden pt-24"
                         >
-                            <div className="flex flex-col gap-8">
-                                {navLinks.map((link, idx) => (
-                                    <motion.div
+                            <div className="flex flex-col items-center gap-6 p-8">
+                                {navLinks.map((link) => (
+                                    <Link
                                         key={link.name}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: idx * 0.05 }}
+                                        href={link.href}
+                                        className={`text-2xl font-bold ${isActive(link.href) ? 'text-[#0073BB]' : 'text-white'}`}
+                                        onClick={() => setIsMobileMenuOpen(false)}
                                     >
-                                        <Link
-                                            href={link.href}
-                                            className="text-4xl md:text-5xl font-display font-bold hover:text-brand-aws transition-colors"
-                                            onClick={() => setIsMobileMenuOpen(false)}
-                                        >
-                                            {link.name}
-                                        </Link>
-                                    </motion.div>
+                                        {link.name}
+                                    </Link>
                                 ))}
-                            </div>
-                            <div className="flex flex-col gap-4">
-                                <Link href="https://www.meetup.com/aws-sbg-ddit/" target="_blank" className="btn-aws py-5 text-center font-bold text-lg" onClick={() => setIsMobileMenuOpen(false)}>
-                                    Join Community
+                                <Link
+                                    href="https://www.meetup.com/aws-sbg-ddit/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-8 bg-[#0073BB] text-white font-bold text-sm px-8 py-4 w-full text-center"
+                                >
+                                    JOIN COMMUNITY
                                 </Link>
                             </div>
-                        </div>
-                    </motion.div>
+                        </motion.div>
+                    </>
                 )}
             </AnimatePresence>
-        </nav>
+        </>
     );
 }

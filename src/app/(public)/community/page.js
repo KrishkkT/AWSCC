@@ -43,13 +43,14 @@ export default function CommunityPage() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ delay: i * 0.1 }}
-                            className="card-professional flex flex-col p-10 group border-border hover:border-brand-aws/30 shadow-sm"
+                            className="bg-white dark:bg-[#1A1F2B] rounded-2xl p-8 border border-gray-200 dark:border-white/5 group-hover:border-[#0073BB] dark:group-hover:border-white/20 transition-colors flex flex-col relative overflow-hidden group shadow-sm"
                         >
-                            <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center text-brand-aws mb-8 group-hover:bg-brand-aws group-hover:text-white transition-all duration-300">
+                            <div className="absolute inset-0 bg-gradient-to-b from-gray-50 dark:from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                            <div className="w-14 h-14 rounded-2xl bg-[#0073BB]/10 flex items-center justify-center text-[#0073BB] mb-8 group-hover:bg-[#0073BB] group-hover:text-white transition-all duration-300 relative z-10">
                                 {feature.icon}
                             </div>
-                            <h3 className="text-2xl font-display font-bold text-foreground mb-4 tracking-tight">{feature.title}</h3>
-                            <p className="text-muted-foreground font-medium leading-relaxed">{feature.desc}</p>
+                            <h3 className="text-2xl font-display font-bold text-foreground mb-4 tracking-tight relative z-10">{feature.title}</h3>
+                            <p className="text-muted-foreground font-medium leading-relaxed relative z-10">{feature.desc}</p>
                         </motion.div>
                     ))}
                 </div>
@@ -59,18 +60,20 @@ export default function CommunityPage() {
                     initial={{ opacity: 0, y: 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="mt-20 card-professional p-12 text-center bg-secondary/30 border border-border shadow-md"
+                    className="mt-20 text-center bg-secondary/30 dark:bg-brand-navy/30 py-20 rounded-[2.5rem] border border-border shadow-lg"
                 >
-                    <h2 className="text-3xl font-display font-bold text-foreground mb-6 tracking-tight">Ready to integrate with us?</h2>
+                    <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-6 tracking-tight">Ready to integrate with us?</h2>
                     <p className="text-muted-foreground max-w-xl mx-auto mb-10 text-lg">
                         Join our digital headquarters for real-time discussions, event announcements, and collaborative building.
                     </p>
-                    <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <a href="https://linkedin.com/company/aws-sbg-ddit" className="btn-aws !px-10 !py-4 flex items-center justify-center gap-2">
-                            Join Linkedin
+                    <div className="flex flex-col sm:flex-row justify-center gap-5">
+                        <a href="https://linkedin.com/company/aws-sbg-ddit" className="relative overflow-hidden group border-2 border-[#0073BB] bg-[#0073BB] text-white font-bold text-sm px-8 py-4 text-center tracking-wider inline-flex justify-center items-center">
+                            <span className="relative z-10 flex items-center gap-2 group-hover:text-[#0C111D] transition-colors duration-300">JOIN LINKEDIN</span>
+                            <div className="absolute inset-0 bg-white transform scale-0 rounded-full group-hover:scale-[2.5] transition-transform duration-500 ease-out origin-center"></div>
                         </a>
-                        <a href="https://meetup.com/aws-sbg-ddit" className="btn-outline !px-10 !py-4 border-border hover:border-foreground/30">
-                            Meetup Page
+                        <a href="https://meetup.com/aws-sbg-ddit" className="relative overflow-hidden group border-2 border-[#0C111D] dark:border-white/30 text-[#0C111D] dark:text-white font-bold text-sm px-8 py-4 text-center tracking-wider inline-flex justify-center items-center">
+                            <span className="relative z-10 group-hover:text-white dark:group-hover:text-[#0C111D] transition-colors duration-300">MEETUP PAGE</span>
+                            <div className="absolute inset-0 bg-[#0C111D] dark:bg-white transform scale-0 rounded-full group-hover:scale-[2.5] transition-transform duration-500 ease-out origin-center"></div>
                         </a>
                     </div>
                 </motion.div>

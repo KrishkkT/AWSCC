@@ -64,13 +64,14 @@ export default function About() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ delay: i * 0.1 }}
-                            className="card-professional flex flex-col group p-10"
+                            className="bg-white dark:bg-[#1A1F2B] rounded-2xl p-8 border border-gray-200 dark:border-white/5 group-hover:border-[#0073BB] dark:group-hover:border-white/20 transition-colors flex flex-col relative overflow-hidden group"
                         >
-                            <div className="mb-8 w-14 h-14 rounded-2xl bg-brand-aws/10 flex items-center justify-center text-brand-aws group-hover:bg-brand-aws group-hover:text-white transition-all duration-300">
+                            <div className="absolute inset-0 bg-gradient-to-b from-gray-50 dark:from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                            <div className="mb-8 w-14 h-14 rounded-2xl bg-[#0073BB]/10 flex items-center justify-center text-[#0073BB] group-hover:bg-[#0073BB] group-hover:text-white transition-all duration-300 relative z-10">
                                 <item.icon size={28} />
                             </div>
-                            <h3 className="text-2xl font-display font-bold mb-4 tracking-tight text-foreground">{item.title}</h3>
-                            <p className="text-muted-foreground leading-relaxed font-medium">
+                            <h3 className="text-2xl font-display font-bold mb-4 tracking-tight text-foreground relative z-10">{item.title}</h3>
+                            <p className="text-muted-foreground leading-relaxed font-medium relative z-10">
                                 {item.desc}
                             </p>
                         </motion.div>
@@ -102,7 +103,7 @@ export default function About() {
                                 "Official Certification Support"
                             ].map((ptr, idx) => (
                                 <div key={idx} className="flex items-center gap-3 text-foreground/80 font-medium">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-brand-aws"></div>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#0073BB]"></div>
                                     {ptr}
                                 </div>
                             ))}
@@ -116,7 +117,7 @@ export default function About() {
                     >
                         <div className="absolute inset-0 bg-brand-aws/10 group-hover:bg-transparent transition-colors z-10"></div>
                         <img
-                            src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=2070&auto=format&fit=crop"
+                            src="/images/website_hero.png"
                             alt="Team Collaboration"
                             className="w-full h-full object-cover transition-all duration-700"
                         />
@@ -131,12 +132,14 @@ export default function About() {
                     className="text-center bg-secondary/30 dark:bg-brand-navy/30 py-20 rounded-[2.5rem] border border-border shadow-lg"
                 >
                     <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-8">Ready to join our builder community?</h2>
-                    <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <Link href="/events" className="btn-aws !px-10 !py-4 text-base flex items-center justify-center gap-3 group">
-                            Explore Workshops <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                    <div className="flex flex-col sm:flex-row justify-center gap-5">
+                        <Link href="/events" className="relative overflow-hidden group border-2 border-[#0073BB] bg-[#0073BB] text-white font-bold text-sm px-8 py-4 text-center tracking-wider inline-flex justify-center items-center">
+                            <span className="relative z-10 flex items-center gap-2 group-hover:text-[#0C111D] transition-colors duration-300">EXPLORE WORKSHOPS <ArrowRight size={18} /></span>
+                            <div className="absolute inset-0 bg-white transform scale-0 rounded-full group-hover:scale-[2.5] transition-transform duration-500 ease-out origin-center"></div>
                         </Link>
-                        <Link href="/contact" className="btn-outline !px-10 !py-4 text-base">
-                            Contact Support
+                        <Link href="/contact" className="relative overflow-hidden group border-2 border-[#0C111D] dark:border-white/30 text-[#0C111D] dark:text-white font-bold text-sm px-8 py-4 text-center tracking-wider inline-flex justify-center items-center">
+                            <span className="relative z-10 group-hover:text-white dark:group-hover:text-[#0C111D] transition-colors duration-300">CONTACT SUPPORT</span>
+                            <div className="absolute inset-0 bg-[#0C111D] dark:bg-white transform scale-0 rounded-full group-hover:scale-[2.5] transition-transform duration-500 ease-out origin-center"></div>
                         </Link>
                     </div>
                 </motion.div>

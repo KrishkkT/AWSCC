@@ -1,17 +1,60 @@
 
-import { Inter, Outfit, Cinzel, Playfair_Display } from "next/font/google";
+import localFont from "next/font/local";
+import { Cinzel, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/utils";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
-const inter = Inter({
-    subsets: ["latin"],
-    variable: '--font-inter',
+const inter = localFont({
+    src: [
+        {
+            path: "../../public/fonts/AmazonEmber_Lt.ttf",
+            weight: "300",
+            style: "normal",
+        },
+        {
+            path: "../../public/fonts/AmazonEmber_Rg.ttf",
+            weight: "400",
+            style: "normal",
+        },
+        {
+            path: "../../public/fonts/AmazonEmber_Md.ttf",
+            weight: "500",
+            style: "normal",
+        },
+        {
+            path: "../../public/fonts/AmazonEmber_Bd.ttf",
+            weight: "700",
+            style: "normal",
+        },
+    ],
+    variable: "--font-inter",
 });
 
-const outfit = Outfit({
-    subsets: ["latin"],
-    variable: '--font-outfit',
+const outfit = localFont({
+    src: [
+        {
+            path: "../../public/fonts/AmazonEmberDisplay_Lt.ttf",
+            weight: "300",
+            style: "normal",
+        },
+        {
+            path: "../../public/fonts/AmazonEmberDisplay_Rg.ttf",
+            weight: "400",
+            style: "normal",
+        },
+        {
+            path: "../../public/fonts/AmazonEmberDisplay_Md.ttf",
+            weight: "500",
+            style: "normal",
+        },
+        {
+            path: "../../public/fonts/AmazonEmberDisplay_Bd.ttf",
+            weight: "700",
+            style: "normal",
+        },
+    ],
+    variable: "--font-outfit",
 });
 
 const cinzel = Cinzel({

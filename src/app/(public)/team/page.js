@@ -44,45 +44,50 @@ export default function Team() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ delay: i * 0.1 }}
-                            className="card-professional p-8 text-center group border-border relative max-w-[320px] w-full"
+                            className="group relative w-full max-w-[320px] rounded-[30px] overflow-hidden bg-[#080B13] border border-white/10 hover:border-brand-aws/40 transition-all duration-500 shadow-2xl flex flex-col h-[420px]"
                         >
-                            <div className="w-32 h-32 mx-auto mb-8 rounded-2xl p-0.5 bg-secondary relative group-hover:bg-brand-aws transition-all duration-500 overflow-hidden group-hover:shadow-[0_0_20px_rgba(255,153,0,0.4)] group-hover:scale-105">
-                                <div className="w-full h-full rounded-2xl overflow-hidden bg-background">
-                                    <img
-                                        src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.full_name}&background=111111&color=fff`}
-                                        alt={member.full_name}
-                                        className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-2 group-hover:brightness-110 transition-all duration-700"
-                                    />
+                            {/* Image Section */}
+                            <div className="absolute inset-0 w-full h-full overflow-hidden">
+                                <img
+                                    src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.full_name}&background=111111&color=fff`}
+                                    alt={member.full_name}
+                                    className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-700"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#080B13] via-[#080B13]/40 to-transparent"></div>
+                            </div>
+
+                            {/* Content Section */}
+                            <div className="relative z-10 flex-grow flex flex-col justify-end p-6 text-center">
+                                <div className="mt-auto">
+                                    <h3 className="text-2xl font-display font-bold text-white mb-1 drop-shadow-lg">{member.full_name}</h3>
+                                    <div className="text-xs font-black uppercase tracking-[0.2em] text-brand-cyan mb-4 drop-shadow-md">
+                                        {member.role_title}
+                                    </div>
+
+                                    {/* Social Links */}
+                                    <div className="flex justify-center gap-4 pt-2">
+                                        {member.github_url && (
+                                            <a href={member.github_url} target="_blank" rel="noopener noreferrer" className="text-white hover:text-white hover:bg-black transition-all transform hover:-translate-y-1 bg-white/10 backdrop-blur-sm p-2 rounded-full border border-white/10 hover:border-black">
+                                                <Github size={18} />
+                                            </a>
+                                        )}
+                                        {member.linkedin_url && (
+                                            <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-white hover:text-white hover:bg-[#0073BB] transition-all transform hover:-translate-y-1 bg-white/10 backdrop-blur-sm p-2 rounded-full border border-white/10 hover:border-[#0073BB]">
+                                                <Linkedin size={18} />
+                                            </a>
+                                        )}
+                                        {member.instagram_url && (
+                                            <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="text-white hover:text-white hover:bg-[#E1306C] transition-all transform hover:-translate-y-1 bg-white/10 backdrop-blur-sm p-2 rounded-full border border-white/10 hover:border-[#E1306C]">
+                                                <Instagram size={18} />
+                                            </a>
+                                        )}
+                                        {member.portfolio_url && (
+                                            <a href={member.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-white hover:text-white hover:bg-purple-600 transition-all transform hover:-translate-y-1 bg-white/10 backdrop-blur-sm p-2 rounded-full border border-white/10 hover:border-purple-600" title="Portfolio Website">
+                                                <Globe size={18} />
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-
-                            <h3 className="text-xl font-display font-bold text-foreground mb-2 group-hover:text-brand-aws transition-colors">{member.full_name}</h3>
-                            <div className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-8 pb-6 border-b border-border">
-                                {member.role_title}
-                            </div>
-
-                            {/* Social Links */}
-                            <div className="flex justify-center gap-6 text-muted-foreground">
-                                {member.github_url && (
-                                    <a href={member.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-all transform hover:-translate-y-1">
-                                        <Github size={20} />
-                                    </a>
-                                )}
-                                {member.linkedin_url && (
-                                    <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-blue transition-all transform hover:-translate-y-1">
-                                        <Linkedin size={20} />
-                                    </a>
-                                )}
-                                {member.instagram_url && (
-                                    <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-aws transition-all transform hover:-translate-y-1">
-                                        <Instagram size={20} />
-                                    </a>
-                                )}
-                                {member.portfolio_url && (
-                                    <a href={member.portfolio_url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-cyan transition-all transform hover:-translate-y-1" title="Portfolio Website">
-                                        <Globe size={20} />
-                                    </a>
-                                )}
                             </div>
                         </motion.div>
                     ))}

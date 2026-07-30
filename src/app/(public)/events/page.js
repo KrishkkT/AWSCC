@@ -119,16 +119,22 @@ export default function Events() {
                     <h1 className="text-5xl md:text-6xl font-display font-bold text-foreground mb-8 tracking-tight">
                         Our <span className="text-brand-aws">Events</span>
                     </h1>
-                    <div className="inline-flex bg-secondary/80 p-1.5 rounded-2xl border border-border backdrop-blur-md">
+                    <div className="flex justify-center gap-4 mb-16">
                         <button
                             onClick={() => setFilter('upcoming')}
-                            className={`px-8 py-2.5 rounded-xl text-sm font-bold transition-all ${filter === 'upcoming' ? 'bg-brand-aws text-white shadow-lg shadow-brand-aws/20' : 'text-muted-foreground hover:text-foreground'}`}
+                            className={`px-8 py-3.5 rounded-full text-sm font-bold tracking-wider uppercase transition-all duration-300 border ${filter === 'upcoming'
+                                ? 'bg-[#0073BB] border-[#0073BB] text-white shadow-[0_0_20px_rgba(0,115,187,0.4)]'
+                                : 'bg-transparent border-white/20 text-gray-400 hover:text-white hover:border-white/50'
+                                }`}
                         >
                             Upcoming
                         </button>
                         <button
                             onClick={() => setFilter('past')}
-                            className={`px-8 py-2.5 rounded-xl text-sm font-bold transition-all ${filter === 'past' ? 'bg-secondary-foreground/10 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                            className={`px-8 py-3.5 rounded-full text-sm font-bold tracking-wider uppercase transition-all duration-300 border ${filter === 'past'
+                                ? 'bg-[#0073BB] border-[#0073BB] text-white shadow-[0_0_20px_rgba(0,115,187,0.4)]'
+                                : 'bg-transparent border-white/20 text-gray-400 hover:text-white hover:border-white/50'
+                                }`}
                         >
                             Past Gallery
                         </button>
@@ -172,12 +178,10 @@ export default function Events() {
                         {/* Visual graphic on the right */}
                         <div className="w-full md:w-2/5 p-8 relative flex items-center justify-center bg-brand-dark/50 border-l border-white/5 overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-br from-brand-cyan/5 to-brand-aws/5" />
-                            <Cloud className="w-32 h-32 text-brand-cyan/20 absolute top-10 left-10" strokeWidth={1} />
-                            <Zap className="w-24 h-24 text-brand-aws/20 absolute bottom-10 right-10" strokeWidth={1} />
                             <motion.div
                                 animate={{ y: [0, -10, 0] }}
                                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                                className="relative z-10 font-display font-black text-7xl md:text-9xl text-transparent bg-clip-text bg-gradient-to-b from-white/20 to-transparent"
+                                className="relative z-10 font-display font-black text-7xl md:text-9xl text-transparent bg-clip-text bg-gradient-to-b from-white/50 to-transparent"
                             >
                                 {communityEvent.year}
                             </motion.div>
@@ -190,7 +194,7 @@ export default function Events() {
                         <div className="w-12 h-12 border-4 border-secondary border-t-brand-aws rounded-full animate-spin"></div>
                         <p className="text-muted-foreground font-medium animate-pulse">Syncing events...</p>
                     </div>
-                ) : events.length === 0 ? (
+                ) : (events.length === 0 && !(filter === 'upcoming' && communityEvent)) ? (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -208,36 +212,37 @@ export default function Events() {
                                 initial={{ opacity: 0, y: 30 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.1 }}
-                                className="card-professional flex flex-col p-0 overflow-hidden group border-border"
+                                className="group relative w-full rounded-[30px] overflow-hidden bg-[#080B13] border border-white/10 hover:border-brand-aws/40 transition-all duration-500 shadow-2xl flex flex-col h-[500px]"
                             >
-                                <div className="aspect-[16/9] relative overflow-hidden bg-secondary">
+                                <div className="h-[220px] relative overflow-hidden bg-[#1A1D23]">
                                     {event.image_url ? (
                                         <img
                                             src={event.image_url}
                                             alt={event.title}
-                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80 group-hover:opacity-100"
                                         />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-card">
-                                            <Calendar size={64} className="text-muted-foreground/20" />
+                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900/40 to-[#0C111D]">
+                                            <Calendar size={64} className="text-white/10" />
                                         </div>
                                     )}
-                                    <div className="absolute top-4 left-4">
-                                        <div className="bg-background/80 backdrop-blur-md px-4 py-1.5 rounded-lg border border-brand-aws/20 text-[10px] font-bold uppercase tracking-widest text-brand-aws">
+                                    <div className="absolute top-4 left-4 z-20">
+                                        <div className="bg-[#0C111D]/90 backdrop-blur-md px-4 py-1.5 rounded-xl border border-white/10 text-[10px] font-black uppercase tracking-widest text-[#0073BB]">
                                             {new Date(event.start_time || event.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                         </div>
                                     </div>
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#080B13] via-transparent to-transparent h-full z-10"></div>
                                 </div>
-                                <div className="p-8 flex-grow flex flex-col">
-                                    <h3 className="text-2xl font-display font-bold mb-4 leading-tight group-hover:text-brand-aws transition-colors text-foreground">{event.title}</h3>
-                                    <p className="text-muted-foreground text-sm mb-8 line-clamp-3 leading-relaxed flex-grow">
+                                <div className="p-6 flex-grow flex flex-col relative z-20 -mt-8">
+                                    <h3 className="text-2xl font-bold mb-3 leading-tight text-white group-hover:text-[#0073BB] transition-colors line-clamp-2">{event.title}</h3>
+                                    <p className="text-gray-400 text-sm mb-6 line-clamp-3 leading-relaxed flex-grow">
                                         {event.description || `Join us for an immersive session on ${event.title.toLowerCase()}.`}
                                     </p>
 
-                                    <div className="grid grid-cols-1 gap-4 mb-8">
+                                    <div className="grid grid-cols-1 gap-3 mb-6">
                                         {event.is_visible !== false && (
-                                            <div className="flex items-center gap-3 text-xs font-semibold text-muted-foreground px-4 py-2 bg-secondary/50 rounded-xl border border-border/50">
-                                                <Clock size={16} className="text-brand-aws" />
+                                            <div className="flex items-center gap-3 text-xs font-semibold text-gray-300 px-4 py-2.5 bg-white/5 rounded-xl border border-white/5">
+                                                <Clock size={16} className="text-[#0073BB]" />
                                                 <span className="truncate">
                                                     {event.start_time ? new Date(event.start_time).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true }) : 'TBA'}
                                                     {event.end_time && ` - ${new Date(event.end_time).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true })}`}
@@ -245,8 +250,8 @@ export default function Events() {
                                             </div>
                                         )}
                                         {event.location && event.is_visible !== false && (
-                                            <div className="flex items-center gap-3 text-xs font-semibold text-muted-foreground px-4 py-2 bg-secondary/50 rounded-xl border border-border/50">
-                                                <MapPin size={16} className="text-brand-aws" />
+                                            <div className="flex items-center gap-3 text-xs font-semibold text-gray-300 px-4 py-2.5 bg-white/5 rounded-xl border border-white/5">
+                                                <MapPin size={16} className="text-[#0073BB]" />
                                                 <span className="truncate">{event.location}</span>
                                             </div>
                                         )}
@@ -255,14 +260,14 @@ export default function Events() {
                                     {filter === 'upcoming' && event.is_visible !== false && (
                                         <button
                                             onClick={() => setSelectedEvent(event)}
-                                            className="btn-aws w-full flex items-center justify-center gap-2 py-4 shadow-lg shadow-brand-aws/10"
+                                            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#0073BB] hover:bg-[#005f9e] text-white text-sm font-bold tracking-wider shadow-lg shadow-[#0073BB]/20 transition-all group-hover:shadow-[#0073BB]/40"
                                         >
                                             Reserve Seat
                                             <ExternalLink size={16} />
                                         </button>
                                     )}
                                     {filter === 'past' && (
-                                        <Link href="/gallery" className="btn-outline w-full py-4 !border-border hover:!border-foreground/30 flex items-center justify-center">
+                                        <Link href="/gallery" className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-white/20 hover:border-white/50 text-white text-sm font-bold tracking-wider transition-all">
                                             View Recap
                                         </Link>
                                     )}

@@ -46,7 +46,7 @@ export default async function PublicLayout({ children }) {
     return (
         <div className="flex flex-col min-h-screen relative">
             <Navbar />
-            <main className="flex-grow pt-16 relative z-10">
+            <main className="flex-grow relative z-10">
                 {children}
             </main>
             <Footer />

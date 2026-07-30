@@ -102,12 +102,13 @@ export default function Contact() {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.1 * idx }}
-                                    className="card-professional flex items-start gap-6 p-8 shadow-sm"
+                                    className="bg-white dark:bg-[#1A1F2B] rounded-2xl p-8 border border-gray-200 dark:border-white/5 group-hover:border-[#0073BB] dark:group-hover:border-white/20 transition-colors flex items-start gap-6 relative overflow-hidden group shadow-sm"
                                 >
-                                    <div className="w-14 h-14 bg-secondary rounded-2xl flex items-center justify-center text-brand-aws shrink-0 border border-border/50 shadow-inner">
+                                    <div className="absolute inset-0 bg-gradient-to-b from-gray-50 dark:from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                                    <div className="w-14 h-14 bg-[#0073BB]/10 rounded-2xl flex items-center justify-center text-[#0073BB] group-hover:bg-[#0073BB] group-hover:text-white transition-all shrink-0 border border-border/50 shadow-inner relative z-10">
                                         <item.icon size={28} />
                                     </div>
-                                    <div>
+                                    <div className="relative z-10">
                                         <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{item.label}</div>
                                         <h3 className="text-xl font-display font-bold text-foreground mb-1">{item.title}</h3>
                                         <p className="text-muted-foreground font-medium">{item.value}</p>
@@ -120,7 +121,7 @@ export default function Contact() {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.3 }}
-                                className="card-professional overflow-hidden shadow-sm h-80 relative rounded-3xl border border-border/50 group"
+                                className="bg-white dark:bg-[#1A1F2B] overflow-hidden shadow-sm h-80 relative rounded-3xl border border-gray-200 dark:border-white/5 group-hover:border-[#0073BB] dark:group-hover:border-white/20 transition-colors group"
                             >
                                 <iframe
                                     src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3681.3072706642383!2d72.87820267391233!3d22.679602629042744!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e5adf2c171355%3A0xe1e974ce083657fb!2sDharmsinh%20Desai%20University!5e0!3m2!1sen!2sin!4v1783621192376!5m2!1sen!2sin"
@@ -139,9 +140,10 @@ export default function Contact() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.2 }}
-                        className="card-professional p-12 relative shadow-2xl"
+                        className="bg-white dark:bg-[#1A1F2B] rounded-[2.5rem] p-12 border border-gray-200 dark:border-white/5 relative shadow-2xl overflow-hidden group"
                     >
-                        <form onSubmit={handleSubmit} className="space-y-8">
+                        <div className="absolute inset-0 bg-gradient-to-b from-gray-50 dark:from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                        <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Full Name</label>
@@ -174,10 +176,13 @@ export default function Contact() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full btn-aws py-5 text-sm font-bold flex items-center justify-center gap-3 group transition-all duration-300"
+                                className="relative overflow-hidden group w-full border-2 border-[#0073BB] bg-[#0073BB] text-white py-5 text-sm font-bold flex items-center justify-center tracking-wider transition-all duration-300"
                             >
-                                {loading ? 'Transmitting...' : 'Dispatch Message'}
-                                {!loading && <Send size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
+                                <span className="relative z-10 flex items-center gap-2 group-hover:text-[#0C111D] transition-colors duration-300">
+                                    {loading ? 'TRANSMITTING...' : 'DISPATCH MESSAGE'}
+                                    {!loading && <Send size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
+                                </span>
+                                <div className="absolute inset-0 bg-white transform scale-0 rounded-full group-hover:scale-[2.5] transition-transform duration-500 ease-out origin-center"></div>
                             </button>
 
                             {status === 'success' && (

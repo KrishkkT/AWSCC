@@ -1,87 +1,64 @@
 "use client";
 
 import Link from "next/link";
-import { Cloud, Mail, MapPin, Github, Instagram, Linkedin, Twitter } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Mail, MapPin, Instagram, Linkedin, ArrowUpRight, Users } from "lucide-react";
 
 export default function Footer() {
     const currentYear = new Date().getFullYear();
+    const pathname = usePathname();
+    const isSCDRoute = pathname?.startsWith('/scd/');
+    const scdYear = isSCDRoute ? pathname.split('/')[2] : null;
 
     return (
-        <footer className="bg-background text-foreground/80 pt-24 pb-12 relative overflow-hidden border-t border-border">
-            <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16 relative z-10 font-sans">
-                {/* Branding & Logo Section */}
-                <div className="lg:col-span-1 space-y-6">
-                    <Link href="/" className="flex items-center gap-3">
-                        <img
-                            src="/images/ddu-aws-combined.png"
-                            alt="AWSCC Logo"
-                            className="h-14 w-auto object-contain invert dark:invert-0"
-                            onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                            }}
-                        />
-                        <div className="hidden items-center gap-2" style={{ display: 'none' }}>
-                            <div className="w-8 h-8 bg-brand-aws rounded-md flex items-center justify-center font-display font-bold text-white">A</div>
-                            <span className="font-display font-bold text-xl tracking-tight text-foreground">AWS <span className="text-brand-aws">CC</span></span>
+        <footer className="bg-[#0C111D] pt-16 pb-12 border-t border-white/10 relative z-20">
+            <div className="container px-6 md:px-10 max-w-7xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+                    <div className="col-span-1 md:col-span-2">
+                        <Link href={isSCDRoute ? `/scd/${scdYear}` : "/"} className="flex items-center">
+                            <img src="/images/ddu-aws-combined.png" alt="AWS Student Builder Group DDU" className="h-8 md:h-10 w-auto object-contain" />
+                        </Link><br />
+                        <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-md">
+                            Built with purpose, driven by community.
+                        </p>
+
+                        <div className="flex items-center gap-4 mb-8">
+                            <Link href="https://www.linkedin.com/company/aws-sbg-ddit/" target="_blank" className="text-gray-400 hover:text-white hover:bg-[#0073BB] transition-all transform hover:-translate-y-1 bg-white/5 p-2.5 rounded-full border border-white/5 hover:border-[#0073BB]">
+                                <Linkedin size={20} />
+                            </Link>
+                            <Link href="https://www.instagram.com/aws_sbg_ddit" target="_blank" className="text-gray-400 hover:text-white hover:bg-[#E1306C] transition-all transform hover:-translate-y-1 bg-white/5 p-2.5 rounded-full border border-white/5 hover:border-[#E1306C]">
+                                <Instagram size={20} />
+                            </Link>
+                            <Link href="https://meetup.com/aws-sbg-ddit" target="_blank" className="text-gray-400 hover:text-white hover:bg-[#F24453] transition-all transform hover:-translate-y-1 bg-white/5 p-2.5 rounded-full border border-white/5 hover:border-[#F24453]" title="Meetup Group">
+                                <Users size={20} />
+                            </Link>
                         </div>
-                    </Link>
-                    <p className="text-muted-foreground leading-relaxed text-sm max-w-xs">
-                        The official AWS Student Builder Group at Dharmsinh Desai University. Empowering students with industry-leading cloud technology and hands-on learning.
-                    </p>
-                    <div className="flex gap-3">
-                        {[
-                            { icon: <Mail size={16} />, href: "mailto:awscloudclub@ddu.ac.in" },
-                            { icon: <Instagram size={16} />, href: "https://www.instagram.com/aws_sbg_ddit" },
-                            { icon: <Linkedin size={16} />, href: "https://www.linkedin.com/company/aws-sbg-ddit/" },
-                        ].map((social, idx) => (
-                            <a key={idx} href={social.href} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:bg-brand-aws hover:text-white hover:border-brand-aws transition-all duration-300">
-                                {social.icon}
-                            </a>
-                        ))}
+
+                        <p className="text-gray-500 text-xs">
+                            &copy; {currentYear} AWS SBG DDU.
+                        </p>
+                    </div>
+
+                    <div>
+                        <h4 className="text-white font-bold text-sm tracking-widest uppercase mb-6">QUICK LINKS</h4>
+                        <ul className="space-y-4 text-sm font-bold tracking-wider uppercase">
+                            <li><Link href="/" className="text-gray-400 hover:text-white transition-colors">HOME</Link></li>
+                            <li><Link href="/team" className="text-gray-400 hover:text-white transition-colors">TEAM</Link></li>
+                            <li><Link href="/events" className="text-gray-400 hover:text-white transition-colors">EVENTS</Link></li>
+                            <li><Link href="/about" className="text-gray-400 hover:text-white transition-colors">ABOUT</Link></li>
+                            <li><Link href="/contact" className="text-gray-400 hover:text-white transition-colors">CONTACT</Link></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 className="text-white font-bold text-sm tracking-widest uppercase mb-6">COMMUNITY</h4>
+                        <ul className="space-y-4 text-sm font-bold tracking-wider uppercase">
+                            <li><Link href="/community" className="text-gray-400 hover:text-white transition-colors">MEMBER HUB</Link></li>
+                            <li><Link href="/resources" className="text-gray-400 hover:text-white transition-colors">RESOURCES</Link></li>
+                            <li><Link href="/contact" className="text-gray-400 hover:text-white transition-colors">SUPPORT</Link></li>
+                        </ul>
                     </div>
                 </div>
-
-                {/* Navigation Column */}
-                <div className="lg:pl-8">
-                    <h4 className="font-display font-bold text-foreground mb-6 tracking-wide">Resources</h4>
-                    <ul className="space-y-3 text-sm">
-                        <li><Link href="/" className="hover:text-brand-aws transition-colors">Home</Link></li>
-                        <li><Link href="/about" className="hover:text-brand-aws transition-colors">About Us</Link></li>
-                        <li><Link href="/team" className="hover:text-brand-aws transition-colors">Our Team</Link></li>
-                        <li><Link href="/events" className="hover:text-brand-aws transition-colors">Events</Link></li>
-                        <li><Link href="/gallery" className="hover:text-brand-aws transition-colors">Gallery</Link></li>
-                    </ul>
-                </div>
-
-                {/* Community Column */}
-                <div>
-                    <h4 className="font-display font-bold text-foreground mb-6 tracking-wide">Community</h4>
-                    <ul className="space-y-3 text-sm">
-                        <li><Link href="/community" className="hover:text-brand-aws transition-colors">Member Hub</Link></li>
-                        <li><Link href="/resources" className="hover:text-brand-aws transition-colors">Cloud Resources</Link></li>
-                        <li><Link href="/contact" className="hover:text-brand-aws transition-colors">Support</Link></li>
-                    </ul>
-                </div>
-
-                {/* Get In Touch Column */}
-                <div>
-                    <h4 className="font-display font-bold text-foreground mb-6 tracking-wide">Contact</h4>
-                    <ul className="space-y-4">
-                        <li className="flex items-start gap-3 group">
-                            <Mail size={18} className="text-brand-aws mt-0.5" />
-                            <span className="text-muted-foreground text-sm break-all">awscloudclub@ddu.ac.in</span>
-                        </li>
-                        <li className="flex items-start gap-3 group">
-                            <MapPin size={18} className="text-brand-aws mt-0.5" />
-                            <span className="text-muted-foreground text-sm">DDU Campus, Nadiad, Gujarat</span>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <div className="container mx-auto px-6 pt-8 border-t border-border flex flex-col items-center justify-center text-center gap-6 text-xs text-muted-foreground font-medium">
-                <p>© {currentYear} AWS Student Builder Group DDU. All rights reserved.</p>
             </div>
         </footer>
     );

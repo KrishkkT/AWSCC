@@ -1,13 +1,25 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Shield, Zap, Users, Calendar, Award, FileText, Bookmark } from "lucide-react";
+import { Shield, Zap, Users, Calendar, Award, FileText, Bookmark, Plus, Trash2, Edit2, Save, X, Loader2, Upload, Image as ImageIcon } from "lucide-react";
+import Toast from "@/components/Toast";
 
 export default function AdminDashboard() {
     const [profile, setProfile] = useState(null);
     const supabase = createClient();
+    
+    // Home Gallery States
+    const [photos, setPhotos] = useState([]);
+    const [loadingPhotos, setLoadingPhotos] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [editingPhoto, setEditingPhoto] = useState(null);
+    const [feedback, setFeedback] = useState(null);
+    const [formData, setFormData] = useState({ title: '', url: '' });
+    const [globalSettings, setGlobalSettings] = useState(null);
 
     useEffect(() => {
         async function loadProfile() {
@@ -39,10 +51,15 @@ export default function AdminDashboard() {
             }
 
             // Fetch real stats
-            const [eventsCount, certsCount] = await Promise.all([
+            const [eventsCount, certsCount, { data: globalData }] = await Promise.all([
                 supabase.from('events').select('*', { count: 'exact', head: true }).neq('status', 'past'),
-                supabase.from('certificates').select('*', { count: 'exact', head: true })
+                supabase.from('certificates').select('*', { count: 'exact', head: true }),
+                supabase.from('global_settings').select('*').single()
             ]);
+
+            if (globalData) {
+                setGlobalSettings(globalData);
+            }
 
             setStats([
                 { label: "Active Events", value: eventsCount.count || 0, icon: <Calendar size={20} />, color: "cyan", link: "/admin/events" },
@@ -53,8 +70,132 @@ export default function AdminDashboard() {
         loadData();
     }, []);
 
+    // Home Gallery Logic
+    const fetchPhotos = useCallback(async () => {
+        setLoadingPhotos(true);
+        const { data, error } = await supabase
+            .from('home_gallery')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (!error) setPhotos(data || []);
+        else {
+            console.error('Error fetching home gallery:', error);
+            // Ignore error if table is missing initially
+        }
+        setLoadingPhotos(false);
+    }, [supabase]);
+
+    useEffect(() => {
+        fetchPhotos();
+    }, [fetchPhotos]);
+
+    async function handleImageUpload(e) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            showFeedback('Please upload an image file', 'error');
+            return;
+        }
+
+        setUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `home-glimpse-${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+            const filePath = `gallery/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('gallery')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('gallery')
+                .getPublicUrl(filePath);
+
+            setFormData({ ...formData, url: publicUrl });
+            showFeedback('Image uploaded!');
+        } catch (error) {
+            console.error('Upload error:', error);
+            showFeedback('Upload failed. Ensure "gallery" bucket exists.', 'error');
+        } finally {
+            setUploading(false);
+        }
+    }
+
+    async function handleSubmit(e) {
+        e.preventDefault();
+        setSubmitting(true);
+
+        if (editingPhoto) {
+            const { error } = await supabase
+                .from('home_gallery')
+                .update(formData)
+                .eq('id', editingPhoto.id);
+
+            if (!error) {
+                showFeedback('Photo updated!');
+                setShowModal(false);
+                fetchPhotos();
+            } else {
+                showFeedback('Error: ' + error.message, 'error');
+            }
+        } else {
+            const { error } = await supabase
+                .from('home_gallery')
+                .insert([formData]);
+
+            if (!error) {
+                showFeedback('Photo added to glimpse gallery!');
+                setShowModal(false);
+                fetchPhotos();
+            } else {
+                showFeedback('Error: ' + error.message, 'error');
+            }
+        }
+        setSubmitting(false);
+    }
+
+    async function handleDelete(id) {
+        if (confirm('Remove this photo from the home glimpse gallery?')) {
+            const { error } = await supabase.from('home_gallery').delete().eq('id', id);
+            if (!error) {
+                showFeedback('Photo removed!', 'info');
+                fetchPhotos();
+            } else {
+                showFeedback('Delete failed', 'error');
+            }
+        }
+    }
+
+    function showFeedback(message, type = 'success') {
+        setFeedback({ message, type });
+        setTimeout(() => setFeedback(null), 3000);
+    }
+
+    async function toggleGlimpseGallery() {
+        if (!globalSettings) return;
+        const newValue = !globalSettings.show_glimpse_gallery;
+        const { error } = await supabase
+            .from('global_settings')
+            .upsert([{ ...globalSettings, show_glimpse_gallery: newValue, id: '1', updated_at: new Date().toISOString() }]);
+        
+        if (!error) {
+            setGlobalSettings({ ...globalSettings, show_glimpse_gallery: newValue });
+            showFeedback(`Home Gallery is now ${newValue ? 'Visible' : 'Hidden'}`, 'success');
+        } else {
+            console.error('Toggle error:', error);
+            showFeedback('Error: ' + error.message, 'error');
+        }
+    }
+
     return (
         <div className="space-y-10">
+            {feedback && (
+                <Toast message={feedback.message} type={feedback.type} onClose={() => setFeedback(null)} />
+            )}
+
             {/* Header Area */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8">
                 <div>
@@ -223,6 +364,148 @@ export default function AdminDashboard() {
                     </div>
                 </motion.div>
             </div>
+
+            {/* Home Glimpse Gallery Management Section */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="glass-card p-10 bg-slate-900/40 border-white/5 mt-10"
+            >
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+                    <div>
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="w-10 h-10 rounded-xl bg-brand-cyan/10 flex items-center justify-center text-brand-cyan border border-brand-cyan/20">
+                                <ImageIcon size={20} />
+                            </div>
+                            <h3 className="text-2xl font-black text-white tracking-tight">Home <span className="text-brand-cyan">Glimpse</span> Gallery</h3>
+                        </div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Manage the scattered photos for the homepage</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        {globalSettings && (
+                            <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                    {globalSettings.show_glimpse_gallery ? 'Visible' : 'Hidden'}
+                                </span>
+                                <button onClick={toggleGlimpseGallery} className={`w-10 h-6 rounded-full transition-colors duration-300 relative ${globalSettings.show_glimpse_gallery ? 'bg-green-500' : 'bg-gray-500'}`}>
+                                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${globalSettings.show_glimpse_gallery ? 'left-5' : 'left-1'}`}></div>
+                                </button>
+                            </div>
+                        )}
+                        <button onClick={() => { setEditingPhoto(null); setFormData({ title: '', url: '' }); setShowModal(true); }} className="btn-primary px-6 py-3 flex items-center gap-2 text-xs">
+                            <Plus size={16} /> Add Photo
+                        </button>
+                    </div>
+                </div>
+
+                {loadingPhotos ? (
+                    <div className="text-center py-10 animate-pulse text-white/20 font-black tracking-widest uppercase">Fetching Memories...</div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        {photos.map((photo, i) => (
+                            <motion.div
+                                key={photo.id}
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: i * 0.05 }}
+                                className="glass-card overflow-hidden group border-white/5 hover:border-brand-cyan/20 transition-all flex flex-col"
+                            >
+                                <div className="aspect-square relative overflow-hidden">
+                                    <img src={photo.url} alt={photo.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                </div>
+                                <div className="p-3 flex items-center justify-between">
+                                    <h3 className="text-white text-sm font-bold truncate max-w-[60%]">{photo.title}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => { setEditingPhoto(photo); setFormData(photo); setShowModal(true); }} className="p-2 rounded-lg bg-brand-cyan/10 text-brand-cyan hover:bg-brand-cyan/20 transition-colors" title="Edit Photo">
+                                            <Edit2 size={14} />
+                                        </button>
+                                        <button onClick={() => handleDelete(photo.id)} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors" title="Delete Photo">
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                        {photos.length === 0 && (
+                            <div className="col-span-full text-center py-12 text-white/30 border border-dashed border-white/10 rounded-2xl">
+                                No photos yet. Add up to 20 photos for the homepage glimpse section.
+                            </div>
+                        )}
+                    </div>
+                )}
+            </motion.div>
+
+            {/* Modal */}
+            {showModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-brand-dark/95 backdrop-blur-md" onClick={() => setShowModal(false)} />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="glass-card w-full max-w-xl p-10 relative z-10 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                    >
+                        <div className="flex items-center justify-between mb-10">
+                            <div>
+                                <h2 className="text-3xl font-black text-white leading-tight">
+                                    {editingPhoto ? 'Edit' : 'Add'} <span className="text-brand-cyan">Photo</span>
+                                </h2>
+                                <p className="text-white/30 text-xs font-medium mt-1">Fill in the details to update the homepage gallery.</p>
+                            </div>
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-white/20 hover:text-white hover:bg-white/10 transition-all border border-white/5"
+                                title="Close"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-cyan ml-1">Photo Title</label>
+                                <input
+                                    required
+                                    type="text"
+                                    value={formData.title}
+                                    onChange={e => setFormData({ ...formData, title: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-brand-cyan transition-all font-bold placeholder-white/10"
+                                    placeholder="e.g. Hackathon 2024"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-cyan ml-1">Photo Source (Ratio: 3:4 or 4:3 Recommended)</label>
+                                <div className="flex gap-3 items-stretch">
+                                    <input
+                                        required
+                                        type="text"
+                                        value={formData.url}
+                                        onChange={e => setFormData({ ...formData, url: e.target.value })}
+                                        className="flex-grow bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-brand-cyan transition-all font-bold placeholder-white/10"
+                                        placeholder="Paste image URL..."
+                                    />
+                                    <label className="cursor-pointer shrink-0">
+                                        <div className={`px-6 py-4 rounded-2xl border border-dashed border-white/20 hover:border-brand-cyan/50 hover:bg-brand-cyan/5 flex items-center justify-center transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            {uploading ? <Loader2 size={18} className="animate-spin text-brand-cyan" /> : <Upload size={18} className="text-white/40 group-hover:text-brand-cyan" />}
+                                        </div>
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={submitting || uploading}
+                                className="w-full btn-primary py-5 rounded-2xl uppercase font-black tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(0,194,255,0.2)] disabled:opacity-50 transition-all hover:scale-[1.02]"
+                            >
+                                {submitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                                {submitting ? 'Updating Database...' : (editingPhoto ? 'Update Photo' : 'Confirm & Save Photo')}
+                            </button>
+                        </form>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 }
