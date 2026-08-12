@@ -191,7 +191,7 @@ export default function Home() {
                 <div
                     className="absolute inset-0 opacity-20"
                     style={{
-                        backgroundImage: "url('/images/website_hero.png')",
+                        backgroundImage: "url('/images/aws-sbg-ddu-students-cloud-workshop.png')",
                         backgroundSize: 'cover',
                         backgroundPosition: 'center'
                     }}
@@ -223,6 +223,16 @@ export default function Home() {
                 </div>
             </section>
 
+            <section aria-label="About AWS Student Builder Group DDU" className="sr-only">
+                <p>
+                    The AWS Student Builder Group (SBG) at Dharmsinh Desai University (DDU), Nadiad,
+                    Gujarat is the official AWS student community for cloud enthusiasts at DDIT.
+                    We host monthly meetups, hands-on AWS workshops, certification bootcamps,
+                    and our flagship event — AWS Students Community Day Nadiad — bringing together
+                    students, industry professionals, and AWS community leaders from across Gujarat.
+                </p>
+            </section>
+
             {/* ABOUT SECTION */}
             <section className="py-24 bg-[#F9F9F9]">
                 <div className="container px-6 md:px-10 max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
@@ -244,7 +254,7 @@ export default function Home() {
                     <div className="w-full lg:w-1/2">
                         <div className="border-l-[12px] border-[#0073BB] pl-0 shadow-2xl">
                             {/* Fallback image if real one isn't present, but using generic grey block with text for now if missing, actually img is better */}
-                            <img src="/images/website_hero.png" alt="Community" className="w-full h-[400px] object-cover bg-gray-200" onError={(e) => { e.target.src = 'https://placehold.co/800x600/e2e8f0/64748b?text=Community+Image' }} />
+                            <img src="/images/aws-sbg-ddu-students-cloud-workshop.png" alt="AWS Student Builder Group DDU students at cloud workshop Nadiad" className="w-full h-[400px] object-cover bg-gray-200" onError={(e) => { e.target.src = 'https://placehold.co/800x600/e2e8f0/64748b?text=Community+Image' }} />
                         </div>
                     </div>
                 </div>

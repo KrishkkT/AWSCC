@@ -17,7 +17,7 @@ export default function Navbar() {
     useEffect(() => {
         const handleScroll = () => {
             const currentScrollY = window.scrollY;
-            
+
             if (currentScrollY > 10) {
                 setScrolled(true);
             } else {
@@ -31,7 +31,7 @@ export default function Navbar() {
                 // scrolling up
                 setHidden(false);
             }
-            
+
             lastScrollY.current = currentScrollY;
         };
         window.addEventListener("scroll", handleScroll, { passive: true });
@@ -68,7 +68,7 @@ export default function Navbar() {
             <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-deep-navy shadow-lg' : 'bg-transparent'} ${hidden ? '-translate-y-full' : 'translate-y-0'}`}>
                 <div className="flex items-center justify-between px-6 md:px-10 py-6 max-w-7xl mx-auto">
                     <Link href={isSCDRoute ? `/scd/${scdYear}` : "/"} className="flex items-center">
-                        <img src="/images/ddu-aws-combined.png" alt="AWS Student Builder Group DDU" className="h-8 md:h-10 w-auto object-contain" />
+                        <img src="/images/ddu-aws-combined.png" alt="AWS Student Builder Group at Dharmsinh Desai University DDU Nadiad" className="h-9 md:h-12 w-auto object-contain" />
                     </Link>
 
                     <nav className="hidden md:flex items-center gap-10">

@@ -68,84 +68,73 @@ const playfair = Playfair_Display({
 });
 
 export const metadata = {
-    metadataBase: new URL("https://aws.ddu.ac.in"),
-    title: {
-        default: "AWS Student Builder Group | Dharmsinh Desai University (DDU)",
-        template: "%s | AWS Student Builder Group DDU"
+  metadataBase: new URL('https://aws.ddu.ac.in'),
+  title: {
+    default: 'AWS Student Builder Group DDU | Cloud Community Nadiad, Gujarat',
+    template: '%s | AWS SBG DDU Nadiad',
+  },
+  description:
+    'Official AWS Student Builder Group at Dharmsinh Desai University (DDU), Nadiad, Gujarat. Learn AWS cloud computing, join workshops, attend community events, and build your cloud career.',
+  keywords: [
+    'AWS DDU', 'AWS DDIT', 'aws ddu', 'aws ddit',
+    'AWS Student Builder Group DDU',
+    'AWS Student Builder Group Nadiad',
+    'AWS Student Community DDU',
+    'Dharmsinh Desai University cloud club',
+    'DDU Nadiad AWS',
+    'DDIT Nadiad cloud computing',
+    'cloud computing students Gujarat',
+    'AWS community Nadiad',
+    'AWS community Gujarat',
+    'AWS SBG DDU',
+    'AWS Student Community Day Nadiad 2026',
+    'SCD DDU 2026',
+    'AWS cloud club Nadiad',
+    'AWS certification students DDU',
+  ],
+  authors: [{ name: 'AWS Student Builder Group DDU', url: 'https://aws.ddu.ac.in' }],
+  creator: 'AWS Student Builder Group DDU',
+  publisher: 'Dharmsinh Desai University',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
     },
-    description: "Official AWS Student Builder Group at Dharmsinh Desai University (DDU), Nadiad. Join the elite community of student cloud builders, learn AWS services, and accelerate your career in cloud computing.",
-    keywords: [
-        "AWS Student Builder Group",
-        "AWS Student Builder Group DDU",
-        "DDU Nadiad",
-        "Dharmsinh Desai University",
-        "Cloud Computing Student Club",
-        "AWS Services",
-        "AWS Student Community",
-        "DDU Student Builder Group",
-        "AWS Gujarat",
-        "Cloud Builder Community",
-        "AWS Certifications",
-        "Cloud Workshops",
-        "DDU IT Department",
-        "aws ddu",
-        "aws ddit",
-        "ddu nadiad",
-        "aws nadiad",
-        "awscc ddu",
-        "awscc ddit",
-        "AWS Student Builder Group Nadiad",
-        "What is AWS Student Builder Group DDU",
-        "AWS Cloud Club DDU",
-        "Cloud Computing Student Community in Gujarat",
-        "How to join AWS community in DDU"
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_IN',
+    url: 'https://aws.ddu.ac.in',
+    siteName: 'AWS Student Builder Group DDU',
+    title: 'AWS Student Builder Group DDU | Cloud Community Nadiad, Gujarat',
+    description:
+      'Official AWS Student Builder Group at Dharmsinh Desai University (DDU), Nadiad. Learn AWS, attend events, build cloud skills.',
+    images: [
+      {
+        url: '/images/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'AWS Student Builder Group at Dharmsinh Desai University DDU Nadiad Gujarat',
+      },
     ],
-    authors: [{ name: "AWS Student Builder Group DDU", url: "https://aws.ddu.ac.in" }],
-    creator: "AWS Student Builder Group DDU",
-    publisher: "AWS Student Builder Group DDU",
-    robots: {
-        index: true,
-        follow: true,
-        nocache: true,
-        googleBot: {
-            index: true,
-            follow: true,
-            'max-video-preview': -1,
-            'max-image-preview': 'large',
-            'max-snippet': -1,
-        },
-    },
-    alternates: {
-        canonical: "/",
-    },
-    formatDetection: {
-        email: false,
-        address: false,
-        telephone: false,
-    },
-    openGraph: {
-        title: "AWS Student Builder Group | DDU Nadiad",
-        description: "Official Student Community for Cloud Innovation at Dharmsinh Desai University (DDU). Accelerate your cloud journey with student builders.",
-        url: "/",
-        siteName: "AWS Student Builder Group DDU",
-        images: [
-            {
-                url: "/images/og-image.jpg",
-                width: 1200,
-                height: 630,
-                alt: "AWS Student Builder Group DDU",
-            },
-        ],
-        locale: "en_US",
-        type: "website",
-    },
-    twitter: {
-        card: "summary_large_image",
-        title: "AWS Student Builder Group | DDU Nadiad",
-        description: "Join the Student Cloud Builder Community at DDU.",
-        images: ["/images/og-image.jpg"],
-    },
-    category: "technology",
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AWS Student Builder Group DDU | Nadiad, Gujarat',
+    description: 'Official AWS Student Builder Group at DDU Nadiad. Cloud community for students.',
+    images: ['/images/og-image.jpg'],
+  },
+  alternates: {
+    canonical: 'https://aws.ddu.ac.in',
+  },
+  verification: {
+    google: '8b56877f3cf27078',
+  },
 };
 
 export default function RootLayout({ children }) {

@@ -16,7 +16,7 @@ export default function Footer() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
                     <div className="col-span-1 md:col-span-2">
                         <Link href={isSCDRoute ? `/scd/${scdYear}` : "/"} className="flex items-center">
-                            <img src="/images/ddu-aws-combined.png" alt="AWS Student Builder Group DDU" className="h-8 md:h-10 w-auto object-contain" />
+                            <img src="/images/ddu-aws-combined.png" alt="AWS Student Builder Group at Dharmsinh Desai University DDU Nadiad" className="h-9 md:h-12 w-auto object-contain" />
                         </Link><br />
                         <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-md">
                             Built with purpose, driven by community.

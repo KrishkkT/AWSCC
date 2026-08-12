@@ -73,8 +73,84 @@ const AnimatedCounter = ({ target }) => {
 /* ─────────────────────────────────────────────────────────────
    MAIN PAGE
 ───────────────────────────────────────────────────────────── */
+
+
 export default function SCDYearPage({ params }) {
     const { year } = use(params);
+    const jsonLd = {
+        '@context': 'https://schema.org',
+        '@graph': [
+            {
+                '@type': 'Event',
+                name: `AWS Students Community Day – DDU Nadiad ${year}`,
+                description: 'A student-led cloud technology conference organized by the AWS Student Builder Group at Dharmsinh Desai University, Nadiad. Featuring tracks on Agentic AI, Cloud/DevOps, and Security/SecOps.',
+                startDate: `${year}-09-26T09:00:00+05:30`,
+                endDate: `${year}-09-26T18:00:00+05:30`,
+                eventStatus: 'https://schema.org/EventScheduled',
+                eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+                location: {
+                    '@type': 'Place',
+                    name: 'Dharmsinh Desai University',
+                    address: {
+                        '@type': 'PostalAddress',
+                        streetAddress: 'College Road',
+                        addressLocality: 'Nadiad',
+                        addressRegion: 'Gujarat',
+                        postalCode: '387001',
+                        addressCountry: 'IN',
+                    },
+                },
+                image: 'https://aws.ddu.ac.in/images/scd-2026-og.jpg',
+                url: `https://aws.ddu.ac.in/scd/${year}`,
+                organizer: {
+                    '@type': 'Organization',
+                    name: 'AWS Student Builder Group DDU',
+                    url: 'https://aws.ddu.ac.in',
+                },
+                performer: [
+                    { '@type': 'Person', name: 'Nilesh Vaghela' },
+                    { '@type': 'Person', name: 'Dhaval Nagar' },
+                    { '@type': 'Person', name: 'Dimple Vaghela' },
+                ],
+                offers: {
+                    '@type': 'Offer',
+                    price: '0',
+                    priceCurrency: 'INR',
+                    availability: 'https://schema.org/InStock',
+                    url: `https://aws.ddu.ac.in/scd/${year}`,
+                    validFrom: `${year}-07-01`,
+                },
+                keywords: 'AWS, Cloud Computing, DevOps, AI, Community Day, Student Event, Nadiad, Gujarat',
+            },
+            {
+                '@type': 'Organization',
+                name: 'AWS Student Builder Group DDU',
+                alternateName: ['AWS SBG DDU', 'AWS DDU', 'AWS DDIT'],
+                url: 'https://aws.ddu.ac.in',
+                logo: 'https://aws.ddu.ac.in/images/ddu-aws-combined.png',
+                foundingDate: '2023',
+                description: 'Official AWS Student Builder Group at Dharmsinh Desai University (DDU), Nadiad, Gujarat. Student-led cloud computing community.',
+                address: {
+                    '@type': 'PostalAddress',
+                    streetAddress: 'College Road',
+                    addressLocality: 'Nadiad',
+                    addressRegion: 'Gujarat',
+                    postalCode: '387001',
+                    addressCountry: 'IN',
+                },
+                sameAs: [
+                    'https://www.linkedin.com/company/aws-sbg-ddit/',
+                    'https://www.instagram.com/aws_sbg_ddit',
+                    'https://www.meetup.com/aws-sbg-ddit/',
+                ],
+                parentOrganization: {
+                    '@type': 'EducationalOrganization',
+                    name: 'Dharmsinh Desai University',
+                    url: 'https://www.ddu.ac.in',
+                },
+            },
+        ],
+    };
     const supabase = createClient();
 
     const [event, setEvent] = useState(null);
@@ -151,6 +227,23 @@ export default function SCDYearPage({ params }) {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#EFF0F3] flex flex-col items-center justify-center">
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+                <div className="sr-only">
+                    <h1>AWS Students Community Day – DDU Nadiad {year}</h1>
+                    <p>
+                        AWS Students Community Day DDU Nadiad {year} is a student-led technology conference
+                        organized by the AWS Student Builder Group at Dharmsinh Desai University, Nadiad, Gujarat.
+                        Scheduled for 26 September {year}, the event features keynote talks, technical sessions,
+                        hands-on workshops, and networking opportunities across three tracks:
+                        Agentic AI, Cloud/DevOps, and Security/SecOps.
+                    </p>
+                    <ul>
+                        <li>Date: 26 September {year}</li>
+                        <li>Venue: Dharmsinh Desai University, Nadiad, Gujarat</li>
+                        <li>Time: 9:00 AM – 6:00 PM</li>
+                        <li>Expected Attendance: 200–250 students and professionals</li>
+                    </ul>
+                </div>
                 <div className="w-12 h-12 border-4 border-[#23303E]/10 border-t-[#4F8EF7] animate-spin mb-4 rounded-full" />
                 <p className="text-[#23303E]/50 font-mono text-xs font-bold uppercase tracking-widest">Loading Event...</p>
             </div>
@@ -264,6 +357,7 @@ export default function SCDYearPage({ params }) {
 
     return (
         <div className="min-h-screen bg-[#EFF0F3] text-[#23303E] selection:bg-[#4F8EF7]/30">
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
             {/* ══════════════════════════════════════
                 HERO — Dark Cinematic & Network Graphic
@@ -314,16 +408,31 @@ export default function SCDYearPage({ params }) {
                                 <p className="font-mono font-bold text-[#EFF0F3] text-sm uppercase tracking-wider">SCD {event.year}</p>
                             </div>
                         </div>
-                        {registrationUrl ? (
-                            <a href="#tickets"
-                                className="inline-flex items-center gap-3 bg-[#4F8EF7] hover:bg-[#3b7ad6] text-white shadow-lg shadow-[#4F8EF7]/20 rounded-2xl font-bold font-mono uppercase tracking-wider text-sm px-8 py-4 transition-all duration-300 active:scale-95">
-                                GET TICKETS <ArrowRight size={15} />
-                            </a>
-                        ) : (
-                            <div className="inline-flex items-center gap-3 bg-slate-200 text-slate-500 rounded-2xl font-bold font-mono uppercase tracking-wider text-sm px-8 py-4 cursor-not-allowed">
-                                REGISTRATIONS CLOSED
-                            </div>
-                        )}
+                        <div className="flex flex-wrap items-center gap-4">
+                            {registrationUrl ? (
+                                <a href="#tickets"
+                                    className="inline-flex items-center gap-3 bg-[#4F8EF7] hover:bg-[#3b7ad6] text-white shadow-lg shadow-[#4F8EF7]/20 rounded-2xl font-bold font-mono uppercase tracking-wider text-xs sm:text-sm px-7 py-4 transition-all duration-300 active:scale-95">
+                                    GET TICKETS <ArrowRight size={15} />
+                                </a>
+                            ) : (
+                                <div className="inline-flex items-center gap-3 bg-slate-200 text-slate-500 rounded-2xl font-bold font-mono uppercase tracking-wider text-xs sm:text-sm px-7 py-4 cursor-not-allowed">
+                                    REGISTRATIONS CLOSED
+                                </div>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const rootBtn = document.querySelector('#workshops-konfhub-root button, #workshops-konfhub-root iframe, #workshops-konfhub-root a, #workshops-konfhub-root [class*="konfhub"]');
+                                    if (rootBtn) rootBtn.click();
+                                    else {
+                                        const el = document.getElementById('workshops');
+                                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                    }
+                                }}
+                                className="inline-flex items-center gap-3 bg-[#FF9900] hover:bg-[#e68a00] text-slate-950 shadow-lg shadow-[#FF9900]/20 rounded-2xl font-black font-mono uppercase tracking-wider text-xs sm:text-sm px-7 py-4 transition-all duration-300 active:scale-95 cursor-pointer">
+                                <Laptop size={16} /> GET WORKSHOP TICKET <ArrowRight size={15} />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -446,9 +555,15 @@ export default function SCDYearPage({ params }) {
                             <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight mb-3">
                                 Tickets for every builder
                             </h2>
-                            <p className="text-[#23303E]/60 text-lg font-medium">
+                            <p className="text-[#23303E]/60 text-lg font-medium mb-4">
                                 Join AWS Students Community Day {event.year}.
                             </p>
+                            <div className="inline-flex items-center gap-2.5 bg-[#4F8EF7]/10 border border-[#4F8EF7]/30 text-[#23303E] rounded-2xl px-5 py-3 text-sm font-semibold shadow-sm">
+                                <span className="text-base">💡</span>
+                                <span>
+                                    <strong>Note:</strong> We offer both <strong>General Conference Entry Passes</strong> (Super Early Bird, Early Bird, Regular) and <strong>Dedicated Workshop Passes</strong>! Swipe right to explore all 4 ticket options below.
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -464,25 +579,63 @@ export default function SCDYearPage({ params }) {
                         >
                             {tickets.map((ticket, idx) => {
                                 const perks = ticket.points ? ticket.points.split(',').map(p => p.trim()) : [];
-                                const tName = ticket.name.toLowerCase();
-                                let btnId = '';
-                                if (tName.includes('super early bird')) btnId = 'btn_bc19856f20d1';
-                                else if (tName.includes('early bird')) btnId = 'btn_168ec82c90c2';
-                                else if (tName.includes('regular')) btnId = 'btn_9be3f420f671';
-                                else if (tName.includes('workshop')) btnId = 'btn_f340f876fc8c';
-                                else if (tName.includes('golden ticket')) btnId = 'btn_52f2c75663de'
+                                const tName = (ticket.name || '').toLowerCase();
+                                const isSoldOut = ticket.status === 'sold_out' || ticket.is_sold_out === true;
+                                const ticketsLeft = ticket.tickets_left ? String(ticket.tickets_left).trim() : null;
+                                const discountText = ticket.discount ? String(ticket.discount).trim() : null;
+                                const originalPrice = ticket.original_price ? String(ticket.original_price).trim() : null;
+
+                                let btnId = ticket.button_id || '';
+                                if (!btnId) {
+                                    if (tName.includes('super early bird')) btnId = 'btn_bc19856f20d1';
+                                    else if (tName.includes('early bird')) btnId = 'btn_168ec82c90c2';
+                                    else if (tName.includes('regular')) btnId = 'btn_9be3f420f671';
+                                    else if (tName.includes('workshop')) btnId = 'btn_f340f876fc8c';
+                                }
+
+                                const isWorkshopPass = tName.includes('workshop');
+
                                 return (
                                     <div key={idx}
-                                        className="w-full max-w-[340px] md:w-[320px] md:flex-none flex flex-col bg-white border border-slate-200 rounded-3xl md:snap-center hover:shadow-2xl hover:border-[#4F8EF7]/30 transition-shadow duration-300">
+                                        className={`w-full max-w-[340px] md:w-[320px] md:flex-none flex flex-col bg-white border ${isSoldOut ? 'border-rose-200 bg-rose-50/20' : 'border-slate-200'} rounded-3xl md:snap-center hover:shadow-2xl hover:border-[#4F8EF7]/30 transition-all duration-300 relative overflow-hidden`}>
                                         <div className="p-8 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
-                                            <div className="flex items-start justify-between mb-4">
-                                                <h3 className="text-sm font-bold text-[#23303E] font-mono uppercase tracking-wide leading-tight flex-1">{ticket.name}</h3>
-                                                {ticket.status === 'sold_out' && (
-                                                    <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-white bg-rose-500 rounded-full px-2.5 py-1 shrink-0 ml-2 shadow-sm">SOLD OUT</span>
+                                            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                                                <span className={`font-mono text-[9px] font-bold uppercase tracking-wider rounded-full px-2.5 py-0.5 ${isWorkshopPass ? 'bg-[#FF9900]/20 text-[#d47f00] border border-[#FF9900]/30' : 'bg-[#4F8EF7]/10 text-[#4F8EF7]'}`}>
+                                                    {isWorkshopPass ? 'WORKSHOP PASS' : 'CONFERENCE PASS'}
+                                                </span>
+                                                {isSoldOut && (
+                                                    <span className="font-mono text-[9px] font-black uppercase tracking-widest text-white bg-rose-500 rounded-full px-2.5 py-0.5 shadow-sm">
+                                                        SOLD OUT
+                                                    </span>
+                                                )}
+                                                {!isSoldOut && discountText && (
+                                                    <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100 border border-emerald-300 rounded-full px-2.5 py-0.5">
+                                                        🏷️ {discountText}
+                                                    </span>
+                                                )}
+                                                {!isSoldOut && ticketsLeft && (
+                                                    <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 border border-amber-300 rounded-full px-2.5 py-0.5">
+                                                        🔥 {ticketsLeft.toLowerCase().includes('left') ? ticketsLeft : `Only ${ticketsLeft} left`}
+                                                    </span>
                                                 )}
                                             </div>
-                                            <div className="text-4xl font-black text-[#23303E] font-mono tracking-tight">{ticket.price}</div>
+
+                                            <h3 className="text-sm font-bold text-[#23303E] font-mono uppercase tracking-wide leading-tight mb-2">
+                                                {ticket.name}
+                                            </h3>
+
+                                            <div className="flex items-baseline gap-2">
+                                                {originalPrice && (
+                                                    <span className="text-lg font-bold text-slate-400 line-through font-mono">
+                                                        {originalPrice}
+                                                    </span>
+                                                )}
+                                                <div className="text-4xl font-black text-[#23303E] font-mono tracking-tight">
+                                                    {ticket.price}
+                                                </div>
+                                            </div>
                                         </div>
+
                                         <div className="p-8 flex-grow">
                                             {perks.length > 0 && (
                                                 <ul className="space-y-3">
@@ -497,8 +650,13 @@ export default function SCDYearPage({ params }) {
                                                 </ul>
                                             )}
                                         </div>
+
                                         <div className="px-8 pb-8">
-                                            {btnId ? (
+                                            {isSoldOut ? (
+                                                <div className="w-full flex items-center justify-center bg-rose-100 text-rose-600 border border-rose-200 rounded-2xl font-bold font-mono uppercase tracking-wider text-xs px-6 py-4 cursor-not-allowed">
+                                                    SOLD OUT
+                                                </div>
+                                            ) : btnId ? (
                                                 <KonfhubWidget buttonId={btnId} />
                                             ) : registrationUrl ? (
                                                 <a href={registrationUrl} target="_blank" rel="noopener noreferrer"
@@ -517,6 +675,66 @@ export default function SCDYearPage({ params }) {
                         </div>
                         <div className="hidden md:flex justify-center mt-[-10px]">
                             <p className="label-teal opacity-50">&larr; Swipe to view more &rarr;</p>
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            {/* ══════════════════════════════════════
+                WORKSHOPS - With image
+            ══════════════════════════════════════ */}
+            {workshops.length > 0 && (
+                <section id="workshops" className="py-24 bg-[#EFF0F3] border-t border-slate-200">
+                    <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+                        <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+                            <div>
+                                <p className="label-teal mb-4">HANDS-ON BOOTCAMPS</p>
+                                <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">Workshops</h2>
+                                <p className="text-slate-500 text-base font-medium mt-3 max-w-xl">Practical, mentor-guided cloud labs held prior to the main talks.</p>
+                            </div>
+                            <div id="workshops-konfhub-root" className="shrink-0">
+                                <KonfhubWidget buttonId="btn_f340f876fc8c" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-6">
+                            {workshops.map((ws, wsIdx) => (
+                                <div key={wsIdx} className="bg-white rounded-3xl border border-slate-200 shadow-sm group hover:-translate-y-1 hover:shadow-lg hover:border-[#4F8EF7]/30 transition-all duration-300">
+                                    <div className="flex flex-col-reverse md:flex-row">
+                                        <div className="flex-1 flex flex-col justify-between p-8">
+                                            <div>
+                                                {ws.time && <span className="label-teal inline-block mb-4">&#9200; {ws.time}</span>}
+                                                <h5 onClick={() => setActiveWorkshop(ws)} className="text-xl md:text-2xl font-bold text-[#23303E] mb-3 group-hover:text-[#4F8EF7] transition-colors cursor-pointer">{ws.title}</h5>
+                                                <p className="text-sm text-slate-500 leading-relaxed mb-6 line-clamp-3">{ws.description}</p>
+                                            </div>
+                                            <div>
+                                                {ws.speaker && <p className="font-mono text-xs font-bold text-[#23303E]/50 uppercase tracking-wider mb-4">&#128100; {ws.speaker}</p>}
+                                                <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                                                    <button type="button" onClick={() => setActiveWorkshop(ws)} className="flex items-center gap-2 label-teal group-hover:gap-3 transition-all cursor-pointer">
+                                                        View Details <ArrowRight size={12} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const rootBtn = document.querySelector('#workshops-konfhub-root button, #workshops-konfhub-root iframe, #workshops-konfhub-root a, #workshops-konfhub-root [class*="konfhub"]');
+                                                            if (rootBtn) rootBtn.click();
+                                                            else setActiveTicketBtnId(ws.button_id || 'btn_f340f876fc8c');
+                                                        }}
+                                                        className="inline-flex items-center gap-2 bg-[#FF9900] hover:bg-[#e68a00] text-slate-950 font-mono text-xs font-bold uppercase tracking-wider px-5 py-3 rounded-2xl shadow-md transition-all duration-300 active:scale-95 cursor-pointer"
+                                                    >
+                                                        <Laptop size={14} /> Get Workshop Ticket <ArrowRight size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {ws.image && (
+                                            <div onClick={() => setActiveWorkshop(ws)} className="w-full h-52 sm:h-64 md:h-auto md:w-[50%] lg:w-[45%] shrink-0 bg-slate-100 border-b md:border-b-0 md:border-l border-slate-200 relative cursor-pointer overflow-hidden rounded-t-3xl md:rounded-t-none md:rounded-r-3xl">
+                                                <img src={ws.image} alt={ws.title} className="w-full h-full object-cover absolute inset-0 group-hover:scale-105 transition-transform duration-500" />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </section>
@@ -570,12 +788,12 @@ export default function SCDYearPage({ params }) {
                                             <thead>
                                                 <tr className="bg-slate-50 border-b border-slate-200">
                                                     {showTimeslot && (
-                                                    <th className="py-4 px-6 font-mono text-xs font-bold text-slate-500 uppercase tracking-wider w-36 border-r border-slate-200">
-                                                        Slot
-                                                    </th>
+                                                        <th className="py-4 px-6 font-mono text-xs font-bold text-slate-500 uppercase tracking-wider w-36 border-r border-slate-200">
+                                                            Slot
+                                                        </th>
                                                     )}
                                                     {tracks.map((track, tIdx) => (
-                                                        <th key={tIdx} className="py-4 px-6 font-mono text-xs font-bold text-[#23303E] uppercase tracking-wider border-r last:border-r-0 border-slate-200">
+                                                        <th key={tIdx} className="py-4 px-6 font-mono text-xl font-bold text-[#23303E] uppercase tracking-wider border-r last:border-r-0 border-slate-200">
                                                             {track.name || `Track ${tIdx + 1}`}
                                                         </th>
                                                     ))}
@@ -600,9 +818,9 @@ export default function SCDYearPage({ params }) {
                                                         return (
                                                             <tr key={rowIdx} className="bg-slate-50/70 hover:bg-slate-100/60 transition-colors">
                                                                 {showTimeslot && (
-                                                                <td className="py-4 px-6 font-mono text-xs font-bold text-slate-400 border-r border-slate-200 whitespace-nowrap align-middle">
-                                                                    {slotLabel}
-                                                                </td>
+                                                                    <td className="py-4 px-6 font-mono text-xs font-bold text-slate-400 border-r border-slate-200 whitespace-nowrap align-middle">
+                                                                        {slotLabel}
+                                                                    </td>
                                                                 )}
                                                                 <td colSpan={tracks.length} className="py-6 px-6 text-center align-middle">
                                                                     <div className="font-bold text-[#23303E] text-base">{firstSession.title}</div>
@@ -615,9 +833,9 @@ export default function SCDYearPage({ params }) {
                                                         return (
                                                             <tr key={rowIdx} className="hover:bg-slate-50/30 transition-colors">
                                                                 {showTimeslot && (
-                                                                <td className="py-4 px-6 font-mono text-xs font-bold text-slate-400 border-r border-slate-200 whitespace-nowrap align-top">
-                                                                    {slotLabel}
-                                                                </td>
+                                                                    <td className="py-4 px-6 font-mono text-xs font-bold text-slate-400 border-r border-slate-200 whitespace-nowrap align-top">
+                                                                        {slotLabel}
+                                                                    </td>
                                                                 )}
                                                                 {trackSessions.map((session, colIdx) => (
                                                                     <td key={colIdx} className="py-5 px-6 border-r last:border-r-0 border-slate-200 align-top">
@@ -657,47 +875,6 @@ export default function SCDYearPage({ params }) {
                                 ))}
                             </div>
                         )}
-                    </div>
-                </section>
-            )}
-
-            {/* ══════════════════════════════════════
-                WORKSHOPS - With image
-            ══════════════════════════════════════ */}
-            {workshops.length > 0 && (
-                <section id="workshops" className="py-24 bg-[#EFF0F3] border-t border-slate-200">
-                    <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
-                        <div className="mb-12">
-                            <p className="label-teal mb-4">HANDS-ON BOOTCAMPS</p>
-                            <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">Workshops</h2>
-                            <p className="text-slate-500 text-base font-medium mt-3 max-w-xl">Practical, mentor-guided cloud labs held prior to the main talks.</p>
-                        </div>
-                        <div className="grid grid-cols-1 gap-6">
-                            {workshops.map((ws, wsIdx) => (
-                                <div key={wsIdx} onClick={() => setActiveWorkshop(ws)} className="bg-white rounded-3xl border border-slate-200 shadow-sm group cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:border-[#4F8EF7]/30 transition-all duration-300 overflow-hidden">
-                                    <div className="flex flex-col-reverse md:flex-row">
-                                        <div className="flex-1 flex flex-col justify-between p-8">
-                                            <div>
-                                                {ws.time && <span className="label-teal inline-block mb-4">&#9200; {ws.time}</span>}
-                                                <h5 className="text-xl md:text-2xl font-bold text-[#23303E] mb-3 group-hover:text-[#4F8EF7] transition-colors">{ws.title}</h5>
-                                                <p className="text-sm text-slate-500 leading-relaxed mb-6 line-clamp-3">{ws.description}</p>
-                                            </div>
-                                            <div>
-                                                {ws.speaker && <p className="font-mono text-xs font-bold text-[#23303E]/50 uppercase tracking-wider mb-4">&#128100; {ws.speaker}</p>}
-                                                <div className="flex items-center gap-2 label-teal group-hover:gap-3 transition-all">
-                                                    View Details <ArrowRight size={12} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {ws.image && (
-                                            <div className="w-full h-52 sm:h-64 md:h-auto md:w-[50%] lg:w-[45%] shrink-0 bg-slate-100 border-b md:border-b-0 md:border-l border-slate-200 relative">
-                                                <img src={ws.image} alt={ws.title} className="w-full h-full object-cover absolute inset-0 group-hover:scale-105 transition-transform duration-500" />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
                     </div>
                 </section>
             )}
@@ -919,7 +1096,7 @@ export default function SCDYearPage({ params }) {
             {/* KONFHUB FULL-SCREEN POPUP MODAL */}
             {activeTicketBtnId && (
                 <div
-                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
+                    className="fixed inset-0 z-[100] flex items-start justify-center pt-10 sm:pt-14 pb-6 bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) setActiveTicketBtnId(null);
                     }}
@@ -934,7 +1111,7 @@ export default function SCDYearPage({ params }) {
                     </button>
 
                     {/* Widget Wrapper */}
-                    <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto my-auto flex justify-center items-center">
+                    <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto flex justify-center items-center -mt-2">
                         <KonfhubWidget buttonId={activeTicketBtnId} />
                     </div>
                 </div>

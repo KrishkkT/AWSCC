@@ -751,16 +751,83 @@ export default function AdminCommunityDay() {
                                 </div>
                                 <div className="space-y-4 md:col-span-2 mt-4">
                                     <h4 className="text-lg font-black text-brand-cyan border-b border-white/10 pb-2 flex items-center justify-between">
-                                        Ticket Pricing Tiers
-                                        <button type="button" onClick={() => setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: [...formData.ticket_data.tickets, { name: '', price: '', points: '' }]}})} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Ticket</button>
+                                        Ticket Pricing Tiers & Availability
+                                        <button type="button" onClick={() => setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: [...formData.ticket_data.tickets, { name: '', price: '', original_price: '', points: '', status: 'available', is_sold_out: false, tickets_left: '', discount: '' }]}})} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Ticket</button>
                                     </h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {(formData.ticket_data.tickets || []).map((ticket, idx) => (
-                                            <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 md:p-5 relative">
+                                            <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 md:p-5 relative space-y-3">
                                                 <button type="button" onClick={() => { const t = [...formData.ticket_data.tickets]; t.splice(idx,1); setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full sm:bg-transparent"><X size={14}/></button>
-                                                <input type="text" value={ticket.name} onChange={e => { const t = [...formData.ticket_data.tickets]; t[idx].name = e.target.value; setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }} placeholder="Ticket Tier Name (e.g. VIP)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 mb-3 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan font-bold transition-all placeholder:text-white/30 placeholder:font-normal" />
-                                                <input type="text" value={ticket.price} onChange={e => { const t = [...formData.ticket_data.tickets]; t[idx].price = e.target.value; setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }} placeholder="Price (e.g. Free, ₹299)" className="w-full bg-white/5 border border-brand-cyan/20 rounded-lg px-3 py-2.5 mb-4 text-brand-cyan outline-none focus:border-brand-cyan focus:bg-brand-cyan/5 transition-all placeholder:text-brand-cyan/50 font-medium" />
-                                                <textarea rows={3} value={ticket.points} onChange={e => { const t = [...formData.ticket_data.tickets]; t[idx].points = e.target.value; setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }} placeholder="Perks & Benefits (comma separated)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white/70 text-sm outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan resize-none transition-all placeholder:text-white/30 leading-relaxed"></textarea>
+                                                
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider block mb-1">Ticket Name</label>
+                                                    <input type="text" value={ticket.name || ''} onChange={e => { const t = [...formData.ticket_data.tickets]; t[idx].name = e.target.value; setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }} placeholder="Ticket Tier Name (e.g. Super Early Bird)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan font-bold text-sm transition-all placeholder:text-white/30 placeholder:font-normal" />
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-brand-cyan/70 uppercase tracking-wider block mb-1">Current Price</label>
+                                                        <input type="text" value={ticket.price || ''} onChange={e => { const t = [...formData.ticket_data.tickets]; t[idx].price = e.target.value; setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }} placeholder="e.g. ₹199 or Free" className="w-full bg-white/5 border border-brand-cyan/20 rounded-lg px-3 py-2 text-brand-cyan outline-none focus:border-brand-cyan focus:bg-brand-cyan/5 text-sm transition-all placeholder:text-brand-cyan/40 font-medium" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider block mb-1">Original Price (Strikethrough)</label>
+                                                        <input type="text" value={ticket.original_price || ''} onChange={e => { const t = [...formData.ticket_data.tickets]; t[idx].original_price = e.target.value; setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }} placeholder="e.g. ₹499" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white/60 outline-none focus:border-brand-cyan text-sm transition-all placeholder:text-white/20 font-medium" />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2 pt-2 border-t border-white/10">
+                                                    <label className="flex items-center justify-between cursor-pointer bg-white/5 p-2 rounded-lg border border-white/5 hover:border-white/10 transition-all select-none">
+                                                        <span className="text-xs font-bold text-red-400 flex items-center gap-1.5">
+                                                            Mark as Sold Out
+                                                        </span>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={ticket.status === 'sold_out' || ticket.is_sold_out === true}
+                                                            onChange={e => {
+                                                                const t = [...formData.ticket_data.tickets];
+                                                                t[idx].status = e.target.checked ? 'sold_out' : 'available';
+                                                                t[idx].is_sold_out = e.target.checked;
+                                                                setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}});
+                                                            }}
+                                                            className="w-4 h-4 accent-red-500 rounded cursor-pointer"
+                                                        />
+                                                    </label>
+
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-amber-400/80 uppercase tracking-wider block mb-1">Only [N] Tickets Left (Urgency)</label>
+                                                        <input
+                                                            type="text"
+                                                            value={ticket.tickets_left || ''}
+                                                            onChange={e => {
+                                                                const t = [...formData.ticket_data.tickets];
+                                                                t[idx].tickets_left = e.target.value;
+                                                                setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}});
+                                                            }}
+                                                            placeholder="e.g. 15 or Only 10 left!"
+                                                            className="w-full bg-white/5 border border-amber-500/20 rounded-lg px-3 py-1.5 text-xs text-amber-300 outline-none focus:border-amber-400 font-medium placeholder:text-amber-500/30"
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-emerald-400/80 uppercase tracking-wider block mb-1">Discount Tag / Offer</label>
+                                                        <input
+                                                            type="text"
+                                                            value={ticket.discount || ''}
+                                                            onChange={e => {
+                                                                const t = [...formData.ticket_data.tickets];
+                                                                t[idx].discount = e.target.value;
+                                                                setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}});
+                                                            }}
+                                                            placeholder="e.g. 20% OFF or Student Discount"
+                                                            className="w-full bg-white/5 border border-emerald-500/20 rounded-lg px-3 py-1.5 text-xs text-emerald-300 outline-none focus:border-emerald-400 font-medium placeholder:text-emerald-500/30"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider block mb-1">Perks & Benefits (comma separated)</label>
+                                                    <textarea rows={2} value={ticket.points || ''} onChange={e => { const t = [...formData.ticket_data.tickets]; t[idx].points = e.target.value; setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }} placeholder="Perks & Benefits (comma separated)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white/70 text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan resize-none transition-all placeholder:text-white/30 leading-relaxed"></textarea>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

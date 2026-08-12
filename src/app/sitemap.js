@@ -1,24 +1,52 @@
 export default function sitemap() {
-  const baseUrl = 'https://aws.ddu.ac.in';
-
-  const routes = [
-    '',
-    '/about',
-    '/community',
-    '/community-day',
-    '/contact',
-    '/events',
-    '/gallery',
-    '/knowledge',
-    '/resources',
-    '/team',
-    '/verify',
-  ].map((route) => ({
-    url: `${baseUrl}${route}`,
-    lastModified: new Date().toISOString().split('T')[0],
-    changeFrequency: 'monthly',
-    priority: route === '' ? 1 : 0.8,
-  }));
-
-  return routes;
+  return [
+    {
+      url: 'https://aws.ddu.ac.in',
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 1,
+    },
+    {
+      url: 'https://aws.ddu.ac.in/scd/2026',
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
+    {
+      url: 'https://aws.ddu.ac.in/about',
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: 'https://aws.ddu.ac.in/events',
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
+      url: 'https://aws.ddu.ac.in/team',
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+    {
+      url: 'https://aws.ddu.ac.in/contact',
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+    {
+      url: 'https://aws.ddu.ac.in/gallery',
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+    {
+      url: 'https://aws.ddu.ac.in/resources',
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+  ];
 }
