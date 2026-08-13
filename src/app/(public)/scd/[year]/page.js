@@ -1,7 +1,9 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
+import { parseTicketPoints } from "@/utils";
 import { useEffect, useState, use, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
     MapPin,
@@ -22,9 +24,19 @@ import {
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────
+   PORTAL COMPONENT
+───────────────────────────────────────────────────────────── */
+const Portal = ({ children }) => {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+    if (!mounted || typeof document === 'undefined') return null;
+    return createPortal(children, document.body);
+};
+
+/* ─────────────────────────────────────────────────────────────
    KONFHUB WIDGET
 ───────────────────────────────────────────────────────────── */
-const KonfhubWidget = ({ buttonId }) => {
+const KonfhubWidget = ({ buttonId, autoOpen = false }) => {
     const containerRef = useRef(null);
     useEffect(() => {
         if (!containerRef.current) return;
@@ -34,8 +46,25 @@ const KonfhubWidget = ({ buttonId }) => {
         script.setAttribute('button_id', buttonId);
         script.async = true;
         containerRef.current.appendChild(script);
-        return () => { if (containerRef.current) containerRef.current.innerHTML = ''; };
-    }, [buttonId]);
+
+        let observer;
+        if (autoOpen) {
+            observer = new MutationObserver(() => {
+                const btn = containerRef.current?.querySelector('button, a, [role="button"]');
+                if (btn && typeof btn.click === 'function') {
+                    btn.click();
+                    observer.disconnect();
+                }
+            });
+            observer.observe(containerRef.current, { childList: true, subtree: true });
+        }
+
+        return () => {
+            if (observer) observer.disconnect();
+            if (containerRef.current) containerRef.current.innerHTML = '';
+        };
+    }, [buttonId, autoOpen]);
+
     return <div ref={containerRef} className="w-full flex justify-center p-0 m-0" />;
 };
 
@@ -419,19 +448,12 @@ export default function SCDYearPage({ params }) {
                                     REGISTRATIONS CLOSED
                                 </div>
                             )}
-                            <button
+                            <Link
                                 type="button"
-                                onClick={() => {
-                                    const rootBtn = document.querySelector('#workshops-konfhub-root button, #workshops-konfhub-root iframe, #workshops-konfhub-root a, #workshops-konfhub-root [class*="konfhub"]');
-                                    if (rootBtn) rootBtn.click();
-                                    else {
-                                        const el = document.getElementById('workshops');
-                                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                                    }
-                                }}
+                                href="/scd/2026/#workshops"
                                 className="inline-flex items-center gap-3 bg-[#FF9900] hover:bg-[#e68a00] text-slate-950 shadow-lg shadow-[#FF9900]/20 rounded-2xl font-black font-mono uppercase tracking-wider text-xs sm:text-sm px-7 py-4 transition-all duration-300 active:scale-95 cursor-pointer">
                                 <Laptop size={16} /> GET WORKSHOP TICKET <ArrowRight size={15} />
-                            </button>
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -578,7 +600,7 @@ export default function SCDYearPage({ params }) {
                             className={`flex flex-col md:flex-row md:overflow-x-auto md:snap-x md:snap-mandatory gap-6 pb-12 pt-4 no-scrollbar items-center md:items-stretch justify-start md:justify-start ${isTicketDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
                         >
                             {tickets.map((ticket, idx) => {
-                                const perks = ticket.points ? ticket.points.split(',').map(p => p.trim()) : [];
+                                const perks = parseTicketPoints(ticket.points);
                                 const tName = (ticket.name || '').toLowerCase();
                                 const isSoldOut = ticket.status === 'sold_out' || ticket.is_sold_out === true;
                                 const ticketsLeft = ticket.tickets_left ? String(ticket.tickets_left).trim() : null;
@@ -639,7 +661,7 @@ export default function SCDYearPage({ params }) {
                                         <div className="p-8 flex-grow">
                                             {perks.length > 0 && (
                                                 <ul className="space-y-3">
-                                                    {perks.slice(0, 5).map((perk, pIdx) => (
+                                                    {perks.map((perk, pIdx) => (
                                                         <li key={pIdx} className="flex items-start gap-3 text-sm text-slate-600 font-medium">
                                                             <div className="w-5 h-5 rounded-full bg-[#4F8EF7]/10 flex items-center justify-center shrink-0 mt-0.5">
                                                                 <Check size={10} className="text-[#4F8EF7]" />
@@ -686,15 +708,10 @@ export default function SCDYearPage({ params }) {
             {workshops.length > 0 && (
                 <section id="workshops" className="py-24 bg-[#EFF0F3] border-t border-slate-200">
                     <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
-                        <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-                            <div>
-                                <p className="label-teal mb-4">HANDS-ON BOOTCAMPS</p>
-                                <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">Workshops</h2>
-                                <p className="text-slate-500 text-base font-medium mt-3 max-w-xl">Practical, mentor-guided cloud labs held prior to the main talks.</p>
-                            </div>
-                            <div id="workshops-konfhub-root" className="shrink-0">
-                                <KonfhubWidget buttonId="btn_f340f876fc8c" />
-                            </div>
+                        <div className="mb-12">
+                            <p className="label-teal mb-4">HANDS-ON BOOTCAMPS</p>
+                            <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">Workshops</h2>
+                            <p className="text-slate-500 text-base font-medium mt-3 max-w-xl">Practical, mentor-guided cloud labs held prior to the main talks.</p>
                         </div>
                         <div className="grid grid-cols-1 gap-6">
                             {workshops.map((ws, wsIdx) => (
@@ -716,9 +733,7 @@ export default function SCDYearPage({ params }) {
                                                         type="button"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            const rootBtn = document.querySelector('#workshops-konfhub-root button, #workshops-konfhub-root iframe, #workshops-konfhub-root a, #workshops-konfhub-root [class*="konfhub"]');
-                                                            if (rootBtn) rootBtn.click();
-                                                            else setActiveTicketBtnId(ws.button_id || 'btn_f340f876fc8c');
+                                                            setActiveTicketBtnId(ws.button_id || 'btn_f340f876fc8c');
                                                         }}
                                                         className="inline-flex items-center gap-2 bg-[#FF9900] hover:bg-[#e68a00] text-slate-950 font-mono text-xs font-bold uppercase tracking-wider px-5 py-3 rounded-2xl shadow-md transition-all duration-300 active:scale-95 cursor-pointer"
                                                     >
@@ -1095,26 +1110,27 @@ export default function SCDYearPage({ params }) {
 
             {/* KONFHUB FULL-SCREEN POPUP MODAL */}
             {activeTicketBtnId && (
-                <div
-                    className="fixed inset-0 z-[100] flex items-start justify-center pt-10 sm:pt-14 pb-6 bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) setActiveTicketBtnId(null);
-                    }}
-                >
-                    {/* Fixed Top-Right Close Button */}
-                    <button
-                        onClick={() => setActiveTicketBtnId(null)}
-                        className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[110] text-white bg-slate-800/90 hover:bg-slate-700 p-2.5 rounded-full transition-all cursor-pointer shadow-2xl backdrop-blur-md flex items-center justify-center border border-white/20 hover:scale-105"
-                        title="Close Modal"
+                <Portal>
+                    <div
+                        className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) setActiveTicketBtnId(null);
+                        }}
                     >
-                        <X size={22} strokeWidth={2.5} />
-                    </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTicketBtnId(null)}
+                            className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100000] text-white bg-slate-800/90 hover:bg-slate-700 p-3 rounded-full transition-all cursor-pointer shadow-2xl backdrop-blur-md flex items-center justify-center border border-white/20 hover:scale-105"
+                            title="Close Modal"
+                        >
+                            <X size={22} strokeWidth={2.5} />
+                        </button>
 
-                    {/* Widget Wrapper */}
-                    <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto flex justify-center items-center -mt-2">
-                        <KonfhubWidget buttonId={activeTicketBtnId} />
+                        <div className="relative w-full max-w-2xl max-h-[90vh] my-auto flex justify-center items-center">
+                            <KonfhubWidget buttonId={activeTicketBtnId} autoOpen={true} />
+                        </div>
                     </div>
-                </div>
+                </Portal>
             )}
         </div>
     );
