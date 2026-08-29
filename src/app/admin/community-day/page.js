@@ -825,8 +825,8 @@ export default function AdminCommunityDay() {
                                                 </div>
 
                                                 <div>
-                                                    <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider block mb-1">Perks & Benefits (comma separated)</label>
-                                                    <textarea rows={2} value={ticket.points || ''} onChange={e => { const t = [...formData.ticket_data.tickets]; t[idx].points = e.target.value; setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }} placeholder="Perks & Benefits (comma separated)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white/70 text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan resize-none transition-all placeholder:text-white/30 leading-relaxed"></textarea>
+                                                    <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider block mb-1">Perks & Benefits (newline or comma separated)</label>
+                                                    <textarea rows={3} value={ticket.points || ''} onChange={e => { const t = [...formData.ticket_data.tickets]; t[idx].points = e.target.value; setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }} placeholder="Perks & Benefits (Put each point on a new line, or separate with commas. Newlines allow commas inside a point!)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white/70 text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30 leading-relaxed"></textarea>
                                                 </div>
                                             </div>
                                         ))}
