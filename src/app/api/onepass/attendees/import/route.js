@@ -40,24 +40,59 @@ export async function POST(req) {
             const rawRow = rows[i];
             const rowIndex = i + 1;
 
-            // Map fields according to provided mapping
-            const name = (rawRow[mapping?.name || 'name'] || rawRow['Name'] || rawRow['Full Name'] || rawRow['Attendee Name'] || '').trim();
-            const email = (rawRow[mapping?.email || 'email'] || rawRow['Email'] || rawRow['Email Address'] || '').trim().toLowerCase();
-            const phone = (rawRow[mapping?.phone || 'phone'] || rawRow['Phone'] || rawRow['Contact'] || rawRow['Mobile'] || '').trim();
-            const bookingId = (rawRow[mapping?.booking_id || 'booking_id'] || rawRow['Booking ID'] || rawRow['Order ID'] || rawRow['Ticket ID'] || '').trim();
-            const registrationId = (rawRow[mapping?.registration_id || 'registration_id'] || rawRow['Registration ID'] || rawRow['Ref ID'] || '').trim();
-            const ticketType = (rawRow[mapping?.ticket_type || 'ticket_type'] || rawRow['Ticket Type'] || rawRow['Ticket'] || 'Attendee').trim();
-            let qrIdentifier = (rawRow[mapping?.qr_identifier || 'qr_identifier'] || rawRow['QR Code'] || rawRow['QR Identifier'] || rawRow['QR'] || '').trim();
+            // Map fields according to provided mapping or common column header variations
+            let name = (rawRow[mapping?.name || 'name'] || rawRow['Name'] || rawRow['Full Name'] || rawRow['Attendee Name'] || rawRow['Attendee'] || '').trim();
+            let email = (rawRow[mapping?.email || 'email'] || rawRow['Email'] || rawRow['Email Address'] || rawRow['Mail'] || '').trim().toLowerCase();
+            let phone = (rawRow[mapping?.phone || 'phone'] || rawRow['Phone'] || rawRow['Contact'] || rawRow['Mobile'] || rawRow['Contact Number'] || '').trim();
+            let bookingId = (rawRow[mapping?.booking_id || 'booking_id'] || rawRow['Booking ID'] || rawRow['BookingId'] || rawRow['Order ID'] || rawRow['Ticket ID'] || '').trim();
+            let registrationId = (rawRow[mapping?.registration_id || 'registration_id'] || rawRow['Registration ID'] || rawRow['Ref ID'] || rawRow['Payment ID'] || '').trim();
+            let ticketType = (rawRow[mapping?.ticket_type || 'ticket_type'] || rawRow['Ticket Type'] || rawRow['Ticket'] || 'Attendee').trim();
+            let qrCode = (rawRow[mapping?.qr_code || 'qr_code'] || rawRow['QR Code'] || rawRow['QR Data'] || rawRow['QR Value'] || rawRow['QR'] || '').trim();
+            let qrFileName = (rawRow[mapping?.qr_file_name || 'qr_file_name'] || rawRow['QR File Name'] || rawRow['QR Filename'] || rawRow['QR File'] || rawRow['File Name'] || rawRow['QR Image'] || '').trim();
+            let qrIdentifier = (rawRow[mapping?.qr_identifier || 'qr_identifier'] || qrFileName || qrCode || '').trim();
+
+            // Smart extraction from QR Code (e.g. "id:10e90612|n:Meet|eid:ab9168b3-c610-4edc-bb16-b45f9517820c")
+            if (qrCode && qrCode.includes('|')) {
+                const parts = qrCode.split('|');
+                for (const part of parts) {
+                    const [k, ...v] = part.split(':');
+                    if (k && v.length > 0) {
+                        const val = v.join(':').trim();
+                        if (k.toLowerCase() === 'id' && !bookingId) bookingId = val;
+                        if (k.toLowerCase() === 'n' && !name) name = val;
+                    }
+                }
+            }
+
+            // Smart extraction from QR File Name (e.g. "Meet-10e90612.png" or "Meet-10e90612")
+            if (qrFileName) {
+                const cleanFile = qrFileName.replace(/\.(png|jpg|jpeg|webp|svg)$/i, '');
+                if (cleanFile.includes('-')) {
+                    const segs = cleanFile.split('-');
+                    if (!name && segs[0]) name = segs[0].trim();
+                    if (!bookingId && segs.length > 1) bookingId = segs[segs.length - 1].trim();
+                }
+            }
+
+            // Fallback for Name if still empty
+            if (!name) {
+                name = bookingId ? `Attendee ${bookingId}` : `Attendee ${rowIndex}`;
+            }
+
+            // Fallback for Booking ID if empty
+            if (!bookingId) {
+                bookingId = `BK-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+            }
+
+            // Fallback for Email if missing in sheet
+            if (!email) {
+                const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                email = `${safeName || 'attendee'}.${bookingId.toLowerCase()}@scd2026.ddu.ac.in`;
+            }
 
             const errors = [];
 
-            if (!name) {
-                errors.push('Missing name');
-            }
-
-            if (!email) {
-                errors.push('Missing email address');
-            } else if (!email.includes('@') || !email.includes('.')) {
+            if (!email.includes('@')) {
                 errors.push('Invalid email format');
             }
 
@@ -68,9 +103,6 @@ export async function POST(req) {
             if (bookingId && seenFileBookingIds.has(bookingId.toLowerCase())) {
                 errors.push('Duplicate booking ID within imported file');
             }
-            if (qrIdentifier && seenFileQRs.has(qrIdentifier.toLowerCase())) {
-                errors.push('Duplicate QR code within imported file');
-            }
 
             // Check duplicate in database
             if (email && existingEmails.has(email)) {
@@ -78,9 +110,6 @@ export async function POST(req) {
             }
             if (bookingId && existingBookingIds.has(bookingId.toLowerCase())) {
                 errors.push('Booking ID already exists in database');
-            }
-            if (qrIdentifier && existingQRs.has(qrIdentifier.toLowerCase())) {
-                errors.push('QR identifier already assigned to another attendee');
             }
 
             if (errors.length > 0) {
@@ -106,26 +135,26 @@ export async function POST(req) {
             if (bookingId) seenFileBookingIds.add(bookingId.toLowerCase());
             if (qrIdentifier) seenFileQRs.add(qrIdentifier.toLowerCase());
 
-            // Auto-generate QR if not present
-            let qrToken = '';
-            if (!qrIdentifier) {
+            // Assign proper QR identifier and QR token
+            let finalQRIdentifier = qrIdentifier || qrFileName || qrCode;
+            let finalQRToken = qrCode || qrFileName || qrIdentifier;
+
+            if (!finalQRIdentifier) {
                 const generated = generateQRToken('SCD26');
-                qrIdentifier = generated.qr_identifier;
-                qrToken = generated.qr_token;
-                warnings.push({ row_number: rowIndex, name, message: `Auto-generated QR code: ${qrIdentifier}` });
-            } else {
-                qrToken = qrIdentifier;
+                finalQRIdentifier = generated.qr_identifier;
+                finalQRToken = generated.qr_token;
+                warnings.push({ row_number: rowIndex, name, message: `Auto-generated QR code: ${finalQRIdentifier}` });
             }
 
             validRecords.push({
                 name,
                 email,
                 phone,
-                booking_id: bookingId || `BK-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+                booking_id: bookingId,
                 registration_id: registrationId || `REG-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
                 ticket_type: ticketType,
-                qr_identifier: qrIdentifier,
-                qr_token: qrToken
+                qr_identifier: finalQRIdentifier,
+                qr_token: finalQRToken
             });
         }
 

@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Settings as SettingsIcon, User, Shield, Bell, Save, Loader2 } from "lucide-react";
+import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
 
 export default function Settings() {
@@ -59,12 +60,21 @@ export default function Settings() {
             await supabase
                 .from('global_settings')
                 .upsert([{ ...globalSettings, id: '1', updated_at: new Date().toISOString() }]);
+
+            await logActivity(
+                supabase,
+                'Updated System Settings',
+                `Maintenance Mode: ${globalSettings.maintenance_mode ? 'ENABLED' : 'DISABLED'}, Announcement: "${globalSettings.announcement_banner || 'None'}"`,
+                globalSettings.maintenance_mode ? 'warning' : 'success'
+            );
         }
 
         if (pError) {
             setFeedback({ type: 'error', message: pError.message });
+            await logActivity(supabase, 'Profile Update Failed', `Error: ${pError.message}`, 'error');
         } else {
             setFeedback({ type: 'success', message: 'Configuration updated successfully!' });
+            await logActivity(supabase, 'Updated Profile', `Updated admin profile name to "${profile.full_name}"`, 'info');
         }
         setSaving(false);
         setTimeout(() => setFeedback(null), 3000);

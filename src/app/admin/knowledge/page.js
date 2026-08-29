@@ -1,9 +1,9 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, Plus, Trash2, Edit2, Save, X, Loader2, Eye, FileText } from "lucide-react";
+import { BookOpen, Plus, Trash2, Edit2, Save, X, Loader2, Eye, EyeOff } from "lucide-react";
 import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
 
@@ -24,19 +24,20 @@ export default function AdminKnowledge() {
 
     const supabase = createClient();
 
-    useEffect(() => {
-        fetchArticles();
-    }, []);
-
-    async function fetchArticles() {
+    const fetchArticles = useCallback(async () => {
         setLoading(true);
         const { data, error } = await supabase
             .from('knowledge_articles')
             .select('*')
             .order('created_at', { ascending: false });
         if (!error) setArticles(data || []);
+        else console.error('Error fetching articles:', error);
         setLoading(false);
-    }
+    }, [supabase]);
+
+    useEffect(() => {
+        fetchArticles();
+    }, [fetchArticles]);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -49,6 +50,7 @@ export default function AdminKnowledge() {
                 .eq('id', editingArticle.id);
 
             if (!error) {
+                await logActivity(supabase, 'Updated Knowledge Article', `Updated article: "${formData.title}" (${formData.category}, Published: ${formData.is_published ? 'YES' : 'NO'})`, 'info');
                 setFeedback({ message: 'Article updated!', type: 'success' });
                 setShowModal(false);
                 fetchArticles();
@@ -61,6 +63,7 @@ export default function AdminKnowledge() {
                 .insert([formData]);
 
             if (!error) {
+                await logActivity(supabase, 'Created Knowledge Article', `Created article: "${formData.title}" (${formData.category}, Published: ${formData.is_published ? 'YES' : 'NO'})`, 'success');
                 setFeedback({ message: 'Article created!', type: 'success' });
                 setShowModal(false);
                 fetchArticles();
@@ -73,8 +76,10 @@ export default function AdminKnowledge() {
 
     async function handleDelete(id) {
         if (confirm('Delete this article?')) {
+            const articleToDelete = articles.find(a => a.id === id);
             const { error } = await supabase.from('knowledge_articles').delete().eq('id', id);
             if (!error) {
+                await logActivity(supabase, 'Deleted Knowledge Article', `Deleted article: "${articleToDelete?.title || id}" (${articleToDelete?.category || 'General'})`, 'warning');
                 setFeedback({ message: 'Article removed!', type: 'info' });
                 fetchArticles();
             } else {
@@ -111,50 +116,55 @@ export default function AdminKnowledge() {
                     <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-5xl font-black text-white mb-2 tracking-tight">
                         Knowledge <span className="text-brand-cyan">Base</span>
                     </motion.h1>
-                    <p className="text-white/40 font-medium">Publish deep-dives and technical articles.</p>
+                    <p className="text-white/40 font-medium">Publish technical papers and engineering articles.</p>
                 </div>
                 <button onClick={() => openModal()} className="btn-primary px-8 py-4 flex items-center gap-3">
-                    <Plus size={20} /> Write Article
+                    <Plus size={20} /> Publish Article
                 </button>
             </div>
 
             {loading ? (
-                <div className="text-center py-20 animate-pulse text-white/20 font-black tracking-widest uppercase">Indexing Knowledge...</div>
+                <div className="text-center py-20 animate-pulse text-white/20 font-black tracking-widest uppercase">Fetching Articles...</div>
             ) : (
-                <div className="space-y-4">
-                    {articles.map((article, i) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {articles.map((art, i) => (
                         <motion.div
-                            key={article.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
+                            key={art.id}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: i * 0.05 }}
-                            className="glass-card p-6 border-white/5 hover:border-brand-cyan/20 transition-all flex items-center justify-between group"
+                            className="glass-card p-6 border-white/5 hover:border-brand-cyan/20 transition-all flex flex-col justify-between"
                         >
-                            <div className="flex items-center gap-6 min-w-0">
-                                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-white/20 group-hover:text-brand-cyan transition-colors">
-                                    <BookOpen size={20} />
-                                </div>
-                                <div className="min-w-0">
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <h3 className="text-white font-bold truncate">{article.title}</h3>
-                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${article.is_published ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
-                                            {article.is_published ? 'Published' : 'Draft'}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/20">
-                                        <span>{article.category}</span>
-                                        <span>·</span>
-                                        <span>{new Date(article.created_at).toLocaleDateString()}</span>
+                            <div>
+                                <div className="flex items-center justify-between gap-4 mb-4">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-brand-cyan bg-brand-cyan/5 border border-brand-cyan/10 px-3 py-1 rounded-md">
+                                        {art.category}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 text-xs font-bold text-white/40">
+                                        {art.is_published ? (
+                                            <span className="flex items-center gap-1 text-green-400"><Eye size={14} /> Published</span>
+                                        ) : (
+                                            <span className="flex items-center gap-1 text-yellow-400"><EyeOff size={14} /> Draft</span>
+                                        )}
                                     </div>
                                 </div>
+                                <h3 className="text-white font-bold text-xl mb-2">{art.title}</h3>
+                                <p className="text-white/40 text-xs line-clamp-3 leading-relaxed mb-6">{art.excerpt || art.content}</p>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <button onClick={() => openModal(article)} className="btn-crud-edit" title="Edit Article">
-                                    <Edit2 size={16} />
-                                </button>
-                                <button onClick={() => handleDelete(article.id)} className="btn-crud-delete" title="Delete Article">
-                                    <Trash2 size={16} />
-                                </button>
+
+                            <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-auto">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-white/20">
+                                    {new Date(art.created_at).toLocaleDateString()}
+                                </span>
+
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => openModal(art)} className="btn-crud-edit" title="Edit Article">
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button onClick={() => handleDelete(art.id)} className="btn-crud-delete" title="Delete Article">
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     ))}
@@ -163,55 +173,90 @@ export default function AdminKnowledge() {
 
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-brand-dark/90 backdrop-blur-md" onClick={() => setShowModal(false)} />
-                    <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} className="glass-card w-full max-w-4xl p-10 relative z-10 border-white/10 overflow-y-auto max-h-[90vh] no-scrollbar">
-                        <div className="flex items-center justify-between mb-10">
-                            <h2 className="text-3xl font-black text-white">{editingArticle ? 'Refine' : 'Compose'} Article</h2>
-                            <button onClick={() => setShowModal(false)} className="text-white/20 hover:text-white transition-colors"><X size={24} /></button>
+                    <div className="absolute inset-0 bg-brand-dark/95 backdrop-blur-md" onClick={() => setShowModal(false)} />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="glass-card w-full max-w-2xl p-10 relative z-10 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] max-h-[90vh] overflow-y-auto"
+                    >
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <h2 className="text-2xl font-black text-white">{editingArticle ? 'Edit Article' : 'Compose Article'}</h2>
+                                <p className="text-xs text-white/40 font-bold uppercase tracking-widest mt-1">Publish to Community Library</p>
+                            </div>
+                            <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white transition-colors">
+                                <X size={24} />
+                            </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-8">
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                <div className="lg:col-span-2 space-y-6">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase text-white/30 ml-1">Article Title</label>
-                                        <input required type="text" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-xl outline-none focus:border-brand-cyan transition-all font-black" placeholder="Cloud Native Patterns..." />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase text-white/30 ml-1">Content (Markdown Supported)</label>
-                                        <textarea required rows={12} value={formData.content} onChange={e => setFormData({ ...formData, content: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-brand-cyan transition-all font-medium leading-relaxed no-scrollbar" placeholder="Writing something awesome..." />
-                                    </div>
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div>
+                                <label className="form-label">Article Title</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={formData.title}
+                                    onChange={e => setFormData({ ...formData, title: e.target.value })}
+                                    placeholder="e.g. Modern Cloud Computing Paradigms"
+                                    className="form-input"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="form-label">Category</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.category}
+                                        onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                        placeholder="e.g. DevOps / Architecture"
+                                        className="form-input"
+                                    />
                                 </div>
 
-                                <div className="space-y-6">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase text-white/30 ml-1">Category</label>
-                                        <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-brand-cyan transition-all font-bold">
-                                            <option value="Architecture" className="bg-brand-dark">Architecture</option>
-                                            <option value="DevOps" className="bg-brand-dark">DevOps</option>
-                                            <option value="Serverless" className="bg-brand-dark">Serverless</option>
-                                            <option value="Security" className="bg-brand-dark">Security</option>
-                                            <option value="Career" className="bg-brand-dark">Career Paths</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase text-white/30 ml-1">Short Excerpt</label>
-                                        <textarea rows={4} value={formData.excerpt} onChange={e => setFormData({ ...formData, excerpt: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-sm outline-none focus:border-brand-cyan transition-all font-medium" placeholder="Brief summary for the preview..." />
-                                    </div>
-                                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
-                                        <label className="flex items-center gap-3 cursor-pointer group">
-                                            <div className={`w-12 h-6 rounded-full transition-all relative ${formData.is_published ? 'bg-green-500' : 'bg-white/10'}`}>
-                                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.is_published ? 'left-7' : 'left-1'}`} />
-                                            </div>
-                                            <input type="checkbox" className="hidden" checked={formData.is_published} onChange={e => setFormData({ ...formData, is_published: e.target.checked })} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white transition-colors">Published</span>
-                                        </label>
-                                    </div>
-                                    <button type="submit" disabled={submitting} className="w-full btn-primary py-5 uppercase font-black tracking-[0.2em] text-xs flex items-center justify-center gap-3">
-                                        {submitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                                        {submitting ? 'Syncing...' : 'Save Article'}
-                                    </button>
+                                <div>
+                                    <label className="form-label">Publication Status</label>
+                                    <select
+                                        value={formData.is_published ? 'true' : 'false'}
+                                        onChange={e => setFormData({ ...formData, is_published: e.target.value === 'true' })}
+                                        className="form-input"
+                                    >
+                                        <option value="true" className="bg-brand-dark">Live (Published)</option>
+                                        <option value="false" className="bg-brand-dark">Draft Mode</option>
+                                    </select>
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="form-label">Short Excerpt</label>
+                                <input
+                                    type="text"
+                                    value={formData.excerpt}
+                                    onChange={e => setFormData({ ...formData, excerpt: e.target.value })}
+                                    placeholder="Brief summary for list previews..."
+                                    className="form-input"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="form-label">Full Markdown Content</label>
+                                <textarea
+                                    rows={8}
+                                    required
+                                    value={formData.content}
+                                    onChange={e => setFormData({ ...formData, content: e.target.value })}
+                                    placeholder="# Write article in Markdown format..."
+                                    className="form-input font-mono text-xs resize-none"
+                                />
+                            </div>
+
+                            <div className="flex gap-4 pt-4 border-t border-white/5">
+                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-4">Cancel</button>
+                                <button type="submit" disabled={submitting} className="btn-primary flex-1 py-4 flex items-center justify-center gap-2">
+                                    {submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                                    {submitting ? 'Publishing...' : editingArticle ? 'Update Article' : 'Publish Article'}
+                                </button>
                             </div>
                         </form>
                     </motion.div>

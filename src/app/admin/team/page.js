@@ -3,20 +3,20 @@
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Users, Plus, Trash2, Edit2, Github, Linkedin, Twitter, Save, X, Loader2, Upload, Link as LinkIcon, Image as ImageIcon, Instagram } from "lucide-react";
+import { Users, Plus, Trash2, Edit2, Save, X, Loader2, Github, Linkedin, Instagram, Globe, Upload } from "lucide-react";
 import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
 
-// Force recompile trigger for modal layout update
 export default function AdminTeam() {
     const [team, setTeam] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    const [uploading, setUploading] = useState(false);
-    const [imageSource, setImageSource] = useState('url'); // 'url' or 'upload'
     const [editingMember, setEditingMember] = useState(null);
     const [feedback, setFeedback] = useState(null);
+    const [uploading, setUploading] = useState(false);
+    const [imageSource, setImageSource] = useState('url'); // 'url' or 'upload'
+
     const [formData, setFormData] = useState({
         full_name: '',
         role_title: '',
@@ -36,8 +36,11 @@ export default function AdminTeam() {
         const { data, error } = await supabase
             .from('team_members')
             .select('*')
-            .order('display_order', { ascending: true });
+            .order('display_order', { ascending: true })
+            .order('created_at', { ascending: true });
+
         if (!error) setTeam(data || []);
+        else console.error('Error fetching team:', error);
         setLoading(false);
     }, [supabase]);
 
@@ -46,7 +49,7 @@ export default function AdminTeam() {
     }, [fetchTeam]);
 
     async function handleImageUpload(e) {
-        const file = e.target.files[0];
+        const file = e.target.files?.[0];
         if (!file) return;
 
         setUploading(true);
@@ -55,7 +58,7 @@ export default function AdminTeam() {
         const filePath = `team/${fileName}`;
 
         try {
-            const { error: uploadError, data } = await supabase.storage
+            const { error: uploadError } = await supabase.storage
                 .from('avatars')
                 .upload(filePath, file);
 
@@ -85,6 +88,7 @@ export default function AdminTeam() {
                 .eq('id', editingMember.id);
 
             if (!error) {
+                await logActivity(supabase, 'Updated Team Member', `Updated member: ${formData.full_name} (${formData.role_title}, ${formData.category})`, 'info');
                 setFeedback({ message: 'Member updated!', type: 'success' });
                 setShowModal(false);
                 fetchTeam();
@@ -97,6 +101,7 @@ export default function AdminTeam() {
                 .insert([formData]);
 
             if (!error) {
+                await logActivity(supabase, 'Added Team Member', `Added member: ${formData.full_name} (${formData.role_title}, ${formData.category})`, 'success');
                 setFeedback({ message: 'Member added!', type: 'success' });
                 setShowModal(false);
                 fetchTeam();
@@ -109,8 +114,10 @@ export default function AdminTeam() {
 
     async function handleDelete(id) {
         if (confirm('Delete this team member?')) {
+            const memberToDelete = team.find(m => m.id === id);
             const { error } = await supabase.from('team_members').delete().eq('id', id);
             if (!error) {
+                await logActivity(supabase, 'Deleted Team Member', `Deleted member: ${memberToDelete?.full_name || id} (${memberToDelete?.role_title || 'Role'})`, 'warning');
                 setFeedback({ message: 'Member removed!', type: 'info' });
                 fetchTeam();
             } else {
@@ -164,26 +171,47 @@ export default function AdminTeam() {
             </div>
 
             {loading ? (
-                <div className="text-center py-20 animate-pulse text-white/20 font-black tracking-widest uppercase">Syncing Roster...</div>
+                <div className="text-center py-20 animate-pulse text-white/20 font-black tracking-widest uppercase">Loading Roster...</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {team.map((member, i) => (
                         <motion.div
                             key={member.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: i * 0.05 }}
-                            className="glass-card p-6 border-white/5 flex items-start gap-5 hover:border-brand-cyan/20 transition-all group"
+                            className="glass-card p-6 border-white/5 hover:border-brand-cyan/20 transition-all flex flex-col justify-between"
                         >
-                            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/5 shrink-0 border border-white/10 group-hover:border-brand-cyan/30 transition-all">
-                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.full_name}&background=0D0D0D&color=fff`} className="w-full h-full object-cover" alt={member.full_name} />
+                            <div className="flex items-start gap-4">
+                                <img
+                                    src={member.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.full_name}`}
+                                    alt={member.full_name}
+                                    className="w-16 h-16 rounded-2xl object-cover border border-white/10 shrink-0 bg-white/5"
+                                />
+                                <div className="overflow-hidden">
+                                    <h3 className="text-white font-bold truncate text-lg">{member.full_name}</h3>
+                                    <p className="text-brand-cyan text-xs font-medium tracking-wide uppercase mt-0.5">{member.role_title}</p>
+                                    <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/5">
+                                        {member.category}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex-grow min-w-0">
-                                <h3 className="text-white font-black truncate">{member.full_name}</h3>
-                                <p className="text-xs text-brand-cyan font-bold mb-3">{member.role_title}</p>
-                                <div className="flex gap-3">
-                                    <button onClick={() => openModal(member)} className="btn-crud-edit" title="Edit Member"><Edit2 size={14} /></button>
-                                    <button onClick={() => handleDelete(member.id)} className="btn-crud-delete" title="Remove Member"><Trash2 size={14} /></button>
+
+                            <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-6">
+                                <div className="flex items-center gap-3 text-white/40">
+                                    {member.github_url && <a href={member.github_url} target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Github size={16} /></a>}
+                                    {member.linkedin_url && <a href={member.linkedin_url} target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Linkedin size={16} /></a>}
+                                    {member.instagram_url && <a href={member.instagram_url} target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Instagram size={16} /></a>}
+                                    {member.portfolio_url && <a href={member.portfolio_url} target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Globe size={16} /></a>}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => openModal(member)} className="btn-crud-edit" title="Edit Member">
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button onClick={() => handleDelete(member.id)} className="btn-crud-delete" title="Delete Member">
+                                        <Trash2 size={16} />
+                                    </button>
                                 </div>
                             </div>
                         </motion.div>
@@ -193,108 +221,159 @@ export default function AdminTeam() {
 
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-brand-dark/80 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card w-full max-w-2xl p-8 relative z-10 border-white/10 overflow-y-auto max-h-[90vh] no-scrollbar">
+                    <div className="absolute inset-0 bg-brand-dark/95 backdrop-blur-md" onClick={() => setShowModal(false)} />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="glass-card w-full max-w-xl p-10 relative z-10 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] max-h-[90vh] overflow-y-auto"
+                    >
                         <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-2xl font-black text-white">{editingMember ? 'Edit' : 'Add'} Team Member</h2>
-                            <button onClick={() => setShowModal(false)} className="text-white/20 hover:text-white transition-all"><X size={20} /></button>
+                            <div>
+                                <h2 className="text-2xl font-black text-white">{editingMember ? 'Edit Profile' : 'Add Team Member'}</h2>
+                                <p className="text-xs text-white/40 font-bold uppercase tracking-widest mt-1">Personnel Directory</p>
+                            </div>
+                            <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white transition-colors">
+                                <X size={24} />
+                            </button>
                         </div>
+
                         <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-white/30 ml-1">Full Name</label>
-                                    <input required type="text" value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-cyan transition-all" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="form-label">Full Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.full_name}
+                                        onChange={e => setFormData({ ...formData, full_name: e.target.value })}
+                                        placeholder="e.g. Dr. John Doe"
+                                        className="form-input"
+                                    />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-white/30 ml-1">Role Title</label>
-                                    <input required type="text" value={formData.role_title} onChange={e => setFormData({ ...formData, role_title: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-cyan transition-all" placeholder="e.g. Lead Developer" />
+
+                                <div>
+                                    <label className="form-label">Role Title</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.role_title}
+                                        onChange={e => setFormData({ ...formData, role_title: e.target.value })}
+                                        placeholder="e.g. Cloud Architect / Lead"
+                                        className="form-input"
+                                    />
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-white/30 ml-1">Category</label>
-                                    <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-cyan transition-all font-bold">
-                                        <option value="Mentor" className="bg-brand-dark">Mentor</option>
-                                        <option value="Captain" className="bg-brand-dark">Captain</option>
-                                        <option value="Leader" className="bg-brand-dark">Leader</option>
-                                        <option value="Team" className="bg-brand-dark">Team Member</option>
-                                        <option value="Founding" className="bg-brand-dark">Founding Leader</option>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="form-label">Category</label>
+                                    <select
+                                        value={formData.category}
+                                        onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                        className="form-input"
+                                    >
+                                        <option value="Team" className="bg-brand-dark">Core Team</option>
+                                        <option value="Faculty" className="bg-brand-dark">Faculty Advisor</option>
+                                        <option value="Speaker" className="bg-brand-dark">Speaker / Mentor</option>
                                     </select>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-white/30 ml-1">Display Order</label>
-                                    <input type="number" value={formData.display_order ?? 0} onChange={e => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-cyan transition-all" />
+
+                                <div>
+                                    <label className="form-label">Display Order</label>
+                                    <input
+                                        type="number"
+                                        value={formData.display_order}
+                                        onChange={e => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
+                                        className="form-input"
+                                    />
                                 </div>
                             </div>
 
-                            <div className="space-y-4 p-6 bg-white/5 rounded-2xl border border-white/10">
+                            <div>
                                 <div className="flex items-center justify-between mb-2">
-                                    <label className="text-[10px] font-black uppercase text-white/30">Profile Image (Ratio: 1:1)</label>
-                                    <div className="flex bg-white/5 rounded-lg p-1">
-                                        <button type="button" onClick={() => setImageSource('url')} className={`px-3 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${imageSource === 'url' ? 'bg-brand-cyan text-brand-dark' : 'text-white/40 hover:text-white'}`}>
-                                            <LinkIcon size={10} /> URL
+                                    <label className="form-label mb-0">Avatar Media</label>
+                                    <div className="flex bg-white/5 rounded-lg p-1 border border-white/5">
+                                        <button
+                                            type="button"
+                                            onClick={() => setImageSource('url')}
+                                            className={`text-[10px] font-bold px-3 py-1 rounded-md transition-all ${imageSource === 'url' ? 'bg-brand-cyan text-brand-dark' : 'text-white/40'}`}
+                                        >
+                                            URL
                                         </button>
-                                        <button type="button" onClick={() => setImageSource('upload')} className={`px-3 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${imageSource === 'upload' ? 'bg-brand-cyan text-brand-dark' : 'text-white/40 hover:text-white'}`}>
-                                            <Upload size={10} /> Device
+                                        <button
+                                            type="button"
+                                            onClick={() => setImageSource('upload')}
+                                            className={`text-[10px] font-bold px-3 py-1 rounded-md transition-all ${imageSource === 'upload' ? 'bg-brand-cyan text-brand-dark' : 'text-white/40'}`}
+                                        >
+                                            Upload
                                         </button>
                                     </div>
                                 </div>
 
                                 {imageSource === 'url' ? (
-                                    <div className="relative group">
-                                        <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-brand-cyan transition-colors" size={16} />
-                                        <input type="text" value={formData.avatar_url} onChange={e => setFormData({ ...formData, avatar_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white text-sm outline-none focus:border-brand-cyan transition-all" placeholder="https://..." />
-                                    </div>
+                                    <input
+                                        type="url"
+                                        value={formData.avatar_url}
+                                        onChange={e => setFormData({ ...formData, avatar_url: e.target.value })}
+                                        placeholder="https://..."
+                                        className="form-input"
+                                    />
                                 ) : (
-                                    <div className="flex items-center gap-6">
-                                        <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/5 border border-white/10 shrink-0">
-                                            {formData.avatar_url ? (
-                                                <img src={formData.avatar_url} className="w-full h-full object-cover" alt="Preview" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-white/10"><ImageIcon size={24} /></div>
-                                            )}
-                                        </div>
-                                        <div className="flex-grow">
-                                            <label className="relative group cursor-pointer block">
-                                                <div className="w-full border-2 border-dashed border-white/10 group-hover:border-brand-cyan/50 rounded-xl p-4 transition-all text-center">
-                                                    {uploading ? (
-                                                        <Loader2 className="animate-spin mx-auto text-brand-cyan" size={20} />
-                                                    ) : (
-                                                        <div className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white">Choose Image</div>
-                                                    )}
-                                                </div>
-                                                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
-                                            </label>
-                                        </div>
-                                    </div>
+                                    <label className="flex items-center justify-center gap-2 p-4 border border-dashed border-white/10 rounded-xl hover:border-brand-cyan/40 cursor-pointer transition-all bg-white/[0.02]">
+                                        <Upload size={18} className="text-brand-cyan" />
+                                        <span className="text-xs font-bold text-white/60">
+                                            {uploading ? 'Uploading Image...' : 'Choose Image File'}
+                                        </span>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleImageUpload}
+                                            disabled={uploading}
+                                            className="hidden"
+                                        />
+                                    </label>
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-bold">
-                                <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase text-white/30 ml-1"><Github size={12} /> GitHub</label>
-                                    <input type="text" value={formData.github_url || ''} onChange={e => setFormData({ ...formData, github_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-brand-cyan transition-all" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase text-white/30 ml-1"><Linkedin size={12} /> LinkedIn</label>
-                                    <input type="text" value={formData.linkedin_url || ''} onChange={e => setFormData({ ...formData, linkedin_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-brand-cyan transition-all" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase text-white/30 ml-1"><Instagram size={12} /> Instagram</label>
-                                    <input type="text" value={formData.instagram_url || ''} onChange={e => setFormData({ ...formData, instagram_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-brand-cyan transition-all" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase text-white/30 ml-1"><LinkIcon size={12} /> Portfolio</label>
-                                    <input type="text" value={formData.portfolio_url || ''} onChange={e => setFormData({ ...formData, portfolio_url: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-brand-cyan transition-all" placeholder="https://..." />
+                            <div className="space-y-4 pt-2">
+                                <p className="text-xs font-black uppercase tracking-widest text-white/40">Social Channels</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <input
+                                        type="url"
+                                        value={formData.github_url}
+                                        onChange={e => setFormData({ ...formData, github_url: e.target.value })}
+                                        placeholder="GitHub URL..."
+                                        className="form-input text-xs"
+                                    />
+                                    <input
+                                        type="url"
+                                        value={formData.linkedin_url}
+                                        onChange={e => setFormData({ ...formData, linkedin_url: e.target.value })}
+                                        placeholder="LinkedIn URL..."
+                                        className="form-input text-xs"
+                                    />
+                                    <input
+                                        type="url"
+                                        value={formData.instagram_url}
+                                        onChange={e => setFormData({ ...formData, instagram_url: e.target.value })}
+                                        placeholder="Instagram URL..."
+                                        className="form-input text-xs"
+                                    />
+                                    <input
+                                        type="url"
+                                        value={formData.portfolio_url}
+                                        onChange={e => setFormData({ ...formData, portfolio_url: e.target.value })}
+                                        placeholder="Portfolio / Website URL..."
+                                        className="form-input text-xs"
+                                    />
                                 </div>
                             </div>
 
-                            <div className="flex gap-4 pt-4">
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-grow btn-secondary py-4 uppercase font-black tracking-widest text-xs">Cancel</button>
-                                <button type="submit" disabled={submitting || uploading} className="flex-grow btn-primary py-4 uppercase font-black tracking-widest text-xs flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(0,194,255,0.1)]">
-                                    {submitting ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                                    {submitting ? 'Saving...' : 'Save Member'}
+                            <div className="flex gap-4 pt-4 border-t border-white/5">
+                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-4">Cancel</button>
+                                <button type="submit" disabled={submitting || uploading} className="btn-primary flex-1 py-4 flex items-center justify-center gap-2">
+                                    {submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                                    {submitting ? 'Saving...' : editingMember ? 'Update Member' : 'Save Member'}
                                 </button>
                             </div>
                         </form>

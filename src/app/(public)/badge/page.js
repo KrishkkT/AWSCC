@@ -6,8 +6,8 @@ import Link from 'next/link';
 import {
     Upload, Download, Share2, Sparkles, RefreshCw, ZoomIn, ZoomOut,
     Move, Check, Copy, ArrowRight, User, Shield, Award, Camera,
-    Linkedin, Twitter, MessageCircle, ExternalLink, Image as ImageIcon,
-    RotateCw, ChevronRight, Sliders, CheckCircle2, Building2
+    Linkedin, Twitter, MessageCircle, Instagram, ExternalLink, Image as ImageIcon,
+    RotateCw, ChevronRight, Sliders, CheckCircle2, Building2, AlertCircle, X
 } from 'lucide-react';
 
 export default function SocialBadgeGeneratorPage() {
@@ -27,6 +27,7 @@ export default function SocialBadgeGeneratorPage() {
     const [copied, setCopied] = useState(false);
     const [imageCopied, setImageCopied] = useState(false);
     const [templateLoaded, setTemplateLoaded] = useState(false);
+    const [shareModalNotice, setShareModalNotice] = useState(null);
 
     // Refs
     const canvasRef = useRef(null);
@@ -342,6 +343,23 @@ export default function SocialBadgeGeneratorPage() {
         setOffsetY((prev) => prev + dy * 0.7);
     };
 
+    // Get Badge as Blob
+    const getBadgeBlob = () => {
+        return new Promise((resolve) => {
+            const canvas = canvasRef.current;
+            if (!canvas) return resolve(null);
+            canvas.toBlob((blob) => resolve(blob), 'image/png');
+        });
+    };
+
+    // Get Badge as File
+    const getBadgeFile = async () => {
+        const blob = await getBadgeBlob();
+        if (!blob) return null;
+        const fileName = name ? `AWS_SCD26_Badge_${name.trim().replace(/\s+/g, '_')}.png` : 'AWS_SCD26_Attendee_Badge.png';
+        return new File([blob], fileName, { type: 'image/png' });
+    };
+
     // Download High-Resolution PNG
     const handleDownload = () => {
         const canvas = canvasRef.current;
@@ -362,69 +380,187 @@ export default function SocialBadgeGeneratorPage() {
     };
 
     // Copy Image Directly to Clipboard
-    const handleCopyImage = async () => {
+    const handleCopyImage = async (silent = false) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
         try {
-            canvas.toBlob(async (blob) => {
-                if (!blob) return;
+            const blob = await getBadgeBlob();
+            if (blob && navigator.clipboard && window.ClipboardItem) {
                 await navigator.clipboard.write([
                     new ClipboardItem({ 'image/png': blob })
                 ]);
-                setImageCopied(true);
-                setTimeout(() => setImageCopied(false), 2500);
-            }, 'image/png');
-        } catch (e) {
-            console.warn('Clipboard image write failed, falling back to download:', e);
-            handleDownload();
-        }
-    };
-
-    // Social Sharing Direct Links
-    const shareText = `Excited to announce that I will be attending AWS Student Community Day DDU Nadiad 2026! 🚀 Connect with me at the event. Grab your ticket now! #AWSSCD26 #AWSCommunity #AWSCloud #DDU`;
-    const eventUrl = 'https://aws.ddu.ac.in';
-
-    const shareLinkedIn = () => {
-        const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(eventUrl)}&summary=${encodeURIComponent(shareText)}`;
-        window.open(url, '_blank', 'width=600,height=600');
-    };
-
-    const shareTwitter = () => {
-        const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(eventUrl)}`;
-        window.open(url, '_blank', 'width=600,height=600');
-    };
-
-    const shareWhatsApp = () => {
-        const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + '\n' + eventUrl)}`;
-        window.open(url, '_blank');
-    };
-
-    const handleNativeShare = async () => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        if (navigator.share) {
-            try {
-                canvas.toBlob(async (blob) => {
-                    const file = new File([blob], 'AWS_SCD26_Badge.png', { type: 'image/png' });
-                    await navigator.share({
-                        title: 'AWS Student Community Day 2026 Badge',
-                        text: shareText,
-                        url: eventUrl,
-                        files: [file]
-                    });
-                });
-            } catch (err) {
-                console.log('Share canceled or failed:', err);
+                if (!silent) {
+                    setImageCopied(true);
+                    setTimeout(() => setImageCopied(false), 2500);
+                }
+                return true;
             }
-        } else {
-            handleCopyLink();
+        } catch (e) {
+            console.warn('Clipboard image write failed:', e);
         }
+        return false;
+    };
+
+    // Social Sharing Details
+    const shareText = `Excited to announce that I will be attending AWS Student Community Day DDU Nadiad 2026! 🚀 Connect with me at the event. Grab your badge & ticket now! #AWSSCD26 #AWSCommunity #AWSCloud #DDU`;
+    const eventUrl = 'https://aws.ddu.ac.in';
+    const badgePageUrl = 'https://aws.ddu.ac.in/badge';
+
+    // 1. WhatsApp Sharing (Direct with File on Mobile / Auto-copy & Download on Desktop)
+    const shareWhatsApp = async () => {
+        const file = await getBadgeFile();
+        const fullMessage = `${shareText}\n\n🎟️ Get your ticket & claim your badge: ${badgePageUrl}`;
+
+        if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: 'AWS Student Community Day 2026 Badge',
+                    text: fullMessage,
+                    files: [file]
+                });
+                return;
+            } catch (err) {
+                if (err.name !== 'AbortError') console.log('Native share failed:', err);
+            }
+        }
+
+        // Desktop / Fallback
+        await handleCopyImage(true);
+        handleDownload();
+        const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(fullMessage)}`;
+        window.open(url, '_blank');
+        setShareModalNotice({
+            platform: 'WhatsApp',
+            icon: <MessageCircle className="w-6 h-6 text-emerald-400" />,
+            title: 'Badge Saved & WhatsApp Opened!',
+            desc: 'Your badge image was downloaded and copied to your clipboard. Paste (Ctrl+V) into your WhatsApp chat to send the image along with the link!'
+        });
+    };
+
+    // 2. LinkedIn Sharing (Copies image to clipboard, downloads, and opens feed composer)
+    const shareLinkedIn = async () => {
+        const file = await getBadgeFile();
+        const fullMessage = `${shareText}\n\n🎟️ Claim your official badge: ${badgePageUrl}`;
+
+        if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: 'AWS Student Community Day 2026 Badge',
+                    text: fullMessage,
+                    files: [file]
+                });
+                return;
+            } catch (err) {
+                if (err.name !== 'AbortError') console.log('Native share failed:', err);
+            }
+        }
+
+        await handleCopyImage(true);
+        handleDownload();
+        const url = `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(fullMessage)}`;
+        window.open(url, '_blank', 'width=700,height=700');
+        setShareModalNotice({
+            platform: 'LinkedIn',
+            icon: <Linkedin className="w-6 h-6 text-[#70B5F9]" />,
+            title: 'Badge Copied & LinkedIn Opened!',
+            desc: 'Your high-res badge image has been copied to your clipboard and downloaded. Simply press Ctrl+V (or click the photo icon) in your LinkedIn post to attach your badge!'
+        });
+    };
+
+    // 3. Twitter / X Sharing
+    const shareTwitter = async () => {
+        const file = await getBadgeFile();
+        const tweetText = `Excited to attend AWS Student Community Day DDU Nadiad 2026! 🚀 Join me at the event: ${badgePageUrl} #AWSSCD26 #AWSCommunity #AWSCloud #DDU`;
+
+        if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: 'AWS Student Community Day 2026 Badge',
+                    text: tweetText,
+                    files: [file]
+                });
+                return;
+            } catch (err) {
+                if (err.name !== 'AbortError') console.log('Native share failed:', err);
+            }
+        }
+
+        await handleCopyImage(true);
+        handleDownload();
+        const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+        window.open(url, '_blank', 'width=650,height=650');
+        setShareModalNotice({
+            platform: 'Twitter / X',
+            icon: <Twitter className="w-6 h-6 text-white" />,
+            title: 'Badge Copied & X (Twitter) Opened!',
+            desc: 'Your badge image was copied to your clipboard and downloaded. Press Ctrl+V in the tweet box to attach your badge image!'
+        });
+    };
+
+    // 4. Instagram Sharing
+    const shareInstagram = async () => {
+        const file = await getBadgeFile();
+        const instaCaption = `Attending AWS Student Community Day DDU Nadiad 2026! 🚀 Tagging @awscc_ddu #AWSSCD26 #AWSCommunity #AWSCloud`;
+
+        if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: 'AWS SCD 2026 Badge',
+                    text: instaCaption,
+                    files: [file]
+                });
+                return;
+            } catch (err) {
+                if (err.name !== 'AbortError') console.log('Native share failed:', err);
+            }
+        }
+
+        await handleCopyImage(true);
+        handleDownload();
+        setShareModalNotice({
+            platform: 'Instagram',
+            icon: <Instagram className="w-6 h-6 text-pink-400" />,
+            title: 'Badge Saved For Instagram!',
+            desc: 'Your high-res badge image has been downloaded to your device and copied to clipboard. Share it on your Instagram Story or Feed and tag @awscc_ddu!'
+        });
+    };
+
+    // 5. Universal Native Share Sheet (Direct File Attachment)
+    const handleNativeShare = async () => {
+        const file = await getBadgeFile();
+        const fullMessage = `${shareText}\n\nClaim yours at: ${badgePageUrl}`;
+
+        if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: 'AWS Student Community Day 2026 Badge',
+                    text: fullMessage,
+                    files: [file]
+                });
+                return;
+            } catch (err) {
+                if (err.name !== 'AbortError') console.log('Native share failed:', err);
+            }
+        } else if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'AWS Student Community Day 2026 Badge',
+                    text: fullMessage,
+                    url: badgePageUrl
+                });
+                return;
+            } catch (err) {
+                if (err.name !== 'AbortError') console.log('Native share failed:', err);
+            }
+        }
+
+        // Fallback: Copy link
+        handleCopyLink();
     };
 
     const handleCopyLink = () => {
-        navigator.clipboard.writeText(eventUrl + '/badge');
+        navigator.clipboard.writeText(badgePageUrl);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -447,7 +583,7 @@ export default function SocialBadgeGeneratorPage() {
                     </h1>
 
                     <p className="text-xs sm:text-sm text-slate-400">
-                        Upload your photo, add your name and college, and share your official attendee badge on LinkedIn, X, and Instagram.
+                        Upload your photo, add your name and college, and share your official attendee badge on WhatsApp, LinkedIn, X, and Instagram.
                     </p>
                 </div>
 
@@ -599,18 +735,18 @@ export default function SocialBadgeGeneratorPage() {
 
                             <div className="grid grid-cols-2 gap-2">
                                 <button
-                                    onClick={handleCopyImage}
+                                    onClick={() => handleCopyImage(false)}
                                     className="flex items-center justify-center space-x-1.5 py-2.5 bg-[#0C111D] hover:bg-[#1a2540] border border-[#1a2540] text-white rounded-xl text-xs font-semibold transition"
                                 >
                                     {imageCopied ? (
                                         <>
                                             <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                            <span className="text-emerald-400">Image Copied!</span>
+                                            <span className="text-emerald-400">Badge Copied!</span>
                                         </>
                                     ) : (
                                         <>
                                             <Copy className="w-3.5 h-3.5 text-slate-400" />
-                                            <span>Copy Image</span>
+                                            <span>Copy Badge Image</span>
                                         </>
                                     )}
                                 </button>
@@ -620,39 +756,51 @@ export default function SocialBadgeGeneratorPage() {
                                     className="flex items-center justify-center space-x-1.5 py-2.5 bg-[#0C111D] hover:bg-[#1a2540] border border-[#1a2540] text-white rounded-xl text-xs font-semibold transition"
                                 >
                                     <Share2 className="w-3.5 h-3.5 text-[#4F8EF7]" />
-                                    <span>Share Link</span>
+                                    <span>Share Badge File</span>
                                 </button>
                             </div>
                         </div>
 
-                        {/* Social Media One-Click Direct Links */}
-                        <div className="space-y-2 pt-2">
+                        {/* Social Media 1-Click Sharing (WhatsApp, LinkedIn, X, Instagram) */}
+                        <div className="space-y-2.5 pt-2">
                             <span className="text-[10px] font-mono uppercase text-slate-400 tracking-wider">
-                                Share directly to your social feed:
+                                Share badge with attached message to:
                             </span>
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                {/* WhatsApp */}
+                                <button
+                                    onClick={shareWhatsApp}
+                                    className="flex items-center justify-center space-x-2 py-3 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-600/40 rounded-xl text-xs font-bold transition hover:scale-[1.02]"
+                                >
+                                    <MessageCircle className="w-4 h-4 fill-current/20" />
+                                    <span>WhatsApp</span>
+                                </button>
+
+                                {/* LinkedIn */}
                                 <button
                                     onClick={shareLinkedIn}
-                                    className="flex items-center justify-center space-x-1.5 py-2 bg-[#0A66C2]/15 hover:bg-[#0A66C2]/25 text-[#70B5F9] border border-[#0A66C2]/40 rounded-xl text-xs font-semibold transition"
+                                    className="flex items-center justify-center space-x-2 py-3 bg-[#0A66C2]/15 hover:bg-[#0A66C2]/30 text-[#70B5F9] border border-[#0A66C2]/40 rounded-xl text-xs font-bold transition hover:scale-[1.02]"
                                 >
-                                    <Linkedin className="w-3.5 h-3.5 fill-current" />
+                                    <Linkedin className="w-4 h-4 fill-current" />
                                     <span>LinkedIn</span>
                                 </button>
 
+                                {/* Twitter / X */}
                                 <button
                                     onClick={shareTwitter}
-                                    className="flex items-center justify-center space-x-1.5 py-2 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-semibold transition"
+                                    className="flex items-center justify-center space-x-2 py-3 bg-slate-800/80 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold transition hover:scale-[1.02]"
                                 >
-                                    <Twitter className="w-3.5 h-3.5 fill-current" />
+                                    <Twitter className="w-4 h-4 fill-current" />
                                     <span>Twitter / X</span>
                                 </button>
 
+                                {/* Instagram */}
                                 <button
-                                    onClick={shareWhatsApp}
-                                    className="flex items-center justify-center space-x-1.5 py-2 bg-emerald-950/40 hover:bg-emerald-900/40 text-emerald-400 border border-emerald-600/40 rounded-xl text-xs font-semibold transition"
+                                    onClick={shareInstagram}
+                                    className="flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-purple-900/40 to-pink-900/40 hover:from-purple-800/50 hover:to-pink-800/50 text-pink-300 border border-pink-500/40 rounded-xl text-xs font-bold transition hover:scale-[1.02]"
                                 >
-                                    <MessageCircle className="w-3.5 h-3.5" />
-                                    <span>WhatsApp</span>
+                                    <Instagram className="w-4 h-4" />
+                                    <span>Instagram</span>
                                 </button>
                             </div>
                         </div>
@@ -699,12 +847,53 @@ export default function SocialBadgeGeneratorPage() {
                                 <span>Live Ultra-HD 2X Preview (1182 x 2008)</span>
                             </span>
                             <p className="text-[11px] text-slate-500 max-w-xs">
-                                Ready for high-resolution sharing on LinkedIn, Instagram, and Twitter.
+                                Ready for high-resolution sharing on WhatsApp, LinkedIn, X, and Instagram.
                             </p>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Platform Share Instruction Modal Notice */}
+            {shareModalNotice && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
+                    <div className="bg-[#151c2e] border border-white/15 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-6 shadow-2xl relative">
+                        <button
+                            onClick={() => setShareModalNotice(null)}
+                            className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg transition"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        <div className="flex items-center space-x-3.5">
+                            <div className="p-3 bg-[#0C111D] border border-white/10 rounded-2xl">
+                                {shareModalNotice.icon}
+                            </div>
+                            <div>
+                                <h3 className="font-extrabold text-white text-lg">{shareModalNotice.title}</h3>
+                                <span className="text-xs text-brand-cyan font-mono">{shareModalNotice.platform}</span>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-[#0C111D] border border-white/10 rounded-2xl text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2">
+                            <p>{shareModalNotice.desc}</p>
+                            <div className="flex items-center space-x-2 text-emerald-400 text-xs font-semibold pt-1 border-t border-white/10">
+                                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                                <span>Badge PNG is in your Downloads & Clipboard!</span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShareModalNotice(null)}
+                                className="w-full py-3.5 bg-gradient-to-r from-[#0073BB] to-[#4F8EF7] text-white font-extrabold text-xs rounded-xl transition hover:opacity-90"
+                            >
+                                Got it!
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

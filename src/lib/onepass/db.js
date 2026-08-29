@@ -494,15 +494,37 @@ export const OnePassDB = {
         const db = loadDb();
         let list = db.attendees.filter(a => a.event_id === eventId);
         if (options.search) {
-            const q = options.search.toLowerCase();
-            list = list.filter(a =>
-                (a.name && a.name.toLowerCase().includes(q)) ||
-                (a.email && a.email.toLowerCase().includes(q)) ||
-                (a.phone && a.phone.toLowerCase().includes(q)) ||
-                (a.booking_id && a.booking_id.toLowerCase().includes(q)) ||
-                (a.registration_id && a.registration_id.toLowerCase().includes(q)) ||
-                (a.qr_identifier && a.qr_identifier.toLowerCase().includes(q))
-            );
+            const rawQ = options.search.trim();
+            const q = rawQ.toLowerCase();
+
+            // Extract candidate keywords if rawQ is a piped, filename, or composite token
+            const keywords = [q];
+            if (rawQ.includes('|')) {
+                rawQ.split('|').forEach(part => {
+                    const [k, ...v] = part.split(':');
+                    if (v.length > 0) keywords.push(v.join(':').trim().toLowerCase());
+                });
+            }
+            const cleanNoExt = rawQ.replace(/\.(png|jpg|jpeg|webp|svg)$/i, '');
+            if (cleanNoExt.includes('-')) {
+                cleanNoExt.split('-').forEach(seg => keywords.push(seg.trim().toLowerCase()));
+            }
+
+            list = list.filter(a => {
+                return keywords.some(k => {
+                    if (!k) return false;
+                    return (
+                        (a.name && a.name.toLowerCase().includes(k)) ||
+                        (a.email && a.email.toLowerCase().includes(k)) ||
+                        (a.phone && a.phone.toLowerCase().includes(k)) ||
+                        (a.booking_id && a.booking_id.toLowerCase().includes(k)) ||
+                        (a.registration_id && a.registration_id.toLowerCase().includes(k)) ||
+                        (a.qr_identifier && a.qr_identifier.toLowerCase().includes(k)) ||
+                        (a.qr_token && a.qr_token.toLowerCase().includes(k)) ||
+                        (a.id && a.id.toLowerCase().includes(k))
+                    );
+                });
+            });
         }
         if (options.check_in_status) {
             list = list.filter(a => a.check_in_status === options.check_in_status);
@@ -522,10 +544,83 @@ export const OnePassDB = {
         if (!qrIdentifierOrToken) return null;
         const db = loadDb();
         const term = qrIdentifierOrToken.trim();
-        return db.attendees.find(a =>
-            a.event_id === eventId &&
-            (a.qr_identifier === term || a.qr_token === term || (a.qr_identifier && a.qr_identifier.toLowerCase() === term.toLowerCase()))
-        ) || null;
+        const termLower = term.toLowerCase();
+
+        // 1. Direct and Exact Matches in this event
+        let attendee = db.attendees.find(a =>
+            a.event_id === eventId && (
+                a.qr_identifier === term ||
+                a.qr_token === term ||
+                a.booking_id === term ||
+                a.id === term ||
+                a.registration_id === term ||
+                (a.qr_identifier && a.qr_identifier.toLowerCase() === termLower) ||
+                (a.booking_id && a.booking_id.toLowerCase() === termLower) ||
+                (a.qr_token && a.qr_token.toLowerCase() === termLower) ||
+                (a.registration_id && a.registration_id.toLowerCase() === termLower) ||
+                (a.email && a.email.toLowerCase() === termLower)
+            )
+        );
+        if (attendee) return attendee;
+
+        // 2. Parse candidate keys from piped format, filenames, or hyphenated booking IDs
+        const candidateKeys = [];
+        candidateKeys.push(term);
+        candidateKeys.push(term.replace(/\.(png|jpg|jpeg|webp|svg)$/i, ''));
+
+        // Handle piped format "id:10e90612|n:Meet|eid:..."
+        if (term.includes('|')) {
+            const parts = term.split('|');
+            for (const part of parts) {
+                const [k, ...v] = part.split(':');
+                if (v.length > 0) {
+                    candidateKeys.push(v.join(':').trim());
+                }
+            }
+        }
+
+        // Handle filename / hyphen format (e.g. "Meet-10e90612.png" or "Meet-10e90612")
+        const cleanNoExt = term.replace(/\.(png|jpg|jpeg|webp|svg)$/i, '');
+        if (cleanNoExt.includes('-')) {
+            const segs = cleanNoExt.split('-');
+            for (const seg of segs) {
+                candidateKeys.push(seg.trim());
+            }
+            candidateKeys.push(segs[segs.length - 1].trim());
+        }
+
+        for (const key of candidateKeys) {
+            if (!key) continue;
+            const kLower = key.toLowerCase();
+            attendee = db.attendees.find(a =>
+                a.event_id === eventId && (
+                    (a.booking_id && a.booking_id.toLowerCase() === kLower) ||
+                    (a.qr_identifier && a.qr_identifier.toLowerCase().includes(kLower)) ||
+                    (a.qr_token && a.qr_token.toLowerCase().includes(kLower)) ||
+                    (a.registration_id && a.registration_id.toLowerCase() === kLower) ||
+                    (a.id && a.id.toLowerCase() === kLower) ||
+                    (a.email && a.email.toLowerCase() === kLower)
+                )
+            );
+            if (attendee) return attendee;
+        }
+
+        // 3. Fallback across all attendees if eventId has changed or was re-imported
+        for (const key of candidateKeys) {
+            if (!key) continue;
+            const kLower = key.toLowerCase();
+            attendee = db.attendees.find(a =>
+                (a.booking_id && a.booking_id.toLowerCase() === kLower) ||
+                (a.qr_identifier && a.qr_identifier.toLowerCase().includes(kLower)) ||
+                (a.qr_token && a.qr_token.toLowerCase().includes(kLower)) ||
+                (a.registration_id && a.registration_id.toLowerCase() === kLower) ||
+                (a.id && a.id.toLowerCase() === kLower) ||
+                (a.email && a.email.toLowerCase() === kLower)
+            );
+            if (attendee) return attendee;
+        }
+
+        return null;
     },
 
     createAttendee(attendeeData) {

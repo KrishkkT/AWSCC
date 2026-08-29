@@ -62,21 +62,31 @@ export default function AttendeeCheckInDesk() {
     // Handle Scanned QR Code
     const handleQRScan = async (rawQR) => {
         const cleanQR = parseScannedQR(rawQR);
-        if (!cleanQR) return;
+        if (!rawQR) return;
 
         setScannerOpen(false);
         try {
-            const res = await fetch(`/api/onepass/attendees/search?eventId=${eventId}&q=${encodeURIComponent(cleanQR)}`);
+            // 1. Search endpoint
+            const res = await fetch(`/api/onepass/attendees/search?eventId=${eventId}&q=${encodeURIComponent(cleanQR || rawQR)}`);
             const data = await res.json();
             if (data.attendees && data.attendees.length > 0) {
                 const attendee = data.attendees[0];
                 selectAttendeeForCheckIn(attendee);
-            } else {
-                alert(`QR Token "${cleanQR}" not found for this event.`);
+                return;
             }
+
+            // 2. Direct QR endpoint fallback
+            const directRes = await fetch(`/api/onepass/attendees?eventId=${eventId}&qr=${encodeURIComponent(rawQR)}`);
+            const directData = await directRes.json();
+            if (directData.found && directData.attendee) {
+                selectAttendeeForCheckIn(directData.attendee);
+                return;
+            }
+
+            alert(`QR Code "${cleanQR || rawQR}" not found for this event. Please verify the booking ID or attendee name.`);
         } catch (err) {
             console.error(err);
-            alert('Failed to lookup scanned attendee.');
+            alert('Failed to lookup scanned attendee over network.');
         }
     };
 
@@ -86,7 +96,8 @@ export default function AttendeeCheckInDesk() {
         if (!manualSearchQuery.trim()) return;
         setIsSearching(true);
         try {
-            const res = await fetch(`/api/onepass/attendees/search?eventId=${eventId}&q=${encodeURIComponent(manualSearchQuery.trim())}`);
+            const query = manualSearchQuery.trim();
+            const res = await fetch(`/api/onepass/attendees/search?eventId=${eventId}&q=${encodeURIComponent(query)}`);
             const data = await res.json();
             setSearchResults(data.attendees || []);
             if (data.attendees?.length === 1) {

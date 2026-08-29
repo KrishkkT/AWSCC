@@ -287,8 +287,16 @@ export default function AdminCommunityDay() {
             ? await supabase.from('community_events').update(payload).eq('id', editingEvent.id)
             : await supabase.from('community_events').insert([payload]);
 
-        if (result.error) showFeedback(`Save failed: ${result.error.message}`, 'error');
-        else {
+        if (result.error) {
+            await logActivity(supabase, 'Community Day Save Failed', `Error: ${result.error.message}`, 'error');
+            showFeedback(`Save failed: ${result.error.message}`, 'error');
+        } else {
+            await logActivity(
+                supabase,
+                editingEvent ? 'Updated Community Day' : 'Created Community Day',
+                `${editingEvent ? 'Updated' : 'Created'} AWS Community Day ${formData.year} ("${formData.title}", Date: ${formData.date || 'TBD'})`,
+                'success'
+            );
             showFeedback(editingEvent ? 'Event updated!' : 'Event created!');
             resetForm();
             fetchEvents();
@@ -299,9 +307,16 @@ export default function AdminCommunityDay() {
     async function handleDelete(id) {
         if (!confirm('Are you absolutely sure you want to delete this Community Day event?')) return;
         setProcessingId(id);
+        const eventToDelete = events.find(e => e.id === id);
         const { error } = await supabase.from('community_events').delete().eq('id', id);
-        if (error) showFeedback(`Delete failed: ${error.message}`, 'error');
-        else { showFeedback('Event deleted forever.'); fetchEvents(); }
+        if (error) {
+            await logActivity(supabase, 'Community Day Delete Failed', `Error: ${error.message}`, 'error');
+            showFeedback(`Delete failed: ${error.message}`, 'error');
+        } else {
+            await logActivity(supabase, 'Deleted Community Day', `Deleted Community Day ${eventToDelete?.year || id} ("${eventToDelete?.title || 'Unknown'}")`, 'warning');
+            showFeedback('Event deleted forever.');
+            fetchEvents();
+        }
         setProcessingId(null);
     }
 

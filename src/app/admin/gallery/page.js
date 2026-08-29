@@ -84,6 +84,7 @@ export default function AdminGallery() {
                 .eq('id', editingPhoto.id);
 
             if (!error) {
+                await logActivity(supabase, 'Updated Gallery Photo', `Updated photo: "${formData.title || 'Untitled'}" (Event: ${formData.event})`, 'info');
                 showFeedback('Photo updated!');
                 setShowModal(false);
                 fetchPhotos();
@@ -96,6 +97,7 @@ export default function AdminGallery() {
                 .insert([formData]);
 
             if (!error) {
+                await logActivity(supabase, 'Added Gallery Photo', `Added photo: "${formData.title || 'Untitled'}" (Event: ${formData.event})`, 'success');
                 showFeedback('Photo added to gallery!');
                 setShowModal(false);
                 fetchPhotos();
@@ -108,8 +110,10 @@ export default function AdminGallery() {
 
     async function handleDelete(id) {
         if (confirm('Remove this photo from gallery?')) {
+            const photoToDelete = photos.find(p => p.id === id);
             const { error } = await supabase.from('gallery').delete().eq('id', id);
             if (!error) {
+                await logActivity(supabase, 'Deleted Gallery Photo', `Deleted photo: "${photoToDelete?.title || id}" (Event: ${photoToDelete?.event || 'Unknown'})`, 'warning');
                 showFeedback('Photo removed!', 'info');
                 fetchPhotos();
             } else {
@@ -183,73 +187,81 @@ export default function AdminGallery() {
                     >
                         <div className="flex items-center justify-between mb-10">
                             <div>
-                                <h2 className="text-3xl font-black text-white leading-tight">
-                                    {editingPhoto ? 'Edit' : 'Add'} <span className="text-brand-cyan">Photo</span>
-                                </h2>
-                                <p className="text-white/30 text-xs font-medium mt-1">Fill in the details to update your gallery.</p>
+                                <h2 className="text-2xl font-black text-white">{editingPhoto ? 'Edit Photo' : 'Add to Gallery'}</h2>
+                                <p className="text-xs text-white/40 font-bold uppercase tracking-widest mt-1">AWS Cloud Club Vault</p>
                             </div>
-                            <button
-                                onClick={() => setShowModal(false)}
-                                className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-white/20 hover:text-white hover:bg-white/10 transition-all border border-white/5"
-                                title="Close"
-                            >
+                            <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white transition-colors">
                                 <X size={24} />
                             </button>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-cyan ml-1">Photo Title</label>
+                            <div>
+                                <label className="form-label">Photo Title</label>
                                 <input
-                                    required
                                     type="text"
+                                    required
                                     value={formData.title}
                                     onChange={e => setFormData({ ...formData, title: e.target.value })}
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-brand-cyan transition-all font-bold placeholder-white/10"
-                                    placeholder="e.g. Workshop Highlights"
+                                    placeholder="e.g. AWS Community Day Keynote"
+                                    className="form-input"
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-cyan ml-1">Event Reference</label>
+                            <div>
+                                <label className="form-label">Associated Event</label>
                                 <input
-                                    required
                                     type="text"
+                                    required
                                     value={formData.event}
                                     onChange={e => setFormData({ ...formData, event: e.target.value })}
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-brand-cyan transition-all font-bold placeholder-white/10"
-                                    placeholder="e.g. AWS Roots 2024"
+                                    placeholder="e.g. AWS Roots 2026"
+                                    className="form-input"
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-cyan ml-1">Photo Source (Ratio: 16:9 Recommended)</label>
-                                <div className="flex gap-3 items-stretch">
+                            <div>
+                                <label className="form-label">Photo Media</label>
+                                <div className="space-y-4">
+                                    <div className="flex gap-4">
+                                        <label className="flex-1 flex items-center justify-center gap-2 p-4 border border-dashed border-white/10 rounded-xl hover:border-brand-cyan/40 cursor-pointer transition-all bg-white/[0.02]">
+                                            <Upload size={18} className="text-brand-cyan" />
+                                            <span className="text-xs font-bold text-white/60">
+                                                {uploading ? 'Uploading...' : 'Upload File'}
+                                            </span>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                                disabled={uploading}
+                                                className="hidden"
+                                            />
+                                        </label>
+                                    </div>
                                     <input
+                                        type="url"
                                         required
-                                        type="text"
                                         value={formData.url}
                                         onChange={e => setFormData({ ...formData, url: e.target.value })}
-                                        className="flex-grow bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-brand-cyan transition-all font-bold placeholder-white/10"
-                                        placeholder="Paste image URL..."
+                                        placeholder="Or paste Direct Image URL..."
+                                        className="form-input"
                                     />
-                                    <label className="cursor-pointer shrink-0">
-                                        <div className={`px-6 py-4 rounded-2xl border border-dashed border-white/20 hover:border-brand-cyan/50 hover:bg-brand-cyan/5 flex items-center justify-center transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                                            {uploading ? <Loader2 size={18} className="animate-spin text-brand-cyan" /> : <Upload size={18} className="text-white/40 group-hover:text-brand-cyan" />}
-                                        </div>
-                                        <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
-                                    </label>
                                 </div>
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={submitting || uploading}
-                                className="w-full btn-primary py-5 rounded-2xl uppercase font-black tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(0,194,255,0.2)] disabled:opacity-50 transition-all hover:scale-[1.02]"
-                            >
-                                {submitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                                {submitting ? 'Updating Database...' : (editingPhoto ? 'Update Photo' : 'Confirm & Save Photo')}
-                            </button>
+                            {formData.url && (
+                                <div className="aspect-video relative rounded-xl overflow-hidden border border-white/10">
+                                    <img src={formData.url} alt="Preview" className="w-full h-full object-cover" />
+                                </div>
+                            )}
+
+                            <div className="flex gap-4 pt-4">
+                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-4">Cancel</button>
+                                <button type="submit" disabled={submitting || uploading} className="btn-primary flex-1 py-4 flex items-center justify-center gap-2">
+                                    {submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                                    {submitting ? 'Saving...' : editingPhoto ? 'Update Photo' : 'Save to Gallery'}
+                                </button>
+                            </div>
                         </form>
                     </motion.div>
                 </div>

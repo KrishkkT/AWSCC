@@ -73,7 +73,7 @@
       "assigned_track_id": null,
       "assigned_workshop_id": null,
       "created_at": "2026-08-29T12:29:13.842Z",
-      "updated_at": "2026-08-29T12:29:13.842Z"
+      "updated_at": "2026-08-29T14:53:22.974Z"
     },
     {
       "id": "att_f5029594b6a69c5b",
@@ -6257,6 +6257,23 @@
   "track_access_logs": [],
   "workshop_access_logs": [],
   "audit_logs": [
+    {
+      "id": "aud_2d675b6e6f82",
+      "event_id": "evt_f84dae9c4611bbc3",
+      "actor_id": "usr_admin_master",
+      "actor_name": "Administrator",
+      "actor_role": "VOLUNTEER",
+      "action": "CHECK_IN",
+      "entity_type": "ATTENDEE",
+      "entity_id": "att_5bdb374440aa081c",
+      "metadata": {
+        "attendee_name": "Meet",
+        "assigned_track": null,
+        "assigned_workshop": null
+      },
+      "timestamp": "2026-08-29T14:53:10.877Z",
+      "result": "SUCCESS"
+    },
     {
       "id": "aud_1788005613317",
       "event_id": "evt_f84dae9c4611bbc3",

@@ -14,15 +14,15 @@ import { motion, AnimatePresence } from "framer-motion";
 const ROLE_PERMISSIONS = {
     faculty: {
         sections: ['core', 'management', 'system'],
-        features: ['analytics', 'reports', 'hod_export', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
+        features: ['analytics', 'hod_export', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
     },
     Leader: {
         sections: ['core', 'management', 'system'],
-        features: ['analytics', 'reports', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
+        features: ['analytics', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
     },
     captain: {
         sections: ['core', 'management', 'system'],
-        features: ['analytics', 'reports', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
+        features: ['analytics', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
     },
     core: {
         sections: ['core', 'management'],
@@ -103,7 +103,6 @@ export default function AdminSidebar() {
             items: [
                 ...(perms.features.includes('settings') ? [{ name: "Settings", href: "/admin/settings", icon: Settings }] : []),
                 ...(perms.features.includes('analytics') ? [{ name: "Audit Logs", href: "/admin/logs", icon: Activity }] : []),
-                ...(perms.features.includes('reports') ? [{ name: "Reports", href: "/admin/reports", icon: FileText }] : []),
             ]
         },
     ];

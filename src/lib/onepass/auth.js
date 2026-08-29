@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { OnePassDB } from './db';
+import { OnePassDB } from './db.js';
 
 const SESSION_SECRET = process.env.ONEPASS_SECRET || 'onepass_jwt_secure_session_secret_ddu_aws_2026';
 const COOKIE_NAME = 'onepass_session';
