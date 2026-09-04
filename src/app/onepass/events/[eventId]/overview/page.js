@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useOnePass } from '@/components/onepass/OnePassContext';
 import {
     Users, UserCheck, UserX, Percent, Layers, BookOpen, Coffee, Award,
     Activity, ShieldAlert, RefreshCw, ArrowRight, AlertTriangle, CheckCircle2,
@@ -12,6 +13,8 @@ import {
 export default function EventOverviewPage() {
     const params = useParams();
     const eventId = params?.eventId;
+    const { user } = useOnePass();
+    const isAdmin = user?.role === 'ADMIN';
 
     const [metrics, setMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -20,7 +23,10 @@ export default function EventOverviewPage() {
 
     const fetchMetrics = async () => {
         try {
-            const res = await fetch(`/api/onepass/events/${eventId}/dashboard`);
+            const res = await fetch(`/api/onepass/events/${eventId}/dashboard?_t=${Date.now()}`, {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
             const data = await res.json();
             if (data.metrics) {
                 setMetrics(data.metrics);
@@ -271,52 +277,54 @@ export default function EventOverviewPage() {
                 </div>
             </div>
 
-            {/* 4. Live Audit Trail Stream */}
-            <div className="p-6 bg-[#151c2e] border border-[#1a2540] rounded-2xl space-y-4 shadow-lg">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                        <Activity className="w-4 h-4 text-[#0073BB]" />
-                        <h2 className="text-sm font-bold text-white">Live Event Operations Log</h2>
+            {/* 4. Live Audit Trail Stream (Admin Only) */}
+            {isAdmin && (
+                <div className="p-6 bg-[#151c2e] border border-[#1a2540] rounded-2xl space-y-4 shadow-lg">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                            <Activity className="w-4 h-4 text-[#0073BB]" />
+                            <h2 className="text-sm font-bold text-white">Live Event Operations Log</h2>
+                        </div>
+                        <Link
+                            href={`/onepass/events/${eventId}/audit`}
+                            className="text-xs text-[#4F8EF7] hover:underline"
+                        >
+                            Full Audit Log ({recent_activity.length}) →
+                        </Link>
                     </div>
-                    <Link
-                        href={`/onepass/events/${eventId}/audit`}
-                        className="text-xs text-[#4F8EF7] hover:underline"
-                    >
-                        Full Audit Log ({recent_activity.length}) →
-                    </Link>
-                </div>
 
-                <div className="divide-y divide-[#1a2540]">
-                    {recent_activity.length === 0 ? (
-                        <div className="py-6 text-center text-xs text-slate-400">No operational activity recorded yet.</div>
-                    ) : (
-                        recent_activity.slice(0, 6).map((log) => (
-                            <div key={log.id} className="py-3 flex items-center justify-between text-xs">
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-2 h-2 rounded-full bg-[#0073BB] flex-shrink-0" />
-                                    <div>
-                                        <span className="font-semibold text-white">{log.actor_name}</span>
-                                        <span className="text-slate-400 mx-1.5">performed</span>
-                                        <span className="font-mono text-[#4F8EF7] px-1.5 py-0.5 rounded bg-[#0073BB]/10 text-[11px]">
-                                            {log.action}
-                                        </span>
-                                        {log.metadata?.attendee_name && (
-                                            <span className="text-slate-300 ml-1.5 font-medium">
-                                                for {log.metadata.attendee_name}
-                                                {log.metadata?.assigned_track ? ` (${log.metadata.assigned_track})` : ''}
+                    <div className="divide-y divide-[#1a2540]">
+                        {recent_activity.length === 0 ? (
+                            <div className="py-6 text-center text-xs text-slate-400">No operational activity recorded yet.</div>
+                        ) : (
+                            recent_activity.slice(0, 6).map((log) => (
+                                <div key={log.id} className="py-3 flex items-center justify-between text-xs">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-2 h-2 rounded-full bg-[#0073BB] flex-shrink-0" />
+                                        <div>
+                                            <span className="font-semibold text-white">{log.actor_name}</span>
+                                            <span className="text-slate-400 mx-1.5">performed</span>
+                                            <span className="font-mono text-[#4F8EF7] px-1.5 py-0.5 rounded bg-[#0073BB]/10 text-[11px]">
+                                                {log.action}
                                             </span>
-                                        )}
+                                            {log.metadata?.attendee_name && (
+                                                <span className="text-slate-300 ml-1.5 font-medium">
+                                                    for {log.metadata.attendee_name}
+                                                    {log.metadata?.assigned_track ? ` (${log.metadata.assigned_track})` : ''}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="text-[10px] font-mono text-slate-500 flex items-center space-x-1">
+                                        <Clock className="w-3 h-3" />
+                                        <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
                                     </div>
                                 </div>
-                                <div className="text-[10px] font-mono text-slate-500 flex items-center space-x-1">
-                                    <Clock className="w-3 h-3" />
-                                    <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
-                                </div>
-                            </div>
-                        ))
-                    )}
+                            ))
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

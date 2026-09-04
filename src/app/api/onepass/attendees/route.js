@@ -3,13 +3,19 @@ import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
 import { generateQRToken } from '@/lib/onepass/qr';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const { searchParams } = new URL(req.url);
         const eventId = searchParams.get('eventId');
         const search = searchParams.get('search') || '';
         const checkInStatus = searchParams.get('check_in_status') || '';
         const trackId = searchParams.get('track_id') || '';
+        const workshopId = searchParams.get('workshop_id') || '';
+        const checkedInBy = searchParams.get('checked_in_by') || '';
         const qr = searchParams.get('qr') || '';
 
         if (!eventId) {
@@ -34,7 +40,9 @@ export async function GET(req) {
         const attendees = OnePassDB.getAttendees(eventId, {
             search,
             check_in_status: checkInStatus || undefined,
-            assigned_track_id: trackId || undefined
+            assigned_track_id: trackId || undefined,
+            assigned_workshop_id: workshopId || undefined,
+            checked_in_by: checkedInBy || undefined
         });
 
         // Enrich with track names for easy table display
@@ -56,6 +64,7 @@ export async function GET(req) {
 
 export async function POST(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const body = await req.json();
         const { eventId, ...attendeeData } = body;
 
@@ -87,8 +96,7 @@ export async function POST(req) {
         });
 
         // Audit log
-        OnePassDB.getSnapshot().audit_logs.unshift({
-            id: `aud_${Date.now()}`,
+        OnePassDB.addAuditLog({
             event_id: eventId,
             actor_id: auth.user.id,
             actor_name: auth.user.name,
@@ -96,9 +104,7 @@ export async function POST(req) {
             action: 'CREATE_ATTENDEE',
             entity_type: 'ATTENDEE',
             entity_id: attendee.id,
-            metadata: { name: attendee.name, email: attendee.email, qr_identifier: attendee.qr_identifier },
-            timestamp: new Date().toISOString(),
-            result: 'SUCCESS'
+            metadata: { name: attendee.name, email: attendee.email, qr_identifier: attendee.qr_identifier }
         });
 
         return NextResponse.json({ success: true, attendee });

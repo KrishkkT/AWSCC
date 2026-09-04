@@ -70,16 +70,18 @@ export default function VolunteersManagementPage() {
                     ...newVol
                 })
             });
+            const data = await res.json();
             if (res.ok) {
                 setAddModalOpen(false);
-                setNewVol({ name: '', email: '', password: '', permissions: ['CHECK_IN', 'VIEW_DASHBOARD'] });
-                fetchVolunteers();
+                setNewVol({ name: '', email: '', password: '', permissions: ['CHECK_IN', 'VIEW_DASHBOARD', 'TRACK_ACCESS', 'WORKSHOP_ACCESS', 'SWAG', 'FOOD'] });
+                await fetchVolunteers();
+                alert('Volunteer account created and assigned successfully!');
             } else {
-                const data = await res.json();
                 alert(data.error || 'Failed to create volunteer');
             }
         } catch (err) {
             console.error(err);
+            alert('Error creating volunteer: ' + err.message);
         } finally {
             setSaving(false);
         }
@@ -90,23 +92,29 @@ export default function VolunteersManagementPage() {
         if (!selectedVolunteer) return;
         setSaving(true);
         try {
+            const targetUserId = selectedVolunteer.user_id || selectedVolunteer.user?.id || selectedVolunteer.id;
             const res = await fetch('/api/onepass/volunteers', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    userId: selectedVolunteer.user_id,
+                    userId: targetUserId,
                     eventId,
                     permissions: editPermissions,
-                    newPassword: newPassword || undefined
+                    newPassword: newPassword && newPassword.trim() ? newPassword.trim() : undefined
                 })
             });
+            const data = await res.json();
             if (res.ok) {
                 setEditModalOpen(false);
                 setNewPassword('');
-                fetchVolunteers();
+                await fetchVolunteers();
+                alert('Permissions and password updated successfully!');
+            } else {
+                alert(data.error || 'Failed to update volunteer');
             }
         } catch (err) {
             console.error(err);
+            alert('Error updating volunteer: ' + err.message);
         } finally {
             setSaving(false);
         }
@@ -115,17 +123,19 @@ export default function VolunteersManagementPage() {
     const handleRemoveVolunteer = async (userId, userName) => {
         if (!confirm(`Are you sure you want to remove volunteer "${userName}" from this event?`)) return;
         try {
-            const res = await fetch(`/api/onepass/volunteers?userId=${userId}&eventId=${eventId}`, {
+            const res = await fetch(`/api/onepass/volunteers?userId=${userId}&eventId=${eventId}&permanent=true`, {
                 method: 'DELETE'
             });
+            const data = await res.json();
             if (res.ok) {
-                fetchVolunteers();
+                await fetchVolunteers();
+                alert(`Volunteer "${userName}" removed successfully.`);
             } else {
-                const data = await res.json();
                 alert(data.error || 'Failed to remove volunteer');
             }
         } catch (err) {
             console.error(err);
+            alert('Network error while removing volunteer');
         }
     };
 
@@ -201,7 +211,7 @@ export default function VolunteersManagementPage() {
 
                                 <div className="flex items-center justify-between pt-3 border-t border-[#1a2540]">
                                     <button
-                                        onClick={() => handleRemoveVolunteer(ev.user_id, volUser.name)}
+                                        onClick={() => handleRemoveVolunteer(ev.user_id || volUser.id, volUser.name)}
                                         className="flex items-center space-x-1 px-3 py-1.5 text-slate-400 hover:text-red-400 hover:bg-[#0C111D] rounded-xl text-xs transition"
                                         title="Remove Volunteer from Event"
                                     >
@@ -211,8 +221,9 @@ export default function VolunteersManagementPage() {
 
                                     <button
                                         onClick={() => {
-                                            setSelectedVolunteer(ev);
+                                            setSelectedVolunteer({ ...ev, user_id: ev.user_id || volUser.id });
                                             setEditPermissions(ev.permissions || []);
+                                            setNewPassword('');
                                             setEditModalOpen(true);
                                         }}
                                         className="flex items-center space-x-1.5 px-4 py-1.5 bg-[#1a2540] hover:bg-[#0073BB] text-white rounded-xl text-xs font-medium transition"

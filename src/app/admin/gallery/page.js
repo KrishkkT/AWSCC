@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Image as ImageIcon, Plus, Trash2, Edit2, Save, X, Loader2, Eye, Upload } from "lucide-react";
 import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
+import { uploadFile } from "@/lib/storage";
 
 export default function AdminGallery() {
     const [photos, setPhotos] = useState([]);
@@ -49,25 +50,20 @@ export default function AdminGallery() {
 
         setUploading(true);
         try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-            const filePath = `gallery/${fileName}`;
+            const result = await uploadFile(file, {
+                folder: '/gallery',
+                tags: ['gallery-photo']
+            });
 
-            const { error: uploadError } = await supabase.storage
-                .from('gallery')
-                .upload(filePath, file);
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to upload image');
+            }
 
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('gallery')
-                .getPublicUrl(filePath);
-
-            setFormData({ ...formData, url: publicUrl });
+            setFormData({ ...formData, url: result.url });
             showFeedback('Image uploaded!');
         } catch (error) {
             console.error('Upload error:', error);
-            showFeedback('Upload failed. Ensure "gallery" bucket exists.', 'error');
+            showFeedback(`Upload failed: ${error.message || 'Check storage configuration'}`, 'error');
         } finally {
             setUploading(false);
         }

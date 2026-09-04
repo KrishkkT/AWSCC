@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const { searchParams } = new URL(req.url);
         const eventId = searchParams.get('eventId');
         if (!eventId) {
@@ -25,6 +29,7 @@ export async function GET(req) {
 
 export async function POST(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const body = await req.json();
         const { eventId, name, description, capacity } = body;
 
@@ -45,8 +50,7 @@ export async function POST(req) {
         });
 
         // Audit log
-        OnePassDB.getSnapshot().audit_logs.unshift({
-            id: `aud_${Date.now()}`,
+        OnePassDB.addAuditLog({
             event_id: eventId,
             actor_id: auth.user.id,
             actor_name: auth.user.name,
@@ -54,9 +58,7 @@ export async function POST(req) {
             action: 'CREATE_TRACK',
             entity_type: 'TRACK',
             entity_id: track.id,
-            metadata: { name: track.name, capacity: track.capacity },
-            timestamp: new Date().toISOString(),
-            result: 'SUCCESS'
+            metadata: { name: track.name, capacity: track.capacity }
         });
 
         return NextResponse.json({ success: true, track });
@@ -68,6 +70,7 @@ export async function POST(req) {
 
 export async function PATCH(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const body = await req.json();
         const { id, eventId, ...updates } = body;
 
@@ -90,6 +93,7 @@ export async function PATCH(req) {
 
 export async function DELETE(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
 

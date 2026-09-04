@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import { seedOnePassDatabase } from '@/lib/onepass/seed';
 
 export async function GET(req) {
     try {
+        await OnePassDB.ensureHydrated();
         seedOnePassDatabase(false);
         const auth = await authorizeUser(req);
         if (!auth.authorized) {
@@ -43,6 +47,7 @@ export async function GET(req) {
 
 export async function POST(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const auth = await authorizeUser(req, 'ADMIN');
         if (!auth.authorized) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -56,8 +61,7 @@ export async function POST(req) {
         const newEvent = OnePassDB.createEvent(body);
 
         // Audit log
-        OnePassDB.getSnapshot().audit_logs.unshift({
-            id: `aud_${Date.now()}`,
+        OnePassDB.addAuditLog({
             event_id: newEvent.id,
             actor_id: auth.user.id,
             actor_name: auth.user.name,
@@ -65,9 +69,7 @@ export async function POST(req) {
             action: 'CREATE_EVENT',
             entity_type: 'EVENT',
             entity_id: newEvent.id,
-            metadata: { name: newEvent.name, year: newEvent.year, status: newEvent.status },
-            timestamp: new Date().toISOString(),
-            result: 'SUCCESS'
+            metadata: { name: newEvent.name, year: newEvent.year, status: newEvent.status }
         });
 
         return NextResponse.json({ success: true, event: newEvent });

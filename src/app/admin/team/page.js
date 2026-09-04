@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Users, Plus, Trash2, Edit2, Save, X, Loader2, Github, Linkedin, Instagram, Globe, Upload } from "lucide-react";
 import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
+import { uploadFile } from "@/lib/storage";
 
 export default function AdminTeam() {
     const [team, setTeam] = useState([]);
@@ -53,22 +54,17 @@ export default function AdminTeam() {
         if (!file) return;
 
         setUploading(true);
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-        const filePath = `team/${fileName}`;
-
         try {
-            const { error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, file);
+            const result = await uploadFile(file, {
+                folder: '/team',
+                tags: ['team-avatar']
+            });
 
-            if (uploadError) throw uploadError;
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to upload avatar');
+            }
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('avatars')
-                .getPublicUrl(filePath);
-
-            setFormData({ ...formData, avatar_url: publicUrl });
+            setFormData({ ...formData, avatar_url: result.url });
             setFeedback({ message: 'Image uploaded successfully!', type: 'success' });
         } catch (error) {
             setFeedback({ message: 'Upload failed: ' + error.message, type: 'error' });

@@ -3,8 +3,12 @@ import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
 import { generateQRToken } from '@/lib/onepass/qr';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const body = await req.json();
         const { eventId, rows, mapping, dryRun = false } = body;
 
@@ -182,8 +186,7 @@ export async function POST(req) {
         const created = OnePassDB.batchCreateAttendees(eventId, validRecords);
 
         // Audit log
-        OnePassDB.getSnapshot().audit_logs.unshift({
-            id: `aud_${Date.now()}`,
+        OnePassDB.addAuditLog({
             event_id: eventId,
             actor_id: auth.user.id,
             actor_name: auth.user.name,
@@ -196,9 +199,7 @@ export async function POST(req) {
                 imported_count: created.length,
                 duplicates: duplicateRecords.length,
                 invalid: invalidRecords.length
-            },
-            timestamp: new Date().toISOString(),
-            result: 'SUCCESS'
+            }
         });
 
         return NextResponse.json({

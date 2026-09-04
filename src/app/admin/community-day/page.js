@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Calendar, Plus, Search, Edit2, Trash2, Eye, EyeOff, X, Check, Loader2, Code2, Users, Award, Ticket, Clock, FileText, Laptop, Upload } from "lucide-react";
 import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
+import { uploadFile } from "@/lib/storage";
 
 const DEFAULT_AGENDA = [
   {
@@ -174,13 +175,14 @@ export default function AdminCommunityDay() {
     }
 
     const uploadImage = async (file) => {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-        const filePath = `community_day/${fileName}`;
-        const { error: uploadError } = await supabase.storage.from('event-images').upload(filePath, file);
-        if (uploadError) throw uploadError;
-        const { data: { publicUrl } } = supabase.storage.from('event-images').getPublicUrl(filePath);
-        return publicUrl;
+        const result = await uploadFile(file, {
+            folder: '/community-day',
+            tags: ['community-day']
+        });
+        if (!result.success) {
+            throw new Error(result.error || 'Upload failed');
+        }
+        return result.url;
     };
 
     const handleWorkshopImageUpload = async (e, idx) => {

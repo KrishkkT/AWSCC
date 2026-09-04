@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(req, { params }) {
     try {
+        await OnePassDB.ensureHydrated();
         const { id } = await params;
         const auth = await authorizeUser(req, 'ADMIN');
         if (!auth.authorized) {
@@ -14,8 +18,7 @@ export async function POST(req, { params }) {
         const clonedEvent = OnePassDB.cloneEvent(id, body);
 
         // Audit log
-        OnePassDB.getSnapshot().audit_logs.unshift({
-            id: `aud_${Date.now()}`,
+        OnePassDB.addAuditLog({
             event_id: clonedEvent.id,
             actor_id: auth.user.id,
             actor_name: auth.user.name,
@@ -23,9 +26,7 @@ export async function POST(req, { params }) {
             action: 'CLONE_EVENT',
             entity_type: 'EVENT',
             entity_id: clonedEvent.id,
-            metadata: { source_event_id: id, new_event_name: clonedEvent.name },
-            timestamp: new Date().toISOString(),
-            result: 'SUCCESS'
+            metadata: { source_event_id: id, new_event_name: clonedEvent.name }
         });
 
         return NextResponse.json({ success: true, event: clonedEvent });

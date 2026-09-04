@@ -57,8 +57,8 @@ export default function OnePassLoginPage() {
                 {/* Login Form Card */}
                 <div className="bg-[#151c2e] border border-[#1a2540] rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 backdrop-blur-sm">
                     <div className="space-y-1">
-                        <h2 className="text-lg font-semibold text-white">Event Operations Sign In</h2>
-                        <p className="text-xs text-slate-400">Sign in with your administrator or volunteer account</p>
+                        <h2 className="text-lg font-semibold text-white">Volunteer Sign In</h2>
+                        <p className="text-xs text-slate-400">Sign in with your assigned volunteer credentials</p>
                     </div>
 
                     {error && (
