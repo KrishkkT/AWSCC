@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const { searchParams } = new URL(req.url);
         const eventId = searchParams.get('eventId');
         if (!eventId) {
@@ -25,6 +29,7 @@ export async function GET(req) {
 
 export async function POST(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const body = await req.json();
         const { eventId, name, description, speaker, location, start_time, end_time, capacity } = body;
 
@@ -49,8 +54,7 @@ export async function POST(req) {
         });
 
         // Audit log
-        OnePassDB.getSnapshot().audit_logs.unshift({
-            id: `aud_${Date.now()}`,
+        OnePassDB.addAuditLog({
             event_id: eventId,
             actor_id: auth.user.id,
             actor_name: auth.user.name,
@@ -58,9 +62,7 @@ export async function POST(req) {
             action: 'CREATE_WORKSHOP',
             entity_type: 'WORKSHOP',
             entity_id: workshop.id,
-            metadata: { name: workshop.name, capacity: workshop.capacity },
-            timestamp: new Date().toISOString(),
-            result: 'SUCCESS'
+            metadata: { name: workshop.name, capacity: workshop.capacity }
         });
 
         return NextResponse.json({ success: true, workshop });
@@ -72,6 +74,7 @@ export async function POST(req) {
 
 export async function PATCH(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const body = await req.json();
         const { id, ...updates } = body;
 
@@ -94,6 +97,7 @@ export async function PATCH(req) {
 
 export async function DELETE(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
 

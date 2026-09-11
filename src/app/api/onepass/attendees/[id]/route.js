@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req, { params }) {
     try {
+        await OnePassDB.ensureHydrated();
         const { id } = await params;
         const { searchParams } = new URL(req.url);
         const eventId = searchParams.get('eventId');
@@ -31,6 +35,7 @@ export async function GET(req, { params }) {
 
 export async function PATCH(req, { params }) {
     try {
+        await OnePassDB.ensureHydrated();
         const { id } = await params;
 
         const auth = await authorizeUser(req, 'ADMIN');
@@ -53,6 +58,7 @@ export async function PATCH(req, { params }) {
 
 export async function DELETE(req, { params }) {
     try {
+        await OnePassDB.ensureHydrated();
         const { id } = await params;
 
         const auth = await authorizeUser(req, 'ADMIN');
@@ -60,7 +66,7 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        OnePassDB.deleteAttendee(id);
+        OnePassDB.deleteAttendee(id, auth.user?.name || 'Admin', auth.user?.role || 'ADMIN');
         return NextResponse.json({ success: true, message: 'Attendee deleted successfully' });
     } catch (e) {
         console.error('[OnePass Attendee DELETE]', e);

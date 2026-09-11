@@ -50,7 +50,7 @@ export default function OnePassLandingPage() {
                                 href="/onepass/login"
                                 className="flex items-center space-x-1.5 px-4 py-2 bg-[#0073BB] hover:bg-[#0073BB]/90 text-white font-semibold text-xs rounded-xl transition shadow-md shadow-[#0073BB]/20"
                             >
-                                <span>Sign In</span>
+                                <span>Volunteer Login</span>
                                 <ArrowRight className="w-3.5 h-3.5" />
                             </Link>
                         )}
@@ -74,19 +74,23 @@ export default function OnePassLandingPage() {
                 </p>
 
                 <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
-                    <Link
-                        href={user ? "/onepass/dashboard" : "/onepass/login"}
-                        className="flex items-center space-x-2 px-6 py-3.5 bg-[#0073BB] hover:bg-[#0073BB]/90 text-white font-bold text-sm rounded-xl transition shadow-xl shadow-[#0073BB]/25 hover:scale-[1.02]"
-                    >
-                        <span>Launch Event Operations</span>
-                        <ArrowRight className="w-4 h-4" />
-                    </Link>
-                    <Link
-                        href="/onepass/login"
-                        className="px-6 py-3.5 bg-[#151c2e] hover:bg-[#1a2540] border border-[#1a2540] text-white font-medium text-sm rounded-xl transition"
-                    >
-                        Volunteer Fast Scan Login
-                    </Link>
+                    {user ? (
+                        <Link
+                            href="/onepass/dashboard"
+                            className="flex items-center space-x-2 px-8 py-3.5 bg-[#0073BB] hover:bg-[#0073BB]/90 text-white font-bold text-sm rounded-xl transition shadow-xl shadow-[#0073BB]/25 hover:scale-[1.02]"
+                        >
+                            <span>Open Event Console</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    ) : (
+                        <Link
+                            href="/onepass/login"
+                            className="flex items-center space-x-2 px-8 py-3.5 bg-[#0073BB] hover:bg-[#0073BB]/90 text-white font-bold text-sm rounded-xl transition shadow-xl shadow-[#0073BB]/25 hover:scale-[1.02]"
+                        >
+                            <span>Volunteer Login</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    )}
                 </div>
 
                 {/* Core Architecture Flow Visual */}

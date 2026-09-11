@@ -275,12 +275,176 @@
 }
 
 /* ============================================================
-   FORMS
+   FORMS & ADMIN COMPONENTS
    ============================================================ */
+.form-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 0.5rem;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+    width: 100% !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 1rem !important;
+    padding: 0.875rem 1.25rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #ffffff !important;
+    outline: none !important;
+    transition: all 0.2s ease !important;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+    border-color: #0073BB !important;
+    background-color: rgba(15, 23, 42, 0.85) !important;
+    box-shadow: 0 0 0 2px rgba(0, 115, 187, 0.2) !important;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    padding: 0.875rem 1.75rem;
+    background: linear-gradient(135deg, #0073BB 0%, #4F8EF7 100%);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.875rem;
+    border-radius: 1rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 14px rgba(0, 115, 187, 0.3);
+}
+
+.btn-primary:hover {
+    opacity: 0.95;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0, 115, 187, 0.45);
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
+}
+
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    padding: 0.875rem 1.75rem;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.75);
+    font-weight: 700;
+    font-size: 0.875rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:active {
+    transform: scale(0.98);
+}
+
+.btn-crud-edit,
+.btn-crud-delete {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 2.75rem !important;
+    height: 2.75rem !important;
+    min-width: 2.75rem !important;
+    min-height: 2.75rem !important;
+    flex-shrink: 0 !important;
+    border-radius: 0.875rem !important;
+    padding: 0 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.btn-crud-edit {
+    background-color: rgba(0, 115, 187, 0.18) !important;
+    border: 1.5px solid rgba(0, 115, 187, 0.4) !important;
+    color: #4F8EF7 !important;
+}
+
+.btn-crud-edit:hover {
+    background-color: rgba(0, 115, 187, 0.35) !important;
+    border-color: rgba(0, 115, 187, 0.8) !important;
+    color: #ffffff !important;
+    transform: scale(1.08) !important;
+}
+
+.btn-crud-delete {
+    background-color: rgba(239, 68, 68, 0.18) !important;
+    border: 1.5px solid rgba(239, 68, 68, 0.4) !important;
+    color: #f87171 !important;
+}
+
+.btn-crud-delete:hover {
+    background-color: rgba(239, 68, 68, 0.35) !important;
+    border-color: rgba(239, 68, 68, 0.8) !important;
+    color: #ffffff !important;
+    transform: scale(1.08) !important;
+}
+
+.btn-crud-edit svg,
+.btn-crud-delete svg {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    min-width: 1.25rem !important;
+    min-height: 1.25rem !important;
+    stroke-width: 2.25px !important;
+    stroke: currentColor !important;
+    display: block !important;
+    flex-shrink: 0 !important;
+}
+
+.glass-card {
+    background-color: rgba(21, 28, 46, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.5rem;
+}
+
 input,
 select,
 textarea {
     @apply border border-slate-700 rounded-2xl p-3.5 text-white bg-slate-800 focus:outline-none transition-colors focus:border-[#4F8EF7];
+    width: 100%;
+    box-sizing: border-box;
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="color"] {
+    width: auto !important;
+    display: inline-block !important;
 }
 
 option {

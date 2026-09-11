@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req, { params }) {
     try {
+        await OnePassDB.ensureHydrated();
         const { id } = await params;
         const auth = await authorizeUser(req, null, id);
         if (!auth.authorized) {
@@ -24,6 +28,7 @@ export async function GET(req, { params }) {
 
 export async function PATCH(req, { params }) {
     try {
+        await OnePassDB.ensureHydrated();
         const { id } = await params;
         const auth = await authorizeUser(req, 'ADMIN');
         if (!auth.authorized) {
@@ -37,8 +42,7 @@ export async function PATCH(req, { params }) {
         }
 
         // Audit log
-        OnePassDB.getSnapshot().audit_logs.unshift({
-            id: `aud_${Date.now()}`,
+        OnePassDB.addAuditLog({
             event_id: id,
             actor_id: auth.user.id,
             actor_name: auth.user.name,
@@ -46,9 +50,7 @@ export async function PATCH(req, { params }) {
             action: 'UPDATE_EVENT',
             entity_type: 'EVENT',
             entity_id: id,
-            metadata: updates,
-            timestamp: new Date().toISOString(),
-            result: 'SUCCESS'
+            metadata: updates
         });
 
         return NextResponse.json({ success: true, event: updated });
@@ -60,6 +62,7 @@ export async function PATCH(req, { params }) {
 
 export async function DELETE(req, { params }) {
     try {
+        await OnePassDB.ensureHydrated();
         const { id } = await params;
         const auth = await authorizeUser(req, 'ADMIN');
         if (!auth.authorized) {

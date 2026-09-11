@@ -3,9 +3,10 @@
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Calendar, Plus, Search, Edit2, Trash2, Eye, EyeOff, X, Check, Loader2, Code2, Users, Award, Ticket, Clock, FileText, Laptop, Upload } from "lucide-react";
+import { Calendar, Plus, Search, Edit2, Trash2, Eye, EyeOff, X, Check, Loader2, Code2, Users, Award, Ticket, Clock, FileText, Laptop, Upload, ChevronUp, ChevronDown } from "lucide-react";
 import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
+import { uploadFile } from "@/lib/storage";
 
 const DEFAULT_AGENDA = [
   {
@@ -49,6 +50,27 @@ const normalizeAgendaData = (agendaData) => {
             }
         }
         return block;
+    });
+};
+
+const normalizeSpeakersData = (speakers) => {
+    if (!Array.isArray(speakers)) return [];
+    return speakers.map(speaker => {
+        let roles = Array.isArray(speaker?.roles) && speaker.roles.length > 0
+            ? speaker.roles.map(r => ({ role: r?.role || '', company: r?.company || '' }))
+            : (speaker?.role || speaker?.company)
+                ? [{ role: speaker.role || '', company: speaker.company || '' }]
+                : [{ role: '', company: '' }];
+        if (roles.length === 0) roles = [{ role: '', company: '' }];
+        return {
+            ...speaker,
+            name: speaker?.name || '',
+            roles,
+            role: roles[0]?.role || speaker?.role || '',
+            company: roles[0]?.company || speaker?.company || '',
+            image: speaker?.image || '',
+            linkedin: speaker?.linkedin || speaker?.linkedin_url || ''
+        };
     });
 };
 
@@ -154,7 +176,7 @@ export default function AdminCommunityDay() {
             hero_data: safeObject(event.hero_data, {}),
             about_data: safeObject(event.about_data, { text: '' }),
             agenda_data: normalizeAgendaData(safeArray(event.agenda_data, DEFAULT_AGENDA)),
-            speakers_data: safeArray(event.speakers_data, []),
+            speakers_data: normalizeSpeakersData(safeArray(event.speakers_data, [])),
             sponsors_data: safeArray(event.sponsors_data, []),
             team_data: safeArray(event.team_data, []),
             committee_data: safeArray(event.committee_data, []),
@@ -174,13 +196,29 @@ export default function AdminCommunityDay() {
     }
 
     const uploadImage = async (file) => {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-        const filePath = `community_day/${fileName}`;
-        const { error: uploadError } = await supabase.storage.from('event-images').upload(filePath, file);
-        if (uploadError) throw uploadError;
-        const { data: { publicUrl } } = supabase.storage.from('event-images').getPublicUrl(filePath);
-        return publicUrl;
+        const result = await uploadFile(file, {
+            folder: '/community-day',
+            tags: ['community-day']
+        });
+        if (!result.success) throw new Error(result.error || 'Failed to upload image');
+        return result.url;
+    };
+
+    const handleFileChange = async (e, type) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            if (type === 'popup') {
+                setPopupImageFile(file);
+                setFormData(prev => ({ ...prev, popup_image_url: URL.createObjectURL(file) }));
+            } else if (type === 'mobile') {
+                setMobileImageFile(file);
+                setFormData(prev => ({ ...prev, mobile_image_url: URL.createObjectURL(file) }));
+            }
+        } catch (err) {
+            showFeedback(`Upload Error: ${err.message}`, 'error');
+        }
     };
 
     const handleWorkshopImageUpload = async (e, idx) => {
@@ -262,6 +300,22 @@ export default function AdminCommunityDay() {
             return;
         }
 
+        const cleanedSpeakers = (processedSpeakers || []).map(s => {
+            const roles = Array.isArray(s.roles) && s.roles.length > 0
+                ? s.roles.filter(r => (r.role && r.role.trim()) || (r.company && r.company.trim()))
+                : (s.role || s.company)
+                    ? [{ role: s.role || '', company: s.company || '' }]
+                    : [];
+            const primaryRole = roles[0]?.role || s.role || '';
+            const primaryCompany = roles[0]?.company || s.company || '';
+            return {
+                ...s,
+                roles: roles.length > 0 ? roles : [{ role: '', company: '' }],
+                role: primaryRole,
+                company: primaryCompany
+            };
+        });
+
         const payload = {
             year: parseInt(formData.year),
             title: formData.title,
@@ -273,7 +327,7 @@ export default function AdminCommunityDay() {
                 const { _tracksRaw, ...rest } = block;
                 return rest;
             }),
-            speakers_data: processedSpeakers,
+            speakers_data: cleanedSpeakers,
             sponsors_data: processedSponsors,
             team_data: processedTeam,
             committee_data: processedCommittee,
@@ -322,6 +376,48 @@ export default function AdminCommunityDay() {
 
 
     // Graphical Array Helpers
+    const addSpeakerRole = (speakerIdx) => {
+        const arr = [...formData.speakers_data];
+        const speaker = { ...arr[speakerIdx] };
+        const roles = Array.isArray(speaker.roles) && speaker.roles.length > 0
+            ? [...speaker.roles]
+            : [{ role: speaker.role || '', company: speaker.company || '' }];
+        roles.push({ role: '', company: '' });
+        speaker.roles = roles;
+        arr[speakerIdx] = speaker;
+        setFormData({ ...formData, speakers_data: arr });
+    };
+
+    const removeSpeakerRole = (speakerIdx, roleIdx) => {
+        const arr = [...formData.speakers_data];
+        const speaker = { ...arr[speakerIdx] };
+        let roles = Array.isArray(speaker.roles) && speaker.roles.length > 0
+            ? [...speaker.roles]
+            : [{ role: speaker.role || '', company: speaker.company || '' }];
+        roles = roles.filter((_, rI) => rI !== roleIdx);
+        if (roles.length === 0) roles = [{ role: '', company: '' }];
+        speaker.roles = roles;
+        speaker.role = roles[0]?.role || '';
+        speaker.company = roles[0]?.company || '';
+        arr[speakerIdx] = speaker;
+        setFormData({ ...formData, speakers_data: arr });
+    };
+
+    const updateSpeakerRole = (speakerIdx, roleIdx, field, value) => {
+        const arr = [...formData.speakers_data];
+        const speaker = { ...arr[speakerIdx] };
+        const roles = Array.isArray(speaker.roles) && speaker.roles.length > 0
+            ? speaker.roles.map(r => ({ ...r }))
+            : [{ role: speaker.role || '', company: speaker.company || '' }];
+        if (!roles[roleIdx]) roles[roleIdx] = { role: '', company: '' };
+        roles[roleIdx][field] = value;
+        speaker.roles = roles;
+        if (roleIdx === 0) {
+            speaker[field] = value;
+        }
+        arr[speakerIdx] = speaker;
+        setFormData({ ...formData, speakers_data: arr });
+    };
     const updateArrayItem = (key, idx, field, value) => {
         const arr = [...formData[key]];
         arr[idx][field] = value;
@@ -339,6 +435,35 @@ export default function AdminCommunityDay() {
     };
     const removeArrayItem = (key, idx) => {
         setFormData({ ...formData, [key]: formData[key].filter((_, i) => i !== idx) });
+    };
+    const moveArrayItem = (key, fromIdx, toIdx) => {
+        if (fromIdx === toIdx) return;
+        const arr = [...formData[key]];
+        if (toIdx < 0 || toIdx >= arr.length) return;
+        const [moved] = arr.splice(fromIdx, 1);
+        arr.splice(toIdx, 0, moved);
+        setFormData({ ...formData, [key]: arr });
+    };
+    const moveNestedArrayItem = (parentKey, parentIdx, childKey, fromIdx, toIdx) => {
+        if (fromIdx === toIdx) return;
+        const parentArr = [...formData[parentKey]];
+        const childArr = [...safeArray(parentArr[parentIdx]?.[childKey])];
+        if (toIdx < 0 || toIdx >= childArr.length) return;
+        const [moved] = childArr.splice(fromIdx, 1);
+        childArr.splice(toIdx, 0, moved);
+        parentArr[parentIdx] = {
+            ...parentArr[parentIdx],
+            [childKey]: childArr
+        };
+        setFormData({ ...formData, [parentKey]: parentArr });
+    };
+    const moveTicketItem = (fromIdx, toIdx) => {
+        if (fromIdx === toIdx) return;
+        const tickets = [...safeArray(formData.ticket_data?.tickets)];
+        if (toIdx < 0 || toIdx >= tickets.length) return;
+        const [moved] = tickets.splice(fromIdx, 1);
+        tickets.splice(toIdx, 0, moved);
+        setFormData({ ...formData, ticket_data: { ...formData.ticket_data, tickets } });
     };
 
     return (
@@ -633,54 +758,234 @@ export default function AdminCommunityDay() {
                             </div>
                         )}
 
-                        {activeTab === 'speakers_sponsors' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {activeTab === 'speakers_sponsors' && (
+                            <div className="space-y-6">
                                 {/* Speakers Section */}
                                 <div className="space-y-4">
-                                    <h4 className="text-lg font-black text-brand-cyan border-b border-brand-cyan/20 pb-2">Speakers List</h4>
+                                    <div className="flex items-center justify-between border-b border-brand-cyan/20 pb-2">
+                                        <div className="flex items-center gap-2">
+                                            <h4 className="text-lg font-black text-brand-cyan">Speakers List</h4>
+                                            <span className="text-xs font-mono text-brand-cyan/70 font-bold">({formData.speakers_data.length})</span>
+                                        </div>
+                                        <button type="button" onClick={() => addArrayItem('speakers_data', { name: '', role: '', company: '', image: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1 font-bold">
+                                            <Plus size={14} /> Add Speaker
+                                        </button>
+                                    </div>
                                     {formData.speakers_data.map((speaker, idx) => (
-                                        <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 md:p-5 relative flex flex-col sm:flex-row gap-5 items-start">
-                                            <button type="button" onClick={() => removeArrayItem('speakers_data', idx)} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full sm:bg-transparent"><X size={14}/></button>
-                                            <label className="w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-2xl border-2 border-dashed border-white/20 hover:border-brand-cyan/50 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group bg-white/5 mx-auto sm:mx-0">
-                                                {speaker.image ? <img src={speaker.image} alt={speaker.name || "Speaker"} className="absolute inset-0 w-full h-full object-cover" /> : <div className="text-white/40 group-hover:text-brand-cyan transition-colors"><Plus size={24}/></div>}
-                                                <input type="file" accept="image/*" className="hidden" onChange={e => handleArrayImageChange('speakers_data', idx, e.target.files[0], 'image')} />
-                                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
-                                                    <span className="text-[10px] font-black uppercase text-white tracking-widest">Upload</span>
+                                        <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 md:p-5 relative flex flex-col gap-3 hover:border-brand-cyan/30 transition-all">
+                                            {/* Speaker Reorder Bar */}
+                                            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                                <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded-lg px-2 py-0.5">
+                                                    <span className="text-[10px] font-bold text-white/40 uppercase">Position</span>
+                                                    <select
+                                                        value={idx}
+                                                        onChange={e => moveArrayItem('speakers_data', idx, parseInt(e.target.value))}
+                                                        className="bg-transparent text-xs font-black text-brand-cyan outline-none cursor-pointer"
+                                                        title="Move speaker to position"
+                                                    >
+                                                        {formData.speakers_data.map((_, pIdx) => (
+                                                            <option key={pIdx} value={pIdx} className="bg-[#0c111d] text-white">
+                                                                #{pIdx + 1}
+                                                            </option>
+                                                        ))}
+                                                    </select>
                                                 </div>
-                                            </label>
-                                            <div className="space-y-3 flex-1 w-full relative sm:pr-4">
-                                                <input type="text" value={speaker.name} onChange={e => updateArrayItem('speakers_data', idx, 'name', e.target.value)} placeholder="Full Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    <input type="text" value={speaker.role} onChange={e => updateArrayItem('speakers_data', idx, 'role', e.target.value)} placeholder="Job Role" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white/90 text-sm outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
-                                                    <input type="text" value={speaker.company} onChange={e => updateArrayItem('speakers_data', idx, 'company', e.target.value)} placeholder="Company" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white/90 text-sm outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        disabled={idx === 0}
+                                                        onClick={() => moveArrayItem('speakers_data', idx, idx - 1)}
+                                                        className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                        title="Move Up"
+                                                    >
+                                                        <ChevronUp size={14} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={idx === formData.speakers_data.length - 1}
+                                                        onClick={() => moveArrayItem('speakers_data', idx, idx + 1)}
+                                                        className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                        title="Move Down"
+                                                    >
+                                                        <ChevronDown size={14} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeArrayItem('speakers_data', idx)}
+                                                        className="p-1 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded transition-all ml-1"
+                                                        title="Remove Speaker"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
                                                 </div>
-                                                <input type="text" value={speaker.image} onChange={e => updateArrayItem('speakers_data', idx, 'image', e.target.value)} placeholder="Or paste exact Image URL here..." className="w-full bg-brand-cyan/5 border border-brand-cyan/20 rounded-lg px-4 py-2 text-brand-cyan/90 text-xs outline-none focus:border-brand-cyan focus:bg-brand-cyan/10 transition-all font-mono" />
+                                            </div>
+
+                                            <div className="flex flex-col sm:flex-row gap-5 items-start">
+                                                <label className="w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-2xl border-2 border-dashed border-white/20 hover:border-brand-cyan/50 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group bg-white/5 mx-auto sm:mx-0">
+                                                    {speaker.image ? <img src={speaker.image} alt={speaker.name || "Speaker"} className="absolute inset-0 w-full h-full object-cover" /> : <div className="text-white/40 group-hover:text-brand-cyan transition-colors"><Plus size={24}/></div>}
+                                                    <input type="file" accept="image/*" className="hidden" onChange={e => handleArrayImageChange('speakers_data', idx, e.target.files[0], 'image')} />
+                                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
+                                                        <span className="text-[10px] font-black uppercase text-white tracking-widest">Upload</span>
+                                                    </div>
+                                                </label>
+                                                <div className="space-y-3 flex-1 w-full relative sm:pr-2">
+                                                    <input type="text" value={speaker.name} onChange={e => updateArrayItem('speakers_data', idx, 'name', e.target.value)} placeholder="Full Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
+                                                    
+                                                    {/* Multiple Roles & Companies List */}
+                                                    <div className="space-y-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-[10px] font-mono font-bold text-brand-cyan uppercase tracking-wider">Roles &amp; Companies</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => addSpeakerRole(idx)}
+                                                                className="text-xs font-bold text-brand-cyan hover:text-white flex items-center gap-1 transition-colors px-2 py-0.5 rounded-lg bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20"
+                                                            >
+                                                                <Plus size={12} /> Add Role &amp; Company
+                                                            </button>
+                                                        </div>
+
+                                                        {(() => {
+                                                            const roles = Array.isArray(speaker.roles) && speaker.roles.length > 0
+                                                                ? speaker.roles
+                                                                : [{ role: speaker.role || '', company: speaker.company || '' }];
+                                                            return roles.map((r, rIdx) => (
+                                                                <div key={rIdx} className="flex items-center gap-2">
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={r.role || ''}
+                                                                            onChange={e => updateSpeakerRole(idx, rIdx, 'role', e.target.value)}
+                                                                            placeholder={`Job Role ${roles.length > 1 ? `#${rIdx + 1}` : ''} (e.g. AWS Community Hero)`}
+                                                                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white/90 text-sm outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30"
+                                                                        />
+                                                                        <input
+                                                                            type="text"
+                                                                            value={r.company || ''}
+                                                                            onChange={e => updateSpeakerRole(idx, rIdx, 'company', e.target.value)}
+                                                                            placeholder={`Company ${roles.length > 1 ? `#${rIdx + 1}` : ''} (e.g. Amazon Web Services)`}
+                                                                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white/90 text-sm outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30"
+                                                                        />
+                                                                    </div>
+                                                                    {roles.length > 1 && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => removeSpeakerRole(idx, rIdx)}
+                                                                            className="p-2 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all shrink-0"
+                                                                            title="Remove this role & company"
+                                                                        >
+                                                                            <X size={14} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            ));
+                                                        })()}
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                        <input type="text" value={speaker.linkedin || speaker.linkedin_url || ''} onChange={e => { updateArrayItem('speakers_data', idx, 'linkedin', e.target.value); updateArrayItem('speakers_data', idx, 'linkedin_url', e.target.value); }} placeholder="LinkedIn URL (https://linkedin.com/in/...)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white/80 text-xs outline-none focus:border-brand-cyan transition-all placeholder:text-white/30" />
+                                                        <input type="text" value={speaker.image || ''} onChange={e => updateArrayItem('speakers_data', idx, 'image', e.target.value)} placeholder="Or paste exact Image URL here..." className="w-full bg-brand-cyan/5 border border-brand-cyan/20 rounded-lg px-3 py-2 text-brand-cyan/90 text-xs outline-none focus:border-brand-cyan focus:bg-brand-cyan/10 transition-all font-mono" />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
-                                    <button type="button" onClick={() => addArrayItem('speakers_data', { name: '', role: '', company: '', image: '' })} className="w-full py-3 border border-dashed border-white/10 rounded-xl text-white/50 hover:border-brand-cyan/30 flex justify-center text-sm font-bold"><Plus size={16} /> Add Speaker</button>
+                                    <button type="button" onClick={() => addArrayItem('speakers_data', { name: '', roles: [{ role: '', company: '' }], role: '', company: '', image: '', linkedin: '' })} className="w-full py-3 border border-dashed border-white/10 rounded-xl text-white/50 hover:border-brand-cyan/30 flex justify-center text-sm font-bold"><Plus size={16} /> Add Speaker</button>
                                 </div>
 
                                 {/* Sponsors Section */}
                                 <div className="space-y-4">
-                                    <h4 className="text-lg font-black text-[#fde047] border-b border-[#fde047]/20 pb-2">Sponsors List</h4>
-                                    {formData.sponsors_data.map((sponsor, idx) => (
-                                        <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 md:p-5 relative flex flex-col sm:flex-row gap-5 items-center sm:items-start">
-                                            <button type="button" onClick={() => removeArrayItem('sponsors_data', idx)} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full sm:bg-transparent"><X size={14}/></button>
-                                            <label className="w-20 h-20 shrink-0 bg-white/5 rounded-xl overflow-hidden border-2 border-dashed border-white/20 hover:border-[#fde047]/50 flex flex-col items-center justify-center cursor-pointer relative group">
-                                                {sponsor.logo ? <img src={sponsor.logo} alt={sponsor.name || "Sponsor"} className="w-full h-full object-contain p-2" /> : <div className="text-white/20 group-hover:text-[#fde047] transition-colors"><Award size={24}/></div>}
-                                                <input type="file" accept="image/*" className="hidden" onChange={e => handleArrayImageChange('sponsors_data', idx, e.target.files[0], 'logo')} />
-                                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
-                                                    <span className="text-[9px] font-black uppercase text-white tracking-widest mt-1">Logo</span>
+                                    <div className="flex items-center justify-between border-b border-[#fde047]/20 pb-2">
+                                        <h4 className="text-lg font-black text-[#fde047]">Sponsors List</h4>
+                                        <span className="text-xs text-white/40 font-mono font-bold">{formData.sponsors_data.length} Sponsors Registered</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                        {formData.sponsors_data.map((sponsor, idx) => (
+                                            <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 relative flex flex-col gap-3 hover:border-white/20 transition-all">
+                                                {/* Sponsor Reorder Bar */}
+                                                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                                    <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded-lg px-2 py-0.5">
+                                                        <span className="text-[10px] font-bold text-white/40 uppercase">Position</span>
+                                                        <select
+                                                            value={idx}
+                                                            onChange={e => moveArrayItem('sponsors_data', idx, parseInt(e.target.value))}
+                                                            className="bg-transparent text-xs font-black text-[#fde047] outline-none cursor-pointer"
+                                                            title="Move sponsor to position"
+                                                        >
+                                                            {formData.sponsors_data.map((_, pIdx) => (
+                                                                <option key={pIdx} value={pIdx} className="bg-[#0c111d] text-white">
+                                                                    #{pIdx + 1}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            disabled={idx === 0}
+                                                            onClick={() => moveArrayItem('sponsors_data', idx, idx - 1)}
+                                                            className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                            title="Move Up"
+                                                        >
+                                                            <ChevronUp size={14} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={idx === formData.sponsors_data.length - 1}
+                                                            onClick={() => moveArrayItem('sponsors_data', idx, idx + 1)}
+                                                            className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                            title="Move Down"
+                                                        >
+                                                            <ChevronDown size={14} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeArrayItem('sponsors_data', idx)}
+                                                            className="p-1 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded transition-all ml-1"
+                                                            title="Remove Sponsor"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </label>
-                                            <div className="space-y-3 flex-1 w-full sm:pr-6">
-                                                <input type="text" value={sponsor.name} onChange={e => updateArrayItem('sponsors_data', idx, 'name', e.target.value)} placeholder="Sponsor Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm outline-none focus:border-[#fde047] focus:ring-1 focus:ring-[#fde047] transition-all placeholder:text-white/30" />
-                                                <input type="text" value={sponsor.logo} onChange={e => updateArrayItem('sponsors_data', idx, 'logo', e.target.value)} placeholder="Or paste actual Logo URL here..." className="w-full bg-[#fde047]/5 border border-[#fde047]/20 rounded-lg px-4 py-2 text-[#fde047]/90 text-xs outline-none focus:border-[#fde047] focus:bg-[#fde047]/10 transition-all font-mono" />
+
+                                                <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
+                                                    <label className="w-20 h-20 shrink-0 bg-white/5 rounded-xl overflow-hidden border-2 border-dashed border-white/20 hover:border-[#fde047]/50 flex flex-col items-center justify-center cursor-pointer relative group">
+                                                        {sponsor.logo ? <img src={sponsor.logo} alt={sponsor.name || "Sponsor"} className="w-full h-full object-contain p-2" /> : <div className="text-white/20 group-hover:text-[#fde047] transition-colors"><Award size={24}/></div>}
+                                                        <input type="file" accept="image/*" className="hidden" onChange={e => handleArrayImageChange('sponsors_data', idx, e.target.files[0], 'logo')} />
+                                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
+                                                            <span className="text-[9px] font-black uppercase text-white tracking-widest mt-1">Logo</span>
+                                                        </div>
+                                                    </label>
+                                                    <div className="space-y-2.5 flex-1 w-full sm:pr-2">
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                                            <input type="text" value={sponsor.name} onChange={e => updateArrayItem('sponsors_data', idx, 'name', e.target.value)} placeholder="Sponsor Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-sm outline-none focus:border-[#fde047] focus:ring-1 focus:ring-[#fde047] transition-all placeholder:text-white/30 font-bold" />
+                                                            <input type="text" value={sponsor.category || ''} onChange={e => updateArrayItem('sponsors_data', idx, 'category', e.target.value)} placeholder="Category (e.g. Gold)" list="sponsor-categories" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-[#fde047] text-xs font-bold outline-none focus:border-[#fde047] focus:ring-1 focus:ring-[#fde047] transition-all placeholder:text-white/30" />
+                                                        </div>
+                                                        <input type="text" value={sponsor.logo} onChange={e => updateArrayItem('sponsors_data', idx, 'logo', e.target.value)} placeholder="Logo URL..." className="w-full bg-[#fde047]/5 border border-[#fde047]/20 rounded-lg px-3 py-1.5 text-[#fde047]/90 text-xs outline-none focus:border-[#fde047] focus:bg-[#fde047]/10 transition-all font-mono" />
+                                                        {/* Category Quick Chips */}
+                                                        <div className="flex flex-wrap gap-1 pt-0.5">
+                                                            {['Title Sponsor', 'Platinum Sponsor', 'Gold Sponsor', 'Silver Sponsor', 'Community Partner', 'Media Partner'].map(cat => (
+                                                                <button key={cat} type="button" onClick={() => updateArrayItem('sponsors_data', idx, 'category', cat)} className={`text-[9px] px-2 py-0.5 rounded-md border transition-all ${sponsor.category === cat ? 'bg-[#fde047]/20 text-[#fde047] border-[#fde047]/40 font-bold' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}>
+                                                                    {cat}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                    <button type="button" onClick={() => addArrayItem('sponsors_data', { name: '', logo: '' })} className="w-full py-3 border border-dashed border-white/10 rounded-xl text-white/50 hover:border-[#fde047]/30 flex justify-center text-sm font-bold"><Plus size={16} /> Add Sponsor</button>
+                                        ))}
+                                    </div>
+                                    <datalist id="sponsor-categories">
+                                        <option value="Title Sponsor" />
+                                        <option value="Platinum Sponsor" />
+                                        <option value="Gold Sponsor" />
+                                        <option value="Silver Sponsor" />
+                                        <option value="Community Partner" />
+                                        <option value="Media Partner" />
+                                        <option value="Education Partner" />
+                                        <option value="Technology Partner" />
+                                    </datalist>
+                                    <button type="button" onClick={() => addArrayItem('sponsors_data', { name: '', logo: '', category: 'Community Partner' })} className="w-full py-3 border border-dashed border-white/10 rounded-xl text-white/50 hover:border-[#fde047]/30 flex justify-center text-sm font-bold"><Plus size={16} /> Add Sponsor</button>
                                 </div>
                             </div>
                         )}
@@ -689,12 +994,57 @@ export default function AdminCommunityDay() {
                             <div className="space-y-4">
                                 <h4 className="text-lg font-black text-brand-cyan border-b border-brand-cyan/20 pb-2 flex items-center justify-between">
                                     Workshops List
-                                    <button type="button" onClick={() => addArrayItem('workshops_data', { title: '', image: '', speaker: '', time: '', venue: '', description: '', requirements: '', setup: '', guide_url: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Workshop</button>
+                                    <button type="button" onClick={() => addArrayItem('workshops_data', { title: '', image: '', speaker: '', speaker_description: '', time: '', venue: '', description: '', requirements: '', setup: '', guide_url: '', button_id: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Workshop</button>
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {(formData.workshops_data || []).map((ws, idx) => (
-                                        <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-6 relative space-y-4">
-                                            <button type="button" onClick={() => removeArrayItem('workshops_data', idx)} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full sm:bg-transparent"><X size={14}/></button>
+                                        <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-5 relative space-y-4 hover:border-brand-cyan/30 transition-all">
+                                            {/* Workshop Reorder Toolbar */}
+                                            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                                <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded-lg px-2 py-0.5">
+                                                    <span className="text-[10px] font-bold text-white/40 uppercase">Position</span>
+                                                    <select
+                                                        value={idx}
+                                                        onChange={e => moveArrayItem('workshops_data', idx, parseInt(e.target.value))}
+                                                        className="bg-transparent text-xs font-black text-brand-cyan outline-none cursor-pointer"
+                                                        title="Move workshop to position"
+                                                    >
+                                                        {(formData.workshops_data || []).map((_, pIdx) => (
+                                                            <option key={pIdx} value={pIdx} className="bg-[#0c111d] text-white">
+                                                                #{pIdx + 1}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        disabled={idx === 0}
+                                                        onClick={() => moveArrayItem('workshops_data', idx, idx - 1)}
+                                                        className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                        title="Move Up"
+                                                    >
+                                                        <ChevronUp size={14} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={idx === (formData.workshops_data?.length || 1) - 1}
+                                                        onClick={() => moveArrayItem('workshops_data', idx, idx + 1)}
+                                                        className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                        title="Move Down"
+                                                    >
+                                                        <ChevronDown size={14} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeArrayItem('workshops_data', idx)}
+                                                        className="p-1 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded transition-all ml-1"
+                                                        title="Remove Workshop"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
                                             
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black uppercase text-white/30 ml-1">Workshop Title</label>
@@ -721,6 +1071,11 @@ export default function AdminCommunityDay() {
                                                     <label className="text-[10px] font-black uppercase text-white/30 ml-1">Time / Slot</label>
                                                     <input type="text" value={ws.time} onChange={e => updateArrayItem('workshops_data', idx, 'time', e.target.value)} placeholder="e.g. 14:00 - 16:00" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all" />
                                                 </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase text-white/30 ml-1">Speaker Description / Bio</label>
+                                                <textarea rows={2} value={ws.speaker_description || ws.speaker_bio || ''} onChange={e => { updateArrayItem('workshops_data', idx, 'speaker_description', e.target.value); updateArrayItem('workshops_data', idx, 'speaker_bio', e.target.value); }} placeholder="e.g. AWS Community Builder, Senior Cloud Engineer..." className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan resize-none transition-all placeholder:text-white/20"></textarea>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-4">
@@ -771,8 +1126,53 @@ export default function AdminCommunityDay() {
                                     </h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {(formData.ticket_data.tickets || []).map((ticket, idx) => (
-                                            <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 md:p-5 relative space-y-3">
-                                                <button type="button" onClick={() => { const t = [...formData.ticket_data.tickets]; t.splice(idx,1); setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full sm:bg-transparent"><X size={14}/></button>
+                                            <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 md:p-5 relative space-y-3 hover:border-brand-cyan/30 transition-all">
+                                                {/* Ticket Reorder Toolbar */}
+                                                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                                    <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded-lg px-2 py-0.5">
+                                                        <span className="text-[10px] font-bold text-white/40 uppercase">Position</span>
+                                                        <select
+                                                            value={idx}
+                                                            onChange={e => moveTicketItem(idx, parseInt(e.target.value))}
+                                                            className="bg-transparent text-xs font-black text-brand-cyan outline-none cursor-pointer"
+                                                            title="Move ticket to position"
+                                                        >
+                                                            {(formData.ticket_data.tickets || []).map((_, pIdx) => (
+                                                                <option key={pIdx} value={pIdx} className="bg-[#0c111d] text-white">
+                                                                    #{pIdx + 1}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            disabled={idx === 0}
+                                                            onClick={() => moveTicketItem(idx, idx - 1)}
+                                                            className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                            title="Move Up"
+                                                        >
+                                                            <ChevronUp size={14} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={idx === (formData.ticket_data?.tickets?.length || 1) - 1}
+                                                            onClick={() => moveTicketItem(idx, idx + 1)}
+                                                            className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                            title="Move Down"
+                                                        >
+                                                            <ChevronDown size={14} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { const t = [...formData.ticket_data.tickets]; t.splice(idx,1); setFormData({...formData, ticket_data: {...formData.ticket_data, tickets: t}}); }}
+                                                            className="p-1 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded transition-all ml-1"
+                                                            title="Remove Ticket"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
                                                 
                                                 <div>
                                                     <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider block mb-1">Ticket Name</label>
@@ -849,30 +1249,85 @@ export default function AdminCommunityDay() {
                                 </div>
                                 
                                 <div className="space-y-4 md:col-span-2 mt-4">
-                                    <h4 className="text-lg font-black text-white border-b border-white/10 pb-2 flex items-center justify-between">
-                                        Organizing Team
-                                        <button type="button" onClick={() => addArrayItem('team_data', { name: '', role: '', image: '', portfolio_url: '', github_url: '', linkedin_url: '', instagram_url: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Member</button>
-                                    </h4>
+                                    <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                                        <div className="flex items-center gap-2">
+                                            <h4 className="text-lg font-black text-white">Organizing Team</h4>
+                                            <span className="text-xs font-mono text-brand-cyan px-2 py-0.5 rounded-full bg-brand-cyan/10 border border-brand-cyan/20">
+                                                {formData.team_data.length} Members
+                                            </span>
+                                        </div>
+                                        <button type="button" onClick={() => addArrayItem('team_data', { name: '', role: '', image: '', portfolio_url: '', github_url: '', linkedin_url: '', instagram_url: '' })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1 font-bold">
+                                            <Plus size={14} /> Add Member
+                                        </button>
+                                    </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {formData.team_data.map((member, idx) => (
-                                            <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 relative text-sm flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                                                <button type="button" onClick={() => removeArrayItem('team_data', idx)} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full sm:bg-transparent"><X size={14}/></button>
-                                                <label className="w-20 h-20 shrink-0 mx-auto sm:mx-0 rounded-full bg-white/5 border-2 border-dashed border-white/20 hover:border-brand-cyan/50 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group">
-                                                    {member.image ? <img src={member.image} alt={member.name || "Member"} className="absolute inset-0 w-full h-full object-cover" /> : <div className="text-white/40 group-hover:text-brand-cyan transition-colors"><Users size={20}/></div>}
-                                                    <input type="file" accept="image/*" className="hidden" onChange={e => handleArrayImageChange('team_data', idx, e.target.files[0], 'image')} />
-                                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
-                                                        <span className="text-[9px] font-black uppercase text-white tracking-widest">Image</span>
+                                            <div key={idx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 relative text-sm flex flex-col gap-3 hover:border-brand-cyan/30 transition-all">
+                                                {/* Reorder Toolbar */}
+                                                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                                    <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded-lg px-2 py-0.5">
+                                                        <span className="text-[10px] font-bold text-white/40 uppercase">Position</span>
+                                                        <select
+                                                            value={idx}
+                                                            onChange={e => moveArrayItem('team_data', idx, parseInt(e.target.value))}
+                                                            className="bg-transparent text-xs font-black text-brand-cyan outline-none cursor-pointer"
+                                                            title="Move member to position"
+                                                        >
+                                                            {formData.team_data.map((_, pIdx) => (
+                                                                <option key={pIdx} value={pIdx} className="bg-[#0c111d] text-white">
+                                                                    #{pIdx + 1}
+                                                                </option>
+                                                            ))}
+                                                        </select>
                                                     </div>
-                                                </label>
-                                                <div className="flex-grow w-full space-y-2 sm:pr-2">
-                                                    <input type="text" value={member.name} onChange={e => updateArrayItem('team_data', idx, 'name', e.target.value)} placeholder="Member Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan font-bold transition-all placeholder:text-white/30 placeholder:font-normal" />
-                                                    <input type="text" value={member.role} onChange={e => updateArrayItem('team_data', idx, 'role', e.target.value)} placeholder="Role (e.g. Lead Organizer)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-brand-cyan outline-none focus:border-brand-cyan transition-all placeholder:text-white/30" />
-                                                    <input type="text" value={member.image} onChange={e => updateArrayItem('team_data', idx, 'image', e.target.value)} placeholder="Or paste Avatar URL" className="w-full bg-brand-cyan/5 border border-brand-cyan/20 rounded-lg px-3 py-1.5 text-brand-cyan/70 text-xs outline-none focus:border-brand-cyan focus:bg-brand-cyan/10 transition-all font-mono" />
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <input type="text" value={member.portfolio_url || ''} onChange={e => updateArrayItem('team_data', idx, 'portfolio_url', e.target.value)} placeholder="Portfolio Website URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
-                                                        <input type="text" value={member.github_url || ''} onChange={e => updateArrayItem('team_data', idx, 'github_url', e.target.value)} placeholder="GitHub URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
-                                                        <input type="text" value={member.linkedin_url || ''} onChange={e => updateArrayItem('team_data', idx, 'linkedin_url', e.target.value)} placeholder="LinkedIn URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
-                                                        <input type="text" value={member.instagram_url || ''} onChange={e => updateArrayItem('team_data', idx, 'instagram_url', e.target.value)} placeholder="Instagram URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            disabled={idx === 0}
+                                                            onClick={() => moveArrayItem('team_data', idx, idx - 1)}
+                                                            className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                            title="Move Up"
+                                                        >
+                                                            <ChevronUp size={14} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={idx === formData.team_data.length - 1}
+                                                            onClick={() => moveArrayItem('team_data', idx, idx + 1)}
+                                                            className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                            title="Move Down"
+                                                        >
+                                                            <ChevronDown size={14} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeArrayItem('team_data', idx)}
+                                                            className="p-1 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded transition-all ml-1"
+                                                            title="Remove Member"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                                                    <label className="w-20 h-20 shrink-0 mx-auto sm:mx-0 rounded-full bg-white/5 border-2 border-dashed border-white/20 hover:border-brand-cyan/50 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group">
+                                                        {member.image ? <img src={member.image} alt={member.name || "Member"} className="absolute inset-0 w-full h-full object-cover" /> : <div className="text-white/40 group-hover:text-brand-cyan transition-colors"><Users size={20}/></div>}
+                                                        <input type="file" accept="image/*" className="hidden" onChange={e => handleArrayImageChange('team_data', idx, e.target.files[0], 'image')} />
+                                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
+                                                            <span className="text-[9px] font-black uppercase text-white tracking-widest">Image</span>
+                                                        </div>
+                                                    </label>
+                                                    <div className="flex-grow w-full space-y-2 sm:pr-2">
+                                                        <input type="text" value={member.name} onChange={e => updateArrayItem('team_data', idx, 'name', e.target.value)} placeholder="Member Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan font-bold transition-all placeholder:text-white/30 placeholder:font-normal" />
+                                                        <input type="text" value={member.role} onChange={e => updateArrayItem('team_data', idx, 'role', e.target.value)} placeholder="Role (e.g. Lead Organizer)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-brand-cyan outline-none focus:border-brand-cyan transition-all placeholder:text-white/30" />
+                                                        <input type="text" value={member.image} onChange={e => updateArrayItem('team_data', idx, 'image', e.target.value)} placeholder="Or paste Avatar URL" className="w-full bg-brand-cyan/5 border border-brand-cyan/20 rounded-lg px-3 py-1.5 text-brand-cyan/70 text-xs outline-none focus:border-brand-cyan focus:bg-brand-cyan/10 transition-all font-mono" />
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <input type="text" value={member.portfolio_url || ''} onChange={e => updateArrayItem('team_data', idx, 'portfolio_url', e.target.value)} placeholder="Portfolio Website URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
+                                                            <input type="text" value={member.github_url || ''} onChange={e => updateArrayItem('team_data', idx, 'github_url', e.target.value)} placeholder="GitHub URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
+                                                            <input type="text" value={member.linkedin_url || ''} onChange={e => updateArrayItem('team_data', idx, 'linkedin_url', e.target.value)} placeholder="LinkedIn URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
+                                                            <input type="text" value={member.instagram_url || ''} onChange={e => updateArrayItem('team_data', idx, 'instagram_url', e.target.value)} placeholder="Instagram URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan transition-all placeholder:text-white/30" />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -883,12 +1338,38 @@ export default function AdminCommunityDay() {
                                 <div className="space-y-4 md:col-span-2 mt-4 border-t border-white/10 pt-6">
                                     <h4 className="text-lg font-black text-white border-b border-white/10 pb-2 flex items-center justify-between">
                                         SCD Committee
-                                        <button type="button" onClick={() => addArrayItem('committee_data', { department: '', members: [] })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1"><Plus size={14} /> Add Department</button>
+                                        <button type="button" onClick={() => addArrayItem('committee_data', { department: '', members: [] })} className="text-xs text-brand-cyan hover:underline flex items-center gap-1 font-bold"><Plus size={14} /> Add Department</button>
                                     </h4>
                                     <div className="space-y-6">
                                         {safeArray(formData.committee_data).map((dept, dIdx) => (
                                            <div key={dIdx} className="bg-[#05080f] border border-white/10 rounded-xl p-4 relative space-y-4">
-                                               <button type="button" onClick={() => removeArrayItem('committee_data', dIdx)} className="absolute top-2 right-2 text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full"><X size={14}/></button>
+                                               {/* Department Reorder Bar */}
+                                               <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                                   <div className="flex items-center gap-2">
+                                                       <span className="text-[10px] font-black uppercase text-white/40">Department #{dIdx + 1}</span>
+                                                       <div className="flex items-center gap-1">
+                                                           <button
+                                                               type="button"
+                                                               disabled={dIdx === 0}
+                                                               onClick={() => moveArrayItem('committee_data', dIdx, dIdx - 1)}
+                                                               className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                               title="Move Department Up"
+                                                           >
+                                                               <ChevronUp size={14} />
+                                                           </button>
+                                                           <button
+                                                               type="button"
+                                                               disabled={dIdx === formData.committee_data.length - 1}
+                                                               onClick={() => moveArrayItem('committee_data', dIdx, dIdx + 1)}
+                                                               className="p-1 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                               title="Move Department Down"
+                                                           >
+                                                               <ChevronDown size={14} />
+                                                           </button>
+                                                       </div>
+                                                   </div>
+                                                   <button type="button" onClick={() => removeArrayItem('committee_data', dIdx)} className="text-white/30 hover:text-red-400 p-1 bg-black/50 rounded-full" title="Remove Department"><X size={14}/></button>
+                                               </div>
                                                <input type="text" value={dept.department} onChange={e => {
                                                    const a = [...formData.committee_data];
                                                    a[dIdx].department = e.target.value;
@@ -897,50 +1378,90 @@ export default function AdminCommunityDay() {
                                                
                                                <div className="space-y-2">
                                                    <div className="flex justify-between items-center text-xs text-white/50 font-bold uppercase tracking-wider border-b border-white/5 pb-2">
-                                                       <span>Members</span>
+                                                       <span>Members ({safeArray(dept.members).length})</span>
                                                        <button type="button" onClick={() => {
                                                            const a = [...formData.committee_data];
                                                            if(!a[dIdx].members) a[dIdx].members = [];
                                                            a[dIdx].members.push({ name: '', role: '', image: '', linkedin_url: '' });
                                                            setFormData({...formData, committee_data: a});
-                                                       }} className="text-brand-cyan hover:underline flex items-center gap-1"><Plus size={12} /> Add Member</button>
+                                                       }} className="text-brand-cyan hover:underline flex items-center gap-1 font-bold"><Plus size={12} /> Add Member</button>
                                                    </div>
                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                                        {safeArray(dept.members).map((member, mIdx) => (
-                                                           <div key={mIdx} className="bg-white/5 border border-white/10 rounded-xl p-3 relative flex items-start gap-3">
-                                                               <button type="button" onClick={() => {
-                                                                   const a = [...formData.committee_data];
-                                                                   a[dIdx].members.splice(mIdx, 1);
-                                                                   setFormData({...formData, committee_data: a});
-                                                               }} className="absolute top-1 right-1 text-white/30 hover:text-red-400"><X size={12}/></button>
-                                                               
-                                                               <label className="w-12 h-12 shrink-0 rounded-full bg-black/20 border border-white/20 hover:border-brand-cyan/50 flex items-center justify-center cursor-pointer relative overflow-hidden group">
-                                                                   {member.image ? <img src={member.image} className="w-full h-full object-cover" /> : <Users size={14} className="text-white/40 group-hover:text-brand-cyan"/>}
-                                                                   <input type="file" accept="image/*" className="hidden" onChange={e => {
-                                                                       if (!e.target.files[0]) return;
-                                                                       const a = [...formData.committee_data];
-                                                                       a[dIdx].members[mIdx].imageFile = e.target.files[0];
-                                                                       a[dIdx].members[mIdx].image = URL.createObjectURL(e.target.files[0]);
-                                                                       setFormData({...formData, committee_data: a});
-                                                                   }} />
-                                                               </label>
-                                                               
-                                                               <div className="flex-1 space-y-2 pr-4">
-                                                                   <input type="text" value={member.name} onChange={e => {
-                                                                       const a = [...formData.committee_data];
-                                                                       a[dIdx].members[mIdx].name = e.target.value;
-                                                                       setFormData({...formData, committee_data: a});
-                                                                   }} placeholder="Name" className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan font-bold" />
-                                                                   <input type="text" value={member.role || ''} onChange={e => {
-                                                                       const a = [...formData.committee_data];
-                                                                       a[dIdx].members[mIdx].role = e.target.value;
-                                                                       setFormData({...formData, committee_data: a});
-                                                                   }} placeholder="Role (Optional)" className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-white text-[10px] outline-none focus:border-brand-cyan" />
-                                                                   <input type="text" value={member.linkedin_url || ''} onChange={e => {
-                                                                       const a = [...formData.committee_data];
-                                                                       a[dIdx].members[mIdx].linkedin_url = e.target.value;
-                                                                       setFormData({...formData, committee_data: a});
-                                                                   }} placeholder="LinkedIn URL" className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-white text-[10px] outline-none focus:border-brand-cyan" />
+                                                           <div key={mIdx} className="bg-white/5 border border-white/10 rounded-xl p-3 relative flex flex-col gap-2">
+                                                               {/* Committee Member Reorder Controls */}
+                                                               <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
+                                                                   <div className="flex items-center gap-1 bg-black/50 border border-white/10 rounded px-1.5 py-0.5">
+                                                                       <span className="text-[9px] font-bold text-white/40">#</span>
+                                                                       <select
+                                                                           value={mIdx}
+                                                                           onChange={e => moveNestedArrayItem('committee_data', dIdx, 'members', mIdx, parseInt(e.target.value))}
+                                                                           className="bg-transparent text-[10px] font-black text-brand-cyan outline-none cursor-pointer"
+                                                                           title="Move member to position"
+                                                                       >
+                                                                           {safeArray(dept.members).map((_, pmIdx) => (
+                                                                               <option key={pmIdx} value={pmIdx} className="bg-[#0c111d] text-white">
+                                                                                   #{pmIdx + 1}
+                                                                               </option>
+                                                                           ))}
+                                                                       </select>
+                                                                   </div>
+                                                                   <div className="flex items-center gap-0.5">
+                                                                       <button
+                                                                           type="button"
+                                                                           disabled={mIdx === 0}
+                                                                           onClick={() => moveNestedArrayItem('committee_data', dIdx, 'members', mIdx, mIdx - 1)}
+                                                                           className="p-0.5 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                                           title="Move Up"
+                                                                       >
+                                                                           <ChevronUp size={12} />
+                                                                       </button>
+                                                                       <button
+                                                                           type="button"
+                                                                           disabled={mIdx === safeArray(dept.members).length - 1}
+                                                                           onClick={() => moveNestedArrayItem('committee_data', dIdx, 'members', mIdx, mIdx + 1)}
+                                                                           className="p-0.5 text-white/50 hover:text-white disabled:opacity-20 hover:bg-white/10 rounded transition-all"
+                                                                           title="Move Down"
+                                                                       >
+                                                                           <ChevronDown size={12} />
+                                                                       </button>
+                                                                       <button type="button" onClick={() => {
+                                                                           const a = [...formData.committee_data];
+                                                                           a[dIdx].members.splice(mIdx, 1);
+                                                                           setFormData({...formData, committee_data: a});
+                                                                       }} className="text-white/30 hover:text-red-400 p-0.5 ml-1" title="Remove"><X size={12}/></button>
+                                                                   </div>
+                                                               </div>
+
+                                                               <div className="flex items-start gap-3">
+                                                                   <label className="w-12 h-12 shrink-0 rounded-full bg-black/20 border border-white/20 hover:border-brand-cyan/50 flex items-center justify-center cursor-pointer relative overflow-hidden group">
+                                                                       {member.image ? <img src={member.image} className="w-full h-full object-cover" /> : <Users size={14} className="text-white/40 group-hover:text-brand-cyan"/>}
+                                                                       <input type="file" accept="image/*" className="hidden" onChange={e => {
+                                                                           if (!e.target.files[0]) return;
+                                                                           const a = [...formData.committee_data];
+                                                                           a[dIdx].members[mIdx].imageFile = e.target.files[0];
+                                                                           a[dIdx].members[mIdx].image = URL.createObjectURL(e.target.files[0]);
+                                                                           setFormData({...formData, committee_data: a});
+                                                                       }} />
+                                                                   </label>
+                                                                   
+                                                                   <div className="flex-1 space-y-2">
+                                                                       <input type="text" value={member.name} onChange={e => {
+                                                                           const a = [...formData.committee_data];
+                                                                           a[dIdx].members[mIdx].name = e.target.value;
+                                                                           setFormData({...formData, committee_data: a});
+                                                                       }} placeholder="Name" className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-white text-xs outline-none focus:border-brand-cyan font-bold" />
+                                                                       <input type="text" value={member.role || ''} onChange={e => {
+                                                                           const a = [...formData.committee_data];
+                                                                           a[dIdx].members[mIdx].role = e.target.value;
+                                                                           setFormData({...formData, committee_data: a});
+                                                                       }} placeholder="Role (Optional)" className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-white text-[10px] outline-none focus:border-brand-cyan" />
+                                                                       <input type="text" value={member.linkedin_url || ''} onChange={e => {
+                                                                           const a = [...formData.committee_data];
+                                                                           a[dIdx].members[mIdx].linkedin_url = e.target.value;
+                                                                           setFormData({...formData, committee_data: a});
+                                                                       }} placeholder="LinkedIn URL" className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-white text-[10px] outline-none focus:border-brand-cyan" />
+                                                                   </div>
                                                                </div>
                                                            </div>
                                                        ))}
@@ -989,12 +1510,12 @@ export default function AdminCommunityDay() {
                                     </div>
                                     <h4 className="text-base font-bold text-brand-cyan leading-tight pr-4">{event.title}</h4>
                                 </div>
-                                <div className="flex gap-3 shrink-0">
-                                    <button onClick={() => startEdit(event)} className="btn-crud-edit p-4" title="Edit Community Day">
-                                        <Edit2 size={18} />
+                                <div className="flex gap-2 shrink-0">
+                                    <button onClick={() => startEdit(event)} className="btn-crud-edit" title="Edit Community Day">
+                                        <Edit2 size={20} />
                                     </button>
-                                    <button disabled={processingId === event.id} onClick={() => handleDelete(event.id)} className="btn-crud-delete p-4 disabled:opacity-50" title="Delete Community Day">
-                                        {processingId === event.id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                                    <button disabled={processingId === event.id} onClick={() => handleDelete(event.id)} className="btn-crud-delete disabled:opacity-50" title="Delete Community Day">
+                                        {processingId === event.id ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
                                     </button>
                                 </div>
                             </div>

@@ -28,7 +28,7 @@ export default function AdminLayout({ children }) {
 
                 <AdminTopBar />
 
-                <main className="flex-1 p-6 lg:p-12 relative z-10">
+                <main className="flex-1 p-4 sm:p-6 lg:p-10 relative z-10">
                     <AdminLayoutClient>
                         {children}
                     </AdminLayoutClient>

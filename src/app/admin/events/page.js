@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Calendar, Plus, Search, Edit2, Trash2, Clock, Users, MapPin, X, Check, Loader2, ArrowLeft, Upload, FileDown, ShieldCheck, Mail, Info, FileSpreadsheet } from "lucide-react";
 import Toast from "@/components/Toast";
 import { logActivity } from "@/utils/logger";
+import { uploadFile, deleteFile } from "@/lib/storage";
 
 export default function AdminEvents() {
     const [events, setEvents] = useState([]);
@@ -306,25 +307,22 @@ export default function AdminEvents() {
 
         setUploading(true);
         try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-            const filePath = `event-banners/${fileName}`;
+            const oldUrl = formData.image_url || editingEvent?.image_url;
+            const result = await uploadFile(file, {
+                folder: '/events',
+                tags: ['event-banner'],
+                oldFileUrl: oldUrl
+            });
 
-            const { error: uploadError, data } = await supabase.storage
-                .from('event-images')
-                .upload(filePath, file);
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to upload image');
+            }
 
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('event-images')
-                .getPublicUrl(filePath);
-
-            setFormData({ ...formData, image_url: publicUrl });
+            setFormData({ ...formData, image_url: result.url });
             showFeedback('Image uploaded successfully!');
         } catch (error) {
             console.error('Upload error:', error);
-            showFeedback(`Upload failed: ${error.message || 'Check storage permissions'}`, 'error');
+            showFeedback(`Upload failed: ${error.message || 'Check storage service'}`, 'error');
         } finally {
             setUploading(false);
         }
@@ -370,11 +368,15 @@ export default function AdminEvents() {
     async function handleDelete(id) {
         if (!confirm('Are you sure you want to delete this event?')) return;
         setProcessingId(id);
+        const eventToDelete = events.find(e => e.id === id);
         const { error } = await supabase.from('events').delete().eq('id', id);
         if (error) {
             console.error('Delete event error:', error);
             showFeedback(`Error: ${error.message}`, 'error');
         } else {
+            if (eventToDelete?.image_url) {
+                deleteFile(eventToDelete.image_url).catch(() => {});
+            }
             await logActivity(supabase, 'Deleted Event', `Deleted event ID: ${id}`, 'warning');
             showFeedback('Event deleted.');
             fetchEvents();
@@ -686,7 +688,7 @@ export default function AdminEvents() {
                                         </div>
                                     )}
                                     <button onClick={() => startEdit(event)} className="btn-crud-edit" title="Edit Event">
-                                        <Edit2 size={15} />
+                                        <Edit2 size={20} />
                                     </button>
                                     <button
                                         disabled={processingId === event.id}
@@ -694,7 +696,7 @@ export default function AdminEvents() {
                                         className="btn-crud-delete disabled:opacity-50"
                                         title="Delete Event"
                                     >
-                                        {processingId === event.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                                        {processingId === event.id ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
                                     </button>
                                 </div>
                             </div>

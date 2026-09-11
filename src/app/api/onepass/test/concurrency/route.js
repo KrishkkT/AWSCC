@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const auth = await authorizeUser(req, 'ADMIN');
         if (!auth.authorized) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });

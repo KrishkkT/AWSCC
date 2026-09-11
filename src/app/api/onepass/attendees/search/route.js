@@ -3,8 +3,12 @@ import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
 import { parseScannedQR } from '@/lib/onepass/qr';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const { searchParams } = new URL(req.url);
         const eventId = searchParams.get('eventId');
         const q = searchParams.get('q') || searchParams.get('query') || searchParams.get('search') || '';
