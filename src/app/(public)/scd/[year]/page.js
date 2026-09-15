@@ -187,7 +187,6 @@ export default function SCDYearPage({ params }) {
     const [activeBlockIdx, setActiveBlockIdx] = useState(0);
     const [activeFaqIdx, setActiveFaqIdx] = useState(null);
     const [activeWorkshop, setActiveWorkshop] = useState(null);
-    const [activeSpeakerIdx, setActiveSpeakerIdx] = useState(0);
     const [activeTicketBtnId, setActiveTicketBtnId] = useState(null);
     const [teamMembersState, setTeamMembersState] = useState([]);
 
@@ -466,10 +465,10 @@ export default function SCDYearPage({ params }) {
                 <div className="container mx-auto max-w-6xl">
                     <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-slate-200 divide-y sm:divide-y-0">
                         {[
-                            { value: speakers.length > 0 ? `${speakers.length}+` : '10+', label: 'Expert Speakers' },
-                            { value: totalSessions > 0 ? `${totalSessions}+` : '9+', label: 'Tech Sessions' },
+                            { value: speakers.length > 0 ? `${speakers.length}` : '10+', label: 'Expert Speakers' },
+                            { value: totalSessions > 0 ? `${totalSessions}` : '9+', label: 'Tech Sessions' },
                             { value: workshops.length > 0 ? `${workshops.length}` : '3', label: 'Workshops' },
-                            { value: '500+', label: 'Builders Expected' },
+                            { value: '400+', label: 'Builders' },
                         ].map((stat, idx) => (
                             <div key={idx} className="px-8 py-8 group hover:bg-slate-50/80 transition-colors">
                                 <div className="text-4xl sm:text-5xl font-black font-mono text-[#23303E] tracking-tight flex items-center gap-1 group-hover:text-[#4F8EF7] transition-colors">
@@ -514,53 +513,119 @@ export default function SCDYearPage({ params }) {
             </section>
 
             {/* ══════════════════════════════════════
-                SPEAKERS — Light theme
+                SPEAKERS — Light Premium Theme
             ══════════════════════════════════════ */}
             {speakers.length > 0 && (
                 <section id="speakers" className="bg-white py-24 border-t border-slate-200">
-                    <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
-                        <div className="mb-12">
-                            <p className="label-teal mb-4">KEYNOTE & TECH SPEAKERS</p>
-                            <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">Speakers</h2>
+                    <div className="container mx-auto px-6 lg:px-12 max-w-7xl">
+                        <div className="mb-14 text-center max-w-3xl mx-auto">
+                            <p className="label-teal mb-3 inline-block">KEYNOTE & TECH LEADERS</p>
+                            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-[#23303E] leading-tight tracking-tight">
+                                Featured Speakers
+                            </h2>
+                            <p className="text-slate-600 text-base sm:text-lg font-medium mt-3">
+                                Learn directly from AWS Heroes, cloud architects, and industry pioneers leading the next generation of cloud and AI.
+                            </p>
                         </div>
-                        <div className="flex flex-col lg:flex-row border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm">
-                            <div className="flex-1 divide-y divide-slate-100">
-                                {speakers.map((speaker, idx) => (
-                                    <button key={idx} onClick={() => setActiveSpeakerIdx(idx)}
-                                        className={`w-full text-left px-8 py-6 flex items-center justify-between transition-colors cursor-pointer ${activeSpeakerIdx === idx ? 'bg-slate-50' : 'hover:bg-slate-50/70'}`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+                            {speakers.map((speaker, idx) => {
+                                const speakerRoles = Array.isArray(speaker.roles) && speaker.roles.length > 0
+                                    ? speaker.roles.filter(r => (r.role && r.role.trim()) || (r.company && r.company.trim()))
+                                    : (speaker.role || speaker.company)
+                                        ? [{ role: speaker.role || '', company: speaker.company || '' }]
+                                        : [];
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        className="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-2xl hover:border-[#4F8EF7]/50 hover:-translate-y-2 transition-all duration-300 group flex flex-col justify-between relative overflow-hidden"
+                                    >
+                                        <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-bl from-[#4F8EF7]/10 via-[#FF9900]/5 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
                                         <div>
-                                            <h3 className="text-xl sm:text-2xl font-bold text-[#23303E] mb-1">{speaker.name}</h3>
-                                            {(speaker.role || speaker.company) && (
-                                                <p className="label-teal opacity-90">
-                                                    {speaker.role}{speaker.role && speaker.company ? ' \u00b7 ' : ''}{speaker.company}
+                                            <div className="aspect-[4/3.8] w-full rounded-2xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 mb-5 relative border border-slate-100 group-hover:border-slate-200 transition-colors shadow-inner">
+                                                {speaker.image ? (
+                                                    <img
+                                                        src={speaker.image}
+                                                        alt={speaker.name}
+                                                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 ease-out"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 gap-2">
+                                                        <Users size={48} className="text-slate-300" />
+                                                        <span className="font-mono text-xs uppercase tracking-wider text-slate-400">Photo TBA</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <h3 className="text-xl sm:text-2xl font-black text-[#23303E] tracking-tight group-hover:text-[#4F8EF7] transition-colors mb-2">
+                                                {speaker.name}
+                                            </h3>
+
+                                            {speakerRoles.length > 0 && (
+                                                <div className="space-y-1.5 mb-3">
+                                                    {speakerRoles.map((r, rIdx) => (
+                                                        <div key={rIdx} className="text-left">
+                                                            {r.role && (
+                                                                <p className="font-mono text-xs font-bold text-[#FF9900] uppercase tracking-wider leading-tight">
+                                                                    {r.role}
+                                                                </p>
+                                                            )}
+                                                            {r.company && (
+                                                                <p className="text-sm font-semibold text-slate-700 leading-snug">
+                                                                    {r.company}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {speaker.bio && (
+                                                <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed mb-4">
+                                                    {speaker.bio}
                                                 </p>
                                             )}
                                         </div>
-                                        {speaker.linkedin && (
-                                            <a href={speaker.linkedin} target="_blank" rel="noopener noreferrer"
-                                                className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#4F8EF7] hover:border-[#4F8EF7] bg-white transition-all shrink-0 ml-4 hover:shadow-md"
-                                                onClick={e => e.stopPropagation()}>
-                                                <Linkedin size={16} />
-                                            </a>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="lg:w-80 xl:w-96 border-t lg:border-t-0 lg:border-l border-slate-200 bg-slate-100 flex items-center justify-center min-h-[320px] relative overflow-hidden">
-                                {speakers[activeSpeakerIdx]?.image ? (
-                                    <img src={speakers[activeSpeakerIdx].image} alt={speakers[activeSpeakerIdx].name}
-                                        className="w-full h-full object-cover object-top absolute inset-0" />
-                                ) : (
-                                    <div className="flex flex-col items-center gap-3">
-                                        <Users size={64} className="text-slate-300" />
-                                        <p className="font-mono text-xs uppercase tracking-wider text-slate-400">Photo TBA</p>
+
+                                        <div className="flex items-center gap-3 pt-4 border-t border-slate-100 mt-2">
+                                            {(speaker.linkedin || speaker.linkedin_url) && (
+                                                <a
+                                                    href={speaker.linkedin || speaker.linkedin_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    aria-label={`${speaker.name} LinkedIn`}
+                                                    className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#0077B5] hover:border-[#0077B5] bg-white transition-all hover:scale-105 shadow-xs"
+                                                >
+                                                    <Linkedin size={15} />
+                                                </a>
+                                            )}
+                                            {speaker.twitter_url && (
+                                                <a
+                                                    href={speaker.twitter_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    aria-label={`${speaker.name} Twitter / X`}
+                                                    className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#23303E] hover:border-[#23303E] bg-white transition-all hover:scale-105 shadow-xs"
+                                                >
+                                                    <Globe size={15} />
+                                                </a>
+                                            )}
+                                            {speaker.github_url && (
+                                                <a
+                                                    href={speaker.github_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    aria-label={`${speaker.name} GitHub`}
+                                                    className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#23303E] hover:border-[#23303E] bg-white transition-all hover:scale-105 shadow-xs"
+                                                >
+                                                    <Github size={15} />
+                                                </a>
+                                            )}
+                                        </div>
                                     </div>
-                                )}
-                                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#23303E]/90 to-transparent pointer-events-none">
-                                    <p className="font-bold text-white text-xl mb-1">{speakers[activeSpeakerIdx]?.name}</p>
-                                    {speakers[activeSpeakerIdx]?.role && <p className="font-mono text-xs font-bold text-white/80 uppercase tracking-widest">{speakers[activeSpeakerIdx].role}</p>}
-                                </div>
-                            </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </section>
@@ -724,7 +789,18 @@ export default function SCDYearPage({ params }) {
                                                 <p className="text-sm text-slate-500 leading-relaxed mb-6 line-clamp-3">{ws.description}</p>
                                             </div>
                                             <div>
-                                                {ws.speaker && <p className="font-mono text-xs font-bold text-[#23303E]/50 uppercase tracking-wider mb-4">&#128100; {ws.speaker}</p>}
+                                                {ws.speaker && (
+                                                    <div className="mb-4">
+                                                        <p className="font-mono text-xs font-bold text-[#23303E]/70 uppercase tracking-wider">
+                                                            &#128100; {ws.speaker}
+                                                        </p>
+                                                        {(ws.speaker_description || ws.speaker_bio) && (
+                                                            <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                                                                {ws.speaker_description || ws.speaker_bio}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
                                                     <button type="button" onClick={() => setActiveWorkshop(ws)} className="flex items-center gap-2 label-teal group-hover:gap-3 transition-all cursor-pointer">
                                                         View Details <ArrowRight size={12} />
@@ -897,73 +973,72 @@ export default function SCDYearPage({ params }) {
             {/* ══════════════════════════════════════
                 SPONSORS
             ══════════════════════════════════════ */}
-            {sponsors.length > 0 && (
-                <section className="py-24 bg-white">
-                    <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
-                        <div className="mb-12 text-center">
-                            <p className="label-teal mb-4">OUR SUPPORTERS</p>
-                            <h2 className="text-4xl sm:text-5xl font-black text-[#23303E] leading-tight tracking-tight">Sponsors</h2>
-                        </div>
-                        <div className="flex flex-wrap justify-center gap-4">
-                            {sponsors.map((sponsor, idx) => (
-                                <div key={idx} className="bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center p-8 w-48 hover:shadow-md hover:border-[#4F8EF7]/30 transition-all duration-300">
-                                    {sponsor.logo ? (
-                                        <img src={sponsor.logo} alt={sponsor.name} className="max-h-12 max-w-[120px] object-contain grayscale hover:grayscale-0 transition-all" />
-                                    ) : (
-                                        <span className="font-mono text-xs font-bold text-[#23303E]/40 uppercase text-center">{sponsor.name}</span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-            )}
+            {sponsors.length > 0 && (() => {
+                // Group sponsors by category
+                const hasCategories = sponsors.some(s => s.category && s.category.trim() !== '');
+                const categoryGroups = {};
 
-            {/* ══════════════════════════════════════
-                SPEAKERS — Light Premium Theme
-            ══════════════════════════════════════ */}
-            {speakers.length > 0 && (
-                <section id="speakers" className="py-24 bg-[#EFF0F3]">
-                    <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
-                        <div className="mb-12">
-                            <p className="label-teal mb-4">INDUSTRY EXPERTS</p>
-                            <h2 className="text-4xl sm:text-6xl font-black text-[#23303E] leading-tight tracking-tight">Speakers</h2>
-                            <p className="text-slate-500 text-base font-medium mt-3 max-w-xl">Learn from AWS Heroes, cloud architects, and tech leaders shaping the future.</p>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 lg:grid-cols-5 gap-4 sm:gap-8">
-                            {speakers.map((speaker, sIdx) => (
-                                <div key={sIdx} className="bg-white border border-slate-200 rounded-3xl p-6 text-center shadow-sm hover:shadow-xl hover:border-[#4F8EF7]/30 transition-all duration-300 group">
-                                    <div className="w-28 h-28 mx-auto mb-6 rounded-full overflow-hidden bg-slate-100 border-2 border-slate-200 group-hover:border-[#4F8EF7] group-hover:scale-105 transition-all duration-300">
-                                        {speaker.image ? (
-                                            <img src={speaker.image} alt={speaker.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
-                                                <Users size={40} />
+                if (hasCategories) {
+                    sponsors.forEach(s => {
+                        const cat = (s.category && s.category.trim()) || 'Partners';
+                        if (!categoryGroups[cat]) categoryGroups[cat] = [];
+                        categoryGroups[cat].push(s);
+                    });
+                }
+
+                return (
+                    <section className="py-24 bg-white border-t border-slate-200">
+                        <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+                            <div className="mb-14 text-center">
+                                <p className="label-teal mb-4">OUR SUPPORTERS</p>
+                                <h2 className="text-4xl sm:text-5xl font-black text-[#23303E] leading-tight tracking-tight font-display">Sponsors &amp; Partners</h2>
+                            </div>
+
+                            {hasCategories ? (
+                                <div className="space-y-6 sm:space-y-8">
+                                    {Object.entries(categoryGroups).map(([catName, catSponsors], gIdx) => (
+                                        <div key={gIdx} className="flex flex-col lg:flex-row items-center lg:items-center justify-between gap-6 p-6 sm:p-8 rounded-3xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition-all">
+                                            {/* Horizontal Category Tag on Left */}
+                                            <div className="lg:w-60 shrink-0 text-center lg:text-left">
+                                                <span className="font-mono text-xs sm:text-sm font-black uppercase tracking-widest text-[#0F172A] bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-xs inline-flex items-center gap-2">
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-[#FF9900]" />
+                                                    {catName}
+                                                </span>
                                             </div>
-                                        )}
-                                    </div>
-                                    <h4 className="text-lg font-bold text-[#23303E] mb-1 group-hover:text-[#4F8EF7] transition-colors">{speaker.name}</h4>
-                                    {speaker.role && <p className="font-mono text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{speaker.role}</p>}
-                                    {speaker.company && <p className="text-xs font-semibold text-[#4F8EF7] mb-4">{speaker.company}</p>}
-                                    {speaker.bio && <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed mb-4">{speaker.bio}</p>}
-                                    <div className="flex items-center justify-center gap-3 text-slate-400 pt-2 border-t border-slate-100">
-                                        {speaker.linkedin_url && (
-                                            <a href={speaker.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-[#4F8EF7] transition-colors">
-                                                <Linkedin size={16} />
-                                            </a>
-                                        )}
-                                        {speaker.twitter_url && (
-                                            <a href={speaker.twitter_url} target="_blank" rel="noopener noreferrer" className="hover:text-[#23303E] transition-colors">
-                                                <Globe size={16} />
-                                            </a>
-                                        )}
-                                    </div>
+                                            {/* Horizontal Row of Sponsors on Right */}
+                                            <div className="flex-1 flex flex-row flex-wrap items-center justify-center lg:justify-start gap-4 sm:gap-6">
+                                                {catSponsors.map((sponsor, idx) => (
+                                                    <div key={idx} className="bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center p-5 sm:p-6 min-w-[160px] max-w-[210px] h-24 hover:shadow-md hover:border-[#4F8EF7]/40 hover:-translate-y-0.5 transition-all duration-300">
+                                                        {sponsor.logo ? (
+                                                            <img src={sponsor.logo} alt={sponsor.name} className="max-h-12 max-w-[130px] object-contain transition-transform duration-300" />
+                                                        ) : (
+                                                            <span className="font-mono text-xs font-bold text-[#23303E]/70 uppercase text-center">{sponsor.name}</span>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            ) : (
+                                <div className="flex flex-row flex-wrap justify-center items-center gap-4 sm:gap-6">
+                                    {sponsors.map((sponsor, idx) => (
+                                        <div key={idx} className="bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center p-6 sm:p-8 min-w-[170px] max-w-[220px] h-28 hover:shadow-md hover:border-[#4F8EF7]/40 hover:-translate-y-0.5 transition-all duration-300">
+                                            {sponsor.logo ? (
+                                                <img src={sponsor.logo} alt={sponsor.name} className="max-h-12 max-w-[130px] object-contain transition-transform duration-300" />
+                                            ) : (
+                                                <span className="font-mono text-xs font-bold text-[#23303E]/70 uppercase text-center">{sponsor.name}</span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                    </div>
-                </section>
-            )}
+                    </section>
+                );
+            })()}
+
+
 
             {/* ══════════════════════════════════════
                 TEAM & ORGANIZERS — Light Premium Theme
@@ -1093,6 +1168,19 @@ export default function SCDYearPage({ params }) {
                             </button>
                         </div>
                         <div className="p-8 overflow-y-auto space-y-6 text-sm text-slate-700">
+                            {(activeWorkshop.speaker || activeWorkshop.speaker_description || activeWorkshop.speaker_bio) && (
+                                <div className="space-y-1.5 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                                    <h4 className="label-teal">WORKSHOP INSTRUCTOR</h4>
+                                    {activeWorkshop.speaker && (
+                                        <p className="font-bold text-[#23303E] text-base">{activeWorkshop.speaker}</p>
+                                    )}
+                                    {(activeWorkshop.speaker_description || activeWorkshop.speaker_bio) && (
+                                        <p className="leading-relaxed text-slate-600 text-xs sm:text-sm">
+                                            {activeWorkshop.speaker_description || activeWorkshop.speaker_bio}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 <h4 className="label-teal">WHAT YOU&apos;LL LEARN</h4>
                                 <p className="leading-relaxed text-slate-600">{activeWorkshop.description}</p>

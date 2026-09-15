@@ -101,19 +101,19 @@ export default function SocialBadgeGeneratorPage() {
         }
 
         // 2. Draw User Photo inside Rounded Square
-        // Calibrated Frame Coordinates in badge1.png:
-        // Outer Container: X=122, Y=236, W=346, H=346, Outer Radius=32
-        // Inner Picture Box: X=138, Y=252, W=314, H=314, Inner Radius=22
-        const frameX = 122;
-        const frameY = 236;
+        // Calibrated Frame Coordinates in new badge1.png (591 x 1004):
+        // Outer Container: X=128, Y=328, W=346, H=347, Outer Radius=32
+        // Inner Picture Box: X=148, Y=348, W=306, H=307, Inner Radius=22
+        const frameX = 128;
+        const frameY = 328;
         const frameW = 346;
-        const frameH = 346;
+        const frameH = 347;
         const frameRadius = 32;
 
-        const innerX = 138;
-        const innerY = 252;
-        const innerW = 314;
-        const innerH = 314;
+        const innerX = 148;
+        const innerY = 348;
+        const innerW = 306;
+        const innerH = 307;
         const innerRadius = 22;
 
         if (userImgRef.current) {
@@ -170,104 +170,104 @@ export default function SocialBadgeGeneratorPage() {
         const hasCustomName = name && name.trim().length > 0;
         const hasOrg = organization && organization.trim().length > 0;
 
-        // Cover the template placeholder "ATTENDEE" text with background gradient
-        const textRegionY = 618;
-        const textRegionH = 160;
+        // When custom text is entered, cover the template placeholder "ATTENDEE" text
+        if (hasCustomName || hasOrg) {
+            const textRegionY = 708;
+            const textRegionH = 168;
 
-        ctx.save();
-        const grad = ctx.createLinearGradient(0, textRegionY, 0, textRegionY + textRegionH);
-        grad.addColorStop(0, '#5521B5');
-        grad.addColorStop(0.5, '#6829CF');
-        grad.addColorStop(1, '#5722BA');
+            ctx.save();
+            const grad = ctx.createLinearGradient(0, textRegionY, 0, textRegionY + textRegionH);
+            grad.addColorStop(0, '#744EBC');
+            grad.addColorStop(0.5, '#8959CD');
+            grad.addColorStop(1, '#9865D8');
 
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        drawRoundedRect(ctx, 35, textRegionY, BASE_WIDTH - 70, textRegionH, 20);
-        ctx.fill();
-
-        // Subtle glowing glassmorphism border around the designation area
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-        ctx.lineWidth = 1.5;
-        drawRoundedRect(ctx, 35, textRegionY, BASE_WIDTH - 70, textRegionH, 20);
-        ctx.stroke();
-
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const centerX = BASE_WIDTH / 2;
-
-        if (hasCustomName) {
-            // A. ATTENDEE NAME (Enlarged, Bold & Prominent)
-            const displayName = name.trim();
-            let nameFontSize = 35;
-            ctx.font = `900 ${nameFontSize}px Inter, -apple-system, sans-serif`;
-
-            // Auto-shrink text if name is longer
-            let textWidth = ctx.measureText(displayName).width;
-            const maxAllowedWidth = BASE_WIDTH - 100;
-            while (textWidth > maxAllowedWidth && nameFontSize > 20) {
-                nameFontSize -= 2;
-                ctx.font = `900 ${nameFontSize}px Inter, -apple-system, sans-serif`;
-                textWidth = ctx.measureText(displayName).width;
-            }
-
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetY = 3;
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillText(displayName, centerX, hasOrg ? textRegionY + 38 : textRegionY + 48);
-
-            // B. "ATTENDEE" BADGE LABEL (Increased Size & Prominence)
-            ctx.shadowColor = 'transparent';
-            const attendeeBadgeY = hasOrg ? textRegionY + 84 : textRegionY + 104;
-
-            // Draw pill behind ATTENDEE
-            const badgePillW = 200;
-            const badgePillH = 34;
-            ctx.fillStyle = 'rgba(255, 153, 0, 0.15)';
+            ctx.fillStyle = grad;
             ctx.beginPath();
-            drawRoundedRect(ctx, centerX - badgePillW / 2, attendeeBadgeY - badgePillH / 2, badgePillW, badgePillH, 17);
+            drawRoundedRect(ctx, 35, textRegionY, BASE_WIDTH - 70, textRegionH, 20);
             ctx.fill();
-            ctx.strokeStyle = 'rgba(255, 153, 0, 0.6)';
+
+            // Subtle glowing glassmorphism border around the designation area
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
             ctx.lineWidth = 1.5;
-            drawRoundedRect(ctx, centerX - badgePillW / 2, attendeeBadgeY - badgePillH / 2, badgePillW, badgePillH, 17);
+            drawRoundedRect(ctx, 35, textRegionY, BASE_WIDTH - 70, textRegionH, 20);
             ctx.stroke();
 
-            // ATTENDEE text inside pill
-            ctx.font = `900 20px Inter, -apple-system, sans-serif`;
-            ctx.letterSpacing = '3px';
-            ctx.fillStyle = '#FF9900'; // AWS Amber
-            ctx.fillText('ATTENDEE', centerX, attendeeBadgeY);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const centerX = BASE_WIDTH / 2;
 
-            // C. COLLEGE / ORGANIZATION (Significantly Enlarged Font)
-            if (hasOrg) {
-                const orgName = organization.trim();
-                let orgFontSize = 18;
-                ctx.font = `700 ${orgFontSize}px Inter, -apple-system, sans-serif`;
+            if (hasCustomName) {
+                // A. ATTENDEE NAME (Enlarged, Bold & Prominent)
+                const displayName = name.trim();
+                let nameFontSize = 34;
+                ctx.font = `900 ${nameFontSize}px Inter, -apple-system, sans-serif`;
 
-                let orgWidth = ctx.measureText(orgName).width;
-                while (orgWidth > maxAllowedWidth && orgFontSize > 13) {
-                    orgFontSize -= 1;
-                    ctx.font = `700 ${orgFontSize}px Inter, -apple-system, sans-serif`;
-                    orgWidth = ctx.measureText(orgName).width;
+                // Auto-shrink text if name is longer
+                let textWidth = ctx.measureText(displayName).width;
+                const maxAllowedWidth = BASE_WIDTH - 100;
+                while (textWidth > maxAllowedWidth && nameFontSize > 20) {
+                    nameFontSize -= 2;
+                    ctx.font = `900 ${nameFontSize}px Inter, -apple-system, sans-serif`;
+                    textWidth = ctx.measureText(displayName).width;
                 }
 
-                ctx.fillStyle = '#F1F5F9';
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-                ctx.shadowBlur = 6;
-                ctx.fillText(orgName, centerX, textRegionY + 128);
-            }
-        } else {
-            // If name is not yet entered: Large, bold ATTENDEE text
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-            ctx.shadowBlur = 10;
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = `900 44px Inter, -apple-system, sans-serif`;
-            ctx.letterSpacing = '4px';
-            ctx.fillText('ATTENDEE', centerX, hasOrg ? textRegionY + 65 : textRegionY + 80);
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                ctx.shadowBlur = 10;
+                ctx.shadowOffsetY = 3;
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillText(displayName, centerX, hasOrg ? textRegionY + 40 : textRegionY + 52);
 
-            if (hasOrg) {
+                // B. "ATTENDEE" BADGE LABEL
+                ctx.shadowColor = 'transparent';
+                const attendeeBadgeY = hasOrg ? textRegionY + 86 : textRegionY + 110;
+
+                // Draw pill behind ATTENDEE
+                const badgePillW = 190;
+                const badgePillH = 32;
+                ctx.fillStyle = 'rgba(255, 153, 0, 0.18)';
+                ctx.beginPath();
+                drawRoundedRect(ctx, centerX - badgePillW / 2, attendeeBadgeY - badgePillH / 2, badgePillW, badgePillH, 16);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 153, 0, 0.7)';
+                ctx.lineWidth = 1.5;
+                drawRoundedRect(ctx, centerX - badgePillW / 2, attendeeBadgeY - badgePillH / 2, badgePillW, badgePillH, 16);
+                ctx.stroke();
+
+                // ATTENDEE text inside pill
+                ctx.font = `900 19px Inter, -apple-system, sans-serif`;
+                ctx.letterSpacing = '3px';
+                ctx.fillStyle = '#FF9900'; // AWS Amber
+                ctx.fillText('ATTENDEE', centerX, attendeeBadgeY);
+
+                // C. COLLEGE / ORGANIZATION
+                if (hasOrg) {
+                    const orgName = organization.trim();
+                    let orgFontSize = 17;
+                    ctx.font = `700 ${orgFontSize}px Inter, -apple-system, sans-serif`;
+
+                    let orgWidth = ctx.measureText(orgName).width;
+                    while (orgWidth > maxAllowedWidth && orgFontSize > 13) {
+                        orgFontSize -= 1;
+                        ctx.font = `700 ${orgFontSize}px Inter, -apple-system, sans-serif`;
+                        orgWidth = ctx.measureText(orgName).width;
+                    }
+
+                    ctx.fillStyle = '#F1F5F9';
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                    ctx.shadowBlur = 6;
+                    ctx.fillText(orgName, centerX, textRegionY + 130);
+                }
+            } else {
+                // If only organization is entered without custom name
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = `900 38px Inter, -apple-system, sans-serif`;
+                ctx.letterSpacing = '4px';
+                ctx.fillText('ATTENDEE', centerX, textRegionY + 60);
+
                 const orgName = organization.trim();
-                let orgFontSize = 20;
+                let orgFontSize = 19;
                 ctx.font = `700 ${orgFontSize}px Inter, -apple-system, sans-serif`;
                 let orgWidth = ctx.measureText(orgName).width;
                 const maxAllowedWidth = BASE_WIDTH - 100;
@@ -279,9 +279,10 @@ export default function SocialBadgeGeneratorPage() {
                 ctx.fillStyle = '#FF9900';
                 ctx.fillText(orgName, centerX, textRegionY + 115);
             }
+
+            ctx.restore();
         }
 
-        ctx.restore();
         ctx.restore();
     };
 
@@ -402,15 +403,55 @@ export default function SocialBadgeGeneratorPage() {
         return false;
     };
 
-    // Social Sharing Details
-    const shareText = `Excited to announce that I will be attending AWS Student Community Day DDU Nadiad 2026! 🚀 Connect with me at the event. Grab your badge & ticket now! #AWSSCD26 #AWSCommunity #AWSCloud #DDU`;
+    // Official Trending Hashtags (Smallcase Only)
+    // 5 Best trending for Instagram
+    const instaHashtags = '#awsscd26 #awscommunity #awscloud #cloudcomputing #ddu';
+    // 10 Best trending for LinkedIn, Twitter, WhatsApp & Other Platforms
+    const generalHashtags = '#awsscd26 #awscommunity #awscloud #cloudcomputing #ddu #awscommunityday #studentdeveloper #techconference #cloudpractitioner #awsevents';
+
     const eventUrl = 'https://aws.ddu.ac.in';
     const badgePageUrl = 'https://aws.ddu.ac.in/badge';
+
+    // Caption Tab State
+    const [captionPlatform, setCaptionPlatform] = useState('linkedin'); // 'linkedin' | 'instagram'
+    const [captionCopied, setCaptionCopied] = useState(false);
+
+    // Official Post Caption Generator
+    const getOfficialPostText = (platform = 'general') => {
+        const attendeeName = name && name.trim() ? name.trim() : '';
+        const orgText = organization && organization.trim() ? ` from ${organization.trim()}` : '';
+
+        if (platform === 'instagram') {
+            return `Excited to be a part of AWS Student Community Day Gujarat 2026 at DDU Nadiad! 🚀${attendeeName ? `\n\nAttending as: ${attendeeName}${orgText}` : ''}
+
+Can't wait for a full day of hands-on cloud learning, keynote sessions, and networking with builders & developers across Gujarat.
+
+Create your official attendee badge here: ${badgePageUrl}
+
+${instaHashtags}`;
+        }
+
+        return `Thrilled to share that I will be attending AWS Student Community Day Gujarat 2026 at Dharmsinh Desai University, Nadiad! 🚀${attendeeName ? `\n\nAttending as: ${attendeeName}${orgText}` : ''}
+
+Looking forward to exploring cutting-edge cloud tech, attending keynote sessions, and networking with fellow developers, cloud architects, and industry leaders.
+
+Grab your ticket & customize your attendee badge: ${badgePageUrl}
+
+${generalHashtags}`;
+    };
+
+    // Copy Official Caption to Clipboard
+    const handleCopyCaption = (platform = captionPlatform) => {
+        const text = getOfficialPostText(platform);
+        navigator.clipboard.writeText(text);
+        setCaptionCopied(true);
+        setTimeout(() => setCaptionCopied(false), 2500);
+    };
 
     // 1. WhatsApp Sharing (Direct with File on Mobile / Auto-copy & Download on Desktop)
     const shareWhatsApp = async () => {
         const file = await getBadgeFile();
-        const fullMessage = `${shareText}\n\n🎟️ Get your ticket & claim your badge: ${badgePageUrl}`;
+        const fullMessage = getOfficialPostText('whatsapp');
 
         if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
             try {
@@ -441,7 +482,7 @@ export default function SocialBadgeGeneratorPage() {
     // 2. LinkedIn Sharing (Copies image to clipboard, downloads, and opens feed composer)
     const shareLinkedIn = async () => {
         const file = await getBadgeFile();
-        const fullMessage = `${shareText}\n\n🎟️ Claim your official badge: ${badgePageUrl}`;
+        const fullMessage = getOfficialPostText('linkedin');
 
         if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
             try {
@@ -471,7 +512,7 @@ export default function SocialBadgeGeneratorPage() {
     // 3. Twitter / X Sharing
     const shareTwitter = async () => {
         const file = await getBadgeFile();
-        const tweetText = `Excited to attend AWS Student Community Day DDU Nadiad 2026! 🚀 Join me at the event: ${badgePageUrl} #AWSSCD26 #AWSCommunity #AWSCloud #DDU`;
+        const tweetText = `Excited to attend AWS Student Community Day Gujarat 2026 at DDU Nadiad! 🚀 Join me at the event: ${badgePageUrl}\n\n${generalHashtags}`;
 
         if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
             try {
@@ -501,7 +542,7 @@ export default function SocialBadgeGeneratorPage() {
     // 4. Instagram Sharing
     const shareInstagram = async () => {
         const file = await getBadgeFile();
-        const instaCaption = `Attending AWS Student Community Day DDU Nadiad 2026! 🚀 Tagging @awscc_ddu #AWSSCD26 #AWSCommunity #AWSCloud`;
+        const instaCaption = getOfficialPostText('instagram');
 
         if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
             try {
@@ -522,14 +563,14 @@ export default function SocialBadgeGeneratorPage() {
             platform: 'Instagram',
             icon: <Instagram className="w-6 h-6 text-pink-400" />,
             title: 'Badge Saved For Instagram!',
-            desc: 'Your high-res badge image has been downloaded to your device and copied to clipboard. Share it on your Instagram Story or Feed and tag @awscc_ddu!'
+            desc: 'Your high-res badge image has been downloaded to your device and copied to clipboard. Share it on your Instagram Story or Feed with the official caption and tag @awscc_ddu!'
         });
     };
 
     // 5. Universal Native Share Sheet (Direct File Attachment)
     const handleNativeShare = async () => {
         const file = await getBadgeFile();
-        const fullMessage = `${shareText}\n\nClaim yours at: ${badgePageUrl}`;
+        const fullMessage = getOfficialPostText('general');
 
         if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
             try {
@@ -801,6 +842,92 @@ export default function SocialBadgeGeneratorPage() {
                                 >
                                     <Instagram className="w-4 h-4" />
                                     <span>Instagram</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Official Ready-to-Post Caption & Trending Hashtags (Smallcase Only) */}
+                        <div className="pt-4 border-t border-[#1a2540] space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                    <Sparkles className="w-4 h-4 text-[#FF9900]" />
+                                    <h3 className="text-xs font-mono uppercase text-slate-200 font-bold tracking-wider">
+                                        Official Post Message & Trending Hashtags
+                                    </h3>
+                                </div>
+                                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-600/40 px-2 py-0.5 rounded-md">
+                                    Ready to Copy
+                                </span>
+                            </div>
+
+                            {/* Platform Tab Selector */}
+                            <div className="flex bg-[#0C111D] p-1 rounded-xl border border-[#1a2540]">
+                                <button
+                                    onClick={() => setCaptionPlatform('linkedin')}
+                                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center space-x-1.5 ${
+                                        captionPlatform === 'linkedin'
+                                            ? 'bg-[#151c2e] text-[#4F8EF7] shadow-sm border border-white/10'
+                                            : 'text-slate-400 hover:text-slate-200'
+                                    }`}
+                                >
+                                    <Linkedin className="w-3.5 h-3.5" />
+                                    <span>LinkedIn / X / WhatsApp (10 Tags)</span>
+                                </button>
+
+                                <button
+                                    onClick={() => setCaptionPlatform('instagram')}
+                                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center space-x-1.5 ${
+                                        captionPlatform === 'instagram'
+                                            ? 'bg-[#151c2e] text-pink-400 shadow-sm border border-white/10'
+                                            : 'text-slate-400 hover:text-slate-200'
+                                    }`}
+                                >
+                                    <Instagram className="w-3.5 h-3.5" />
+                                    <span>Instagram (5 Tags)</span>
+                                </button>
+                            </div>
+
+                            {/* Caption Text Box */}
+                            <div className="relative bg-[#0C111D] border border-[#1a2540] rounded-2xl p-4 space-y-3">
+                                <div className="text-xs text-slate-300 whitespace-pre-line leading-relaxed font-sans select-all">
+                                    {getOfficialPostText(captionPlatform)}
+                                </div>
+
+                                {/* Hashtag Badges Preview (Smallcase Only) */}
+                                <div className="pt-2 border-t border-[#1a2540]/60 space-y-1.5">
+                                    <div className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
+                                        Trending Hashtags ({captionPlatform === 'instagram' ? '5 for Instagram' : '10 for LinkedIn/X'}):
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {(captionPlatform === 'instagram' ? instaHashtags : generalHashtags)
+                                            .split(' ')
+                                            .map((tag) => (
+                                                <span
+                                                    key={tag}
+                                                    className="px-2 py-0.5 bg-[#151c2e] text-[#4F8EF7] border border-[#1a2540] rounded-md text-[11px] font-mono font-medium lowercase"
+                                                >
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                    </div>
+                                </div>
+
+                                {/* Copy Button */}
+                                <button
+                                    onClick={() => handleCopyCaption(captionPlatform)}
+                                    className="w-full flex items-center justify-center space-x-2 py-2.5 bg-gradient-to-r from-[#0073BB] to-[#4F8EF7] hover:from-[#0085d6] hover:to-[#6ba1ff] text-white rounded-xl text-xs font-bold transition shadow-lg hover:shadow-cyan-500/20 active:scale-[0.99]"
+                                >
+                                    {captionCopied ? (
+                                        <>
+                                            <Check className="w-4 h-4 text-white animate-bounce" />
+                                            <span>Official Message & Hashtags Copied!</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-4 h-4 text-white" />
+                                            <span>Copy Official Message & Hashtags</span>
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </div>

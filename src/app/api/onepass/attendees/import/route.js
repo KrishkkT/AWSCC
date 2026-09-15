@@ -3,10 +3,14 @@ import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
 import { generateQRToken } from '@/lib/onepass/qr';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(req) {
     try {
+        await OnePassDB.ensureHydrated();
         const body = await req.json();
-        const { eventId, rows, mapping, dryRun = false } = body;
+        const { eventId, rows, mapping, counter_rules, dryRun = false } = body;
 
         if (!eventId || !rows || !Array.isArray(rows)) {
             return NextResponse.json({ error: 'eventId and array of rows are required' }, { status: 400 });
@@ -158,6 +162,77 @@ export async function POST(req) {
             });
         }
 
+        // Apply Counter Allocation Rules automatically (Workshop: 30/desk starting at 1, Tracks/General: 30/desk starting after workshop)
+        let counterStatsList = [];
+        const effectiveRules = (Array.isArray(counter_rules) && counter_rules.length > 0)
+            ? counter_rules
+            : [
+                { name: 'Workshop', pattern: 'workshop', capacity: 30, startCounter: 1, prefix: 'Counter ' },
+                { name: 'Tracks / General', pattern: '*', capacity: 30, startCounter: undefined, prefix: 'Counter ' }
+            ];
+
+        if (effectiveRules.length > 0) {
+            let currentCounterNumber = 1;
+            const processedIndices = new Set();
+            const counterStats = {};
+
+            for (let rIdx = 0; rIdx < effectiveRules.length; rIdx++) {
+                const rule = effectiveRules[rIdx];
+                const capacity = Math.max(1, parseInt(rule.capacity) || 30);
+                const prefix = rule.prefix !== undefined ? rule.prefix : 'Counter ';
+
+                let startNum = rule.startCounter !== null && rule.startCounter !== undefined && !isNaN(parseInt(rule.startCounter))
+                    ? parseInt(rule.startCounter)
+                    : currentCounterNumber;
+
+                let ruleMaxCounter = startNum;
+
+                const matchingIndices = [];
+                for (let i = 0; i < validRecords.length; i++) {
+                    if (processedIndices.has(i)) continue;
+                    const rec = validRecords[i];
+                    if (rule.pattern === '*' || !rule.pattern) {
+                        matchingIndices.push(i);
+                    } else {
+                        const pat = rule.pattern.toLowerCase().trim();
+                        const tType = (rec.ticket_type || '').toLowerCase();
+                        if (tType.includes(pat)) {
+                            matchingIndices.push(i);
+                        }
+                    }
+                }
+
+                for (let m = 0; m < matchingIndices.length; m++) {
+                    const idx = matchingIndices[m];
+                    processedIndices.add(idx);
+
+                    const counterIndexInGroup = Math.floor(m / capacity);
+                    const assignedCounterNum = startNum + counterIndexInGroup;
+                    const assignedCounterName = `${prefix}${assignedCounterNum}`;
+
+                    validRecords[idx].counter = assignedCounterName;
+                    validRecords[idx].counter_number = assignedCounterNum;
+                    validRecords[idx].counter_category = rule.name || 'General';
+
+                    if (!counterStats[assignedCounterName]) {
+                        counterStats[assignedCounterName] = {
+                            counter: assignedCounterName,
+                            counter_number: assignedCounterNum,
+                            category: rule.name || 'General',
+                            count: 0
+                        };
+                    }
+                    counterStats[assignedCounterName].count++;
+                    ruleMaxCounter = Math.max(ruleMaxCounter, assignedCounterNum);
+                }
+
+                if (matchingIndices.length > 0) {
+                    currentCounterNumber = ruleMaxCounter + 1;
+                }
+            }
+            counterStatsList = Object.values(counterStats);
+        }
+
         const summary = {
             total_rows: rows.length,
             valid_count: validRecords.length,
@@ -166,7 +241,8 @@ export async function POST(req) {
             warnings_count: warnings.length,
             invalid_records: invalidRecords,
             duplicate_records: duplicateRecords,
-            warnings: warnings
+            warnings: warnings,
+            counters: counterStatsList
         };
 
         if (dryRun) {
@@ -182,8 +258,7 @@ export async function POST(req) {
         const created = OnePassDB.batchCreateAttendees(eventId, validRecords);
 
         // Audit log
-        OnePassDB.getSnapshot().audit_logs.unshift({
-            id: `aud_${Date.now()}`,
+        OnePassDB.addAuditLog({
             event_id: eventId,
             actor_id: auth.user.id,
             actor_name: auth.user.name,
@@ -196,9 +271,7 @@ export async function POST(req) {
                 imported_count: created.length,
                 duplicates: duplicateRecords.length,
                 invalid: invalidRecords.length
-            },
-            timestamp: new Date().toISOString(),
-            result: 'SUCCESS'
+            }
         });
 
         return NextResponse.json({

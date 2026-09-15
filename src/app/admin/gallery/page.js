@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Image as ImageIcon, Plus, Trash2, Edit2, Save, X, Loader2, Eye, Upload } from "lucide-react";
 import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
+import { uploadFile, deleteFile } from "@/lib/storage";
 
 export default function AdminGallery() {
     const [photos, setPhotos] = useState([]);
@@ -49,25 +50,22 @@ export default function AdminGallery() {
 
         setUploading(true);
         try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-            const filePath = `gallery/${fileName}`;
+            const oldUrl = formData.url || editingPhoto?.url;
+            const result = await uploadFile(file, {
+                folder: '/gallery',
+                tags: ['gallery-photo'],
+                oldFileUrl: oldUrl
+            });
 
-            const { error: uploadError } = await supabase.storage
-                .from('gallery')
-                .upload(filePath, file);
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to upload image');
+            }
 
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('gallery')
-                .getPublicUrl(filePath);
-
-            setFormData({ ...formData, url: publicUrl });
+            setFormData({ ...formData, url: result.url });
             showFeedback('Image uploaded!');
         } catch (error) {
             console.error('Upload error:', error);
-            showFeedback('Upload failed. Ensure "gallery" bucket exists.', 'error');
+            showFeedback(`Upload failed: ${error.message || 'Check storage configuration'}`, 'error');
         } finally {
             setUploading(false);
         }
@@ -113,6 +111,9 @@ export default function AdminGallery() {
             const photoToDelete = photos.find(p => p.id === id);
             const { error } = await supabase.from('gallery').delete().eq('id', id);
             if (!error) {
+                if (photoToDelete?.url) {
+                    deleteFile(photoToDelete.url).catch(() => {});
+                }
                 await logActivity(supabase, 'Deleted Gallery Photo', `Deleted photo: "${photoToDelete?.title || id}" (Event: ${photoToDelete?.event || 'Unknown'})`, 'warning');
                 showFeedback('Photo removed!', 'info');
                 fetchPhotos();
@@ -161,10 +162,10 @@ export default function AdminGallery() {
                                 <img src={photo.url} alt={photo.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                 <div className="absolute inset-0 bg-brand-dark/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                                     <button onClick={() => { setEditingPhoto(photo); setFormData(photo); setShowModal(true); }} className="btn-crud-edit" title="Edit Photo">
-                                        <Edit2 size={18} />
+                                        <Edit2 size={20} />
                                     </button>
                                     <button onClick={() => handleDelete(photo.id)} className="btn-crud-delete" title="Delete Photo">
-                                        <Trash2 size={18} />
+                                        <Trash2 size={20} />
                                     </button>
                                 </div>
                             </div>
@@ -183,19 +184,19 @@ export default function AdminGallery() {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="glass-card w-full max-w-xl p-10 relative z-10 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                        className="glass-card w-full max-w-xl p-5 sm:p-8 md:p-10 relative z-10 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] max-h-[92vh] overflow-y-auto"
                     >
-                        <div className="flex items-center justify-between mb-10">
+                        <div className="flex items-center justify-between mb-6 sm:mb-8">
                             <div>
-                                <h2 className="text-2xl font-black text-white">{editingPhoto ? 'Edit Photo' : 'Add to Gallery'}</h2>
+                                <h2 className="text-xl sm:text-2xl font-black text-white">{editingPhoto ? 'Edit Photo' : 'Add to Gallery'}</h2>
                                 <p className="text-xs text-white/40 font-bold uppercase tracking-widest mt-1">AWS Cloud Club Vault</p>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white transition-colors">
+                            <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white transition-colors p-1">
                                 <X size={24} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
                             <div>
                                 <label className="form-label">Photo Title</label>
                                 <input
@@ -255,9 +256,9 @@ export default function AdminGallery() {
                                 </div>
                             )}
 
-                            <div className="flex gap-4 pt-4">
-                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-4">Cancel</button>
-                                <button type="submit" disabled={submitting || uploading} className="btn-primary flex-1 py-4 flex items-center justify-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary w-full sm:flex-1 py-3.5 sm:py-4">Cancel</button>
+                                <button type="submit" disabled={submitting || uploading} className="btn-primary w-full sm:flex-1 py-3.5 sm:py-4 flex items-center justify-center gap-2">
                                     {submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                                     {submitting ? 'Saving...' : editingPhoto ? 'Update Photo' : 'Save to Gallery'}
                                 </button>

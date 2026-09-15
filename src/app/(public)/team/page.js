@@ -28,7 +28,7 @@ export default function Team() {
     }, [fetchTeam]);
 
     const TeamSection = ({ title, members }) => {
-        if (members.length === 0) return null;
+        if (!members || members.length === 0) return null;
 
         return (
             <div className="space-y-12">
@@ -129,25 +129,31 @@ export default function Team() {
                     </div>
                 ) : (
                     <div className="space-y-32">
-                        {/* 1. Mentors Section */}
+                        {/* 1. Advisory Committee Section */}
                         <TeamSection
-                            title="Academic Mentors"
-                            members={team.filter(m => m.category === 'Mentor')}
+                            title="Advisory Committee"
+                            members={team.filter(m => m.category === 'Advisory' || m.category === 'Advisor')}
                         />
 
-                        {/* 2. Leader Section */}
+                        {/* 2. Academic Mentors / Faculty Section */}
                         <TeamSection
-                            title="Club Leaders"
+                            title="Academic Mentors"
+                            members={team.filter(m => m.category === 'Mentor' || m.category === 'Faculty')}
+                        />
+
+                        {/* 3. Cloud Club Leaders / Captains Section */}
+                        <TeamSection
+                            title="Cloud Club Leaders & Captains"
                             members={team.filter(m => m.category === 'Leader' || m.category === 'Captain')}
                         />
 
-                        {/* 3. Core Team Section */}
+                        {/* 4. Core Team Members Section */}
                         <TeamSection
-                            title="Core Committee"
-                            members={team.filter(m => m.category === 'Team')}
+                            title="Core Team Members"
+                            members={team.filter(m => m.category === 'Team' || m.category === 'Core')}
                         />
 
-                        {/* 4. Founding Leaders Section */}
+                        {/* 5. Founding Leaders Section */}
                         <TeamSection
                             title="Founding Leaders"
                             members={team.filter(m => m.category === 'Founding')}

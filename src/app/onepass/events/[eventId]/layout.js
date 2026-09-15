@@ -7,7 +7,7 @@ import { useOnePass } from '@/components/onepass/OnePassContext';
 import {
     LayoutDashboard, Users, FileUp, QrCode, Layers, BookOpen, Coffee,
     Award, ShieldAlert, FileSpreadsheet, ScrollText, Settings, ArrowLeft,
-    ChevronDown, Menu, X, LogOut, Sparkles, MapPin, Calendar
+    ChevronDown, Menu, X, LogOut, Sparkles, MapPin, Calendar, Mail, UserCheck
 } from 'lucide-react';
 
 export default function EventShellLayout({ children }) {
@@ -93,7 +93,7 @@ export default function EventShellLayout({ children }) {
     // Tracks & Track Access Gate
     if (isAdmin || hasPermission(eventId, 'TRACK_ACCESS')) {
         navItems.push({
-            name: 'Tracks & Gates',
+            name: 'General Sessions',
             href: `/onepass/events/${eventId}/tracks`,
             icon: Layers
         });
@@ -128,6 +128,16 @@ export default function EventShellLayout({ children }) {
 
     // Admin-only modules
     if (isAdmin) {
+        navItems.push({
+            name: 'Who Checked-in Whom',
+            href: `/onepass/events/${eventId}/attribution`,
+            icon: UserCheck
+        });
+        navItems.push({
+            name: 'Email Campaigns',
+            href: `/onepass/events/${eventId}/broadcast`,
+            icon: Mail
+        });
         navItems.push({
             name: 'Volunteers & RBAC',
             href: `/onepass/events/${eventId}/volunteers`,
@@ -255,11 +265,10 @@ export default function EventShellLayout({ children }) {
                                 <Link
                                     key={item.href}
                                     href={item.href}
-                                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
-                                        isActive
+                                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${isActive
                                             ? 'bg-[#0073BB] text-white font-bold shadow-md shadow-[#0073BB]/20'
                                             : 'text-slate-300 hover:bg-[#151c2e] hover:text-white'
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-center space-x-2.5">
                                         <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
@@ -306,11 +315,10 @@ export default function EventShellLayout({ children }) {
                                                 key={item.href}
                                                 href={item.href}
                                                 onClick={() => setMobileMenuOpen(false)}
-                                                className={`flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium transition ${
-                                                    isActive
+                                                className={`flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium transition ${isActive
                                                         ? 'bg-[#0073BB] text-white font-bold'
                                                         : 'text-slate-300 hover:bg-[#151c2e] hover:text-white'
-                                                }`}
+                                                    }`}
                                             >
                                                 <div className="flex items-center space-x-3">
                                                     <Icon className="w-4 h-4" />

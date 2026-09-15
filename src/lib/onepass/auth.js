@@ -27,7 +27,7 @@ export function createSessionToken(user) {
         name: user.name,
         role: user.role, // 'ADMIN' | 'VOLUNTEER'
         iat: Date.now(),
-        exp: Date.now() + 1000 * 60 * 60 * 24 * 7 // 7 days
+        exp: Date.now() + 1000 * 60 * 60 * 24 // 1 day (24 hours)
     };
     const serialized = Buffer.from(JSON.stringify(payload)).toString('base64url');
     const signature = crypto.createHmac('sha256', SESSION_SECRET).update(serialized).digest('base64url');

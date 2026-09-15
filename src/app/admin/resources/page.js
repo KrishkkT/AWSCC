@@ -170,10 +170,10 @@ export default function AdminResources() {
 
                                 <div className="flex items-center gap-2">
                                     <button onClick={() => openModal(res)} className="btn-crud-edit" title="Edit Resource">
-                                        <Edit2 size={16} />
+                                        <Edit2 size={20} />
                                     </button>
                                     <button onClick={() => handleDelete(res.id)} className="btn-crud-delete" title="Delete Resource">
-                                        <Trash2 size={16} />
+                                        <Trash2 size={20} />
                                     </button>
                                 </div>
                             </div>
@@ -188,19 +188,19 @@ export default function AdminResources() {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="glass-card w-full max-w-xl p-10 relative z-10 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                        className="glass-card w-full max-w-xl p-5 sm:p-8 md:p-10 relative z-10 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] max-h-[92vh] overflow-y-auto"
                     >
-                        <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center justify-between mb-6 sm:mb-8">
                             <div>
-                                <h2 className="text-2xl font-black text-white">{editingResource ? 'Edit Resource' : 'Add Resource'}</h2>
+                                <h2 className="text-xl sm:text-2xl font-black text-white">{editingResource ? 'Edit Resource' : 'Add Resource'}</h2>
                                 <p className="text-xs text-white/40 font-bold uppercase tracking-widest mt-1">Knowledge Ecosystem</p>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white transition-colors">
+                            <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white transition-colors p-1">
                                 <X size={24} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
                             <div>
                                 <label className="form-label">Asset Title</label>
                                 <input
@@ -263,9 +263,9 @@ export default function AdminResources() {
                                 />
                             </div>
 
-                            <div className="flex gap-4 pt-4 border-t border-white/5">
-                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-4">Cancel</button>
-                                <button type="submit" disabled={submitting} className="btn-primary flex-1 py-4 flex items-center justify-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 border-t border-white/5">
+                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary w-full sm:flex-1 py-3.5 sm:py-4">Cancel</button>
+                                <button type="submit" disabled={submitting} className="btn-primary w-full sm:flex-1 py-3.5 sm:py-4 flex items-center justify-center gap-2">
                                     {submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                                     {submitting ? 'Saving...' : editingResource ? 'Update Asset' : 'Save Asset'}
                                 </button>

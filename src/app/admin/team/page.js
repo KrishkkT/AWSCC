@@ -3,9 +3,18 @@
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Users, Plus, Trash2, Edit2, Save, X, Loader2, Github, Linkedin, Instagram, Globe, Upload } from "lucide-react";
+import { Users, Plus, Trash2, Edit2, Save, X, Loader2, Github, Linkedin, Instagram, Globe, Upload, Filter } from "lucide-react";
 import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
+import { uploadFile, deleteFile } from "@/lib/storage";
+
+const CATEGORY_OPTIONS = [
+    { value: 'Advisory', label: 'Advisory Committee', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+    { value: 'Mentor', label: 'Academic Mentors / Faculty', badge: 'bg-brand-teal/10 text-brand-teal border-brand-teal/20' },
+    { value: 'Leader', label: 'Cloud Club Leaders / Captains', badge: 'bg-brand-aws/10 text-brand-aws border-brand-aws/20' },
+    { value: 'Team', label: 'Core Team Members', badge: 'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20' },
+    { value: 'Founding', label: 'Founding Leaders', badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+];
 
 export default function AdminTeam() {
     const [team, setTeam] = useState([]);
@@ -16,11 +25,12 @@ export default function AdminTeam() {
     const [feedback, setFeedback] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [imageSource, setImageSource] = useState('url'); // 'url' or 'upload'
+    const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
 
     const [formData, setFormData] = useState({
         full_name: '',
         role_title: '',
-        category: 'Team',
+        category: 'Advisory',
         avatar_url: '',
         github_url: '',
         linkedin_url: '',
@@ -53,22 +63,19 @@ export default function AdminTeam() {
         if (!file) return;
 
         setUploading(true);
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-        const filePath = `team/${fileName}`;
-
         try {
-            const { error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, file);
+            const oldUrl = formData.avatar_url || editingMember?.avatar_url;
+            const result = await uploadFile(file, {
+                folder: '/team',
+                tags: ['team-avatar'],
+                oldFileUrl: oldUrl
+            });
 
-            if (uploadError) throw uploadError;
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to upload avatar');
+            }
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('avatars')
-                .getPublicUrl(filePath);
-
-            setFormData({ ...formData, avatar_url: publicUrl });
+            setFormData({ ...formData, avatar_url: result.url });
             setFeedback({ message: 'Image uploaded successfully!', type: 'success' });
         } catch (error) {
             setFeedback({ message: 'Upload failed: ' + error.message, type: 'error' });
@@ -117,6 +124,9 @@ export default function AdminTeam() {
             const memberToDelete = team.find(m => m.id === id);
             const { error } = await supabase.from('team_members').delete().eq('id', id);
             if (!error) {
+                if (memberToDelete?.avatar_url) {
+                    deleteFile(memberToDelete.avatar_url).catch(() => {});
+                }
                 await logActivity(supabase, 'Deleted Team Member', `Deleted member: ${memberToDelete?.full_name || id} (${memberToDelete?.role_title || 'Role'})`, 'warning');
                 setFeedback({ message: 'Member removed!', type: 'info' });
                 fetchTeam();
@@ -139,7 +149,7 @@ export default function AdminTeam() {
             setFormData({
                 full_name: '',
                 role_title: '',
-                category: 'Team',
+                category: selectedCategoryFilter !== 'all' ? selectedCategoryFilter : 'Advisory',
                 avatar_url: '',
                 github_url: '',
                 linkedin_url: '',
@@ -152,6 +162,46 @@ export default function AdminTeam() {
         setShowModal(true);
     };
 
+    const getCategoryBadgeClass = (category) => {
+        const found = CATEGORY_OPTIONS.find(c => c.value.toLowerCase() === (category || '').toLowerCase());
+        if (found) return found.badge;
+        if (category === 'Captain' || category === 'Leader') return 'bg-brand-aws/10 text-brand-aws border-brand-aws/20';
+        if (category === 'Faculty' || category === 'Mentor') return 'bg-brand-teal/10 text-brand-teal border-brand-teal/20';
+        if (category === 'Advisor' || category === 'Advisory') return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+        return 'bg-white/5 text-white/60 border-white/5';
+    };
+
+    const getCategoryDisplayLabel = (category) => {
+        switch (category) {
+            case 'Advisory':
+            case 'Advisor':
+                return 'Advisory Committee';
+            case 'Mentor':
+            case 'Faculty':
+                return 'Academic Mentor';
+            case 'Captain':
+            case 'Leader':
+                return 'Club Leader / Captain';
+            case 'Team':
+            case 'Core':
+                return 'Core Team';
+            case 'Founding':
+                return 'Founding Leader';
+            default:
+                return category;
+        }
+    };
+
+    const filteredTeam = team.filter(member => {
+        if (selectedCategoryFilter === 'all') return true;
+        if (selectedCategoryFilter === 'Advisory') return member.category === 'Advisory' || member.category === 'Advisor';
+        if (selectedCategoryFilter === 'Mentor') return member.category === 'Mentor' || member.category === 'Faculty';
+        if (selectedCategoryFilter === 'Leader') return member.category === 'Leader' || member.category === 'Captain';
+        if (selectedCategoryFilter === 'Team') return member.category === 'Team' || member.category === 'Core';
+        if (selectedCategoryFilter === 'Founding') return member.category === 'Founding';
+        return member.category === selectedCategoryFilter;
+    });
+
     return (
         <div className="space-y-10">
             {feedback && (
@@ -163,18 +213,66 @@ export default function AdminTeam() {
                     <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-5xl font-black text-white mb-2 tracking-tight">
                         Team <span className="text-brand-cyan">Command</span>
                     </motion.h1>
-                    <p className="text-white/40 font-medium">Manage core members and faculty advisors.</p>
+                    <p className="text-white/40 font-medium">Manage advisory committee, academic mentors, club leaders, and core team.</p>
                 </div>
                 <button onClick={() => openModal()} className="btn-primary px-8 py-4 flex items-center gap-3">
                     <Plus size={20} /> Add Member
                 </button>
             </div>
 
+            {/* Category Filter Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/5">
+                <button
+                    onClick={() => setSelectedCategoryFilter('all')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                        selectedCategoryFilter === 'all'
+                            ? 'bg-brand-cyan text-brand-dark shadow-lg shadow-brand-cyan/20'
+                            : 'bg-white/5 text-white/50 hover:text-white hover:bg-white/10'
+                    }`}
+                >
+                    All ({team.length})
+                </button>
+                {CATEGORY_OPTIONS.map(cat => {
+                    const count = team.filter(m => {
+                        if (cat.value === 'Advisory') return m.category === 'Advisory' || m.category === 'Advisor';
+                        if (cat.value === 'Mentor') return m.category === 'Mentor' || m.category === 'Faculty';
+                        if (cat.value === 'Leader') return m.category === 'Leader' || m.category === 'Captain';
+                        if (cat.value === 'Team') return m.category === 'Team' || m.category === 'Core';
+                        if (cat.value === 'Founding') return m.category === 'Founding';
+                        return m.category === cat.value;
+                    }).length;
+
+                    return (
+                        <button
+                            key={cat.value}
+                            onClick={() => setSelectedCategoryFilter(cat.value)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 ${
+                                selectedCategoryFilter === cat.value
+                                    ? 'bg-brand-cyan text-brand-dark shadow-lg shadow-brand-cyan/20'
+                                    : 'bg-white/5 text-white/50 hover:text-white hover:bg-white/10'
+                            }`}
+                        >
+                            <span>{cat.label.split('/')[0].trim()}</span>
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${
+                                selectedCategoryFilter === cat.value ? 'bg-brand-dark/20 text-brand-dark font-black' : 'bg-white/10 text-white/60'
+                            }`}>
+                                {count}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+
             {loading ? (
                 <div className="text-center py-20 animate-pulse text-white/20 font-black tracking-widest uppercase">Loading Roster...</div>
+            ) : filteredTeam.length === 0 ? (
+                <div className="text-center py-20 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
+                    <Users size={48} className="mx-auto text-white/20 mb-3" />
+                    <p className="text-white/40 font-bold text-sm">No members found in this category.</p>
+                </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {team.map((member, i) => (
+                    {filteredTeam.map((member, i) => (
                         <motion.div
                             key={member.id}
                             initial={{ opacity: 0, scale: 0.9 }}
@@ -191,8 +289,8 @@ export default function AdminTeam() {
                                 <div className="overflow-hidden">
                                     <h3 className="text-white font-bold truncate text-lg">{member.full_name}</h3>
                                     <p className="text-brand-cyan text-xs font-medium tracking-wide uppercase mt-0.5">{member.role_title}</p>
-                                    <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/5">
-                                        {member.category}
+                                    <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${getCategoryBadgeClass(member.category)}`}>
+                                        {getCategoryDisplayLabel(member.category)}
                                     </span>
                                 </div>
                             </div>
@@ -207,10 +305,10 @@ export default function AdminTeam() {
 
                                 <div className="flex items-center gap-2">
                                     <button onClick={() => openModal(member)} className="btn-crud-edit" title="Edit Member">
-                                        <Edit2 size={16} />
+                                        <Edit2 size={20} />
                                     </button>
                                     <button onClick={() => handleDelete(member.id)} className="btn-crud-delete" title="Delete Member">
-                                        <Trash2 size={16} />
+                                        <Trash2 size={20} />
                                     </button>
                                 </div>
                             </div>
@@ -225,19 +323,19 @@ export default function AdminTeam() {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="glass-card w-full max-w-xl p-10 relative z-10 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] max-h-[90vh] overflow-y-auto"
+                        className="glass-card w-full max-w-xl p-5 sm:p-8 md:p-10 relative z-10 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] max-h-[92vh] overflow-y-auto"
                     >
-                        <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center justify-between mb-6 sm:mb-8">
                             <div>
-                                <h2 className="text-2xl font-black text-white">{editingMember ? 'Edit Profile' : 'Add Team Member'}</h2>
+                                <h2 className="text-xl sm:text-2xl font-black text-white">{editingMember ? 'Edit Profile' : 'Add Team Member'}</h2>
                                 <p className="text-xs text-white/40 font-bold uppercase tracking-widest mt-1">Personnel Directory</p>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white transition-colors">
+                            <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white transition-colors p-1">
                                 <X size={24} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="form-label">Full Name</label>
@@ -258,7 +356,7 @@ export default function AdminTeam() {
                                         required
                                         value={formData.role_title}
                                         onChange={e => setFormData({ ...formData, role_title: e.target.value })}
-                                        placeholder="e.g. Cloud Architect / Lead"
+                                        placeholder="e.g. Advisory Board Member / Patron"
                                         className="form-input"
                                     />
                                 </div>
@@ -272,9 +370,11 @@ export default function AdminTeam() {
                                         onChange={e => setFormData({ ...formData, category: e.target.value })}
                                         className="form-input"
                                     >
-                                        <option value="Team" className="bg-brand-dark">Core Team</option>
-                                        <option value="Faculty" className="bg-brand-dark">Faculty Advisor</option>
-                                        <option value="Speaker" className="bg-brand-dark">Speaker / Mentor</option>
+                                        {CATEGORY_OPTIONS.map(opt => (
+                                            <option key={opt.value} value={opt.value} className="bg-brand-dark">
+                                                {opt.label}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
 
@@ -298,14 +398,14 @@ export default function AdminTeam() {
                                             onClick={() => setImageSource('url')}
                                             className={`text-[10px] font-bold px-3 py-1 rounded-md transition-all ${imageSource === 'url' ? 'bg-brand-cyan text-brand-dark' : 'text-white/40'}`}
                                         >
-                                            URL
+                                            Image URL
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => setImageSource('upload')}
-                                            className={`text-[10px] font-bold px-3 py-1 rounded-md transition-all ${imageSource === 'upload' ? 'bg-brand-cyan text-brand-dark' : 'text-white/40'}`}
+                                            onClick={() => setImageSource('file')}
+                                            className={`text-[10px] font-bold px-3 py-1 rounded-md transition-all ${imageSource === 'file' ? 'bg-brand-cyan text-brand-dark' : 'text-white/40'}`}
                                         >
-                                            Upload
+                                            Upload File
                                         </button>
                                     </div>
                                 </div>
@@ -313,16 +413,17 @@ export default function AdminTeam() {
                                 {imageSource === 'url' ? (
                                     <input
                                         type="url"
+                                        required={!formData.avatar_url}
                                         value={formData.avatar_url}
                                         onChange={e => setFormData({ ...formData, avatar_url: e.target.value })}
                                         placeholder="https://..."
                                         className="form-input"
                                     />
                                 ) : (
-                                    <label className="flex items-center justify-center gap-2 p-4 border border-dashed border-white/10 rounded-xl hover:border-brand-cyan/40 cursor-pointer transition-all bg-white/[0.02]">
+                                    <label className="flex items-center justify-center gap-2 p-6 border border-dashed border-white/10 rounded-xl hover:border-brand-cyan/40 cursor-pointer transition-all bg-white/[0.02]">
                                         <Upload size={18} className="text-brand-cyan" />
                                         <span className="text-xs font-bold text-white/60">
-                                            {uploading ? 'Uploading Image...' : 'Choose Image File'}
+                                            {uploading ? 'Uploading avatar...' : 'Choose image file'}
                                         </span>
                                         <input
                                             type="file"
@@ -334,6 +435,16 @@ export default function AdminTeam() {
                                     </label>
                                 )}
                             </div>
+
+                            {formData.avatar_url && (
+                                <div className="flex items-center gap-4 p-4 rounded-xl border border-white/5 bg-white/[0.02]">
+                                    <img src={formData.avatar_url} alt="Preview" className="w-12 h-12 rounded-xl object-cover" />
+                                    <div className="overflow-hidden">
+                                        <p className="text-xs font-bold text-white truncate">{formData.full_name || 'Member'}</p>
+                                        <p className="text-[10px] text-white/40 truncate">{formData.role_title || 'Role'}</p>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="space-y-4 pt-2">
                                 <p className="text-xs font-black uppercase tracking-widest text-white/40">Social Channels</p>
@@ -369,9 +480,9 @@ export default function AdminTeam() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4 pt-4 border-t border-white/5">
-                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-4">Cancel</button>
-                                <button type="submit" disabled={submitting || uploading} className="btn-primary flex-1 py-4 flex items-center justify-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 border-t border-white/5">
+                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary w-full sm:flex-1 py-3.5 sm:py-4">Cancel</button>
+                                <button type="submit" disabled={submitting || uploading} className="btn-primary w-full sm:flex-1 py-3.5 sm:py-4 flex items-center justify-center gap-2">
                                     {submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                                     {submitting ? 'Saving...' : editingMember ? 'Update Member' : 'Save Member'}
                                 </button>

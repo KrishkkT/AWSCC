@@ -329,7 +329,7 @@ export default function AdminCertificates() {
                                     className="btn-crud-edit"
                                     title="Preview Certificate"
                                 >
-                                    <Eye size={16} />
+                                    <Eye size={20} />
                                 </button>
                                 <button
                                     onClick={async () => {
@@ -340,14 +340,14 @@ export default function AdminCertificates() {
                                     className="btn-crud-edit"
                                     title="Download Certificate"
                                 >
-                                    <Download size={16} />
+                                    <Download size={20} />
                                 </button>
                                 <button
                                     disabled={processingId === cert.id}
                                     onClick={() => handleDelete(cert.id)}
                                     className="btn-crud-delete disabled:opacity-50"
                                 >
-                                    {processingId === cert.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                                    {processingId === cert.id ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
                                 </button>
                             </div>
                         </motion.div>
@@ -366,11 +366,11 @@ export default function AdminCertificates() {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className={`glass-card w-full p-10 relative z-10 border-white/10 transition-all duration-300 ${bulkData.length > 0 ? 'max-w-2xl' : 'max-w-xl'}`}
+                        className={`glass-card w-full p-5 sm:p-8 md:p-10 relative z-10 border-white/10 transition-all duration-300 max-h-[92vh] overflow-y-auto ${bulkData.length > 0 ? 'max-w-2xl' : 'max-w-xl'}`}
                     >
                         {bulkData.length > 0 ? (
                             <>
-                                <h2 className="text-3xl font-black text-white mb-6">Issue Bulk <span className="text-brand-cyan">Certificates</span></h2>
+                                <h2 className="text-2xl sm:text-3xl font-black text-white mb-6">Issue Bulk <span className="text-brand-cyan">Certificates</span></h2>
                                 <form onSubmit={handleIssueCert} className="space-y-6">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Recipients List ({bulkData.length})</label>
@@ -415,16 +415,16 @@ export default function AdminCertificates() {
                                                             </td>
                                                             <td className="px-2 py-1.5">
                                                                 <select
-                                                                    value={item.template}
+                                                                    value={item.template || 'blue'}
                                                                     onChange={(e) => {
                                                                         const updated = [...bulkData];
                                                                         updated[idx].template = e.target.value;
                                                                         setBulkData(updated);
                                                                     }}
-                                                                    className="bg-brand-dark border border-white/10 rounded-lg px-2 py-1.5 text-white text-[10px] font-bold focus:border-brand-cyan outline-none cursor-pointer font-sans"
+                                                                    className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-[11px] font-medium focus:border-brand-cyan outline-none"
                                                                 >
-                                                                    <option value="blue">Green</option>
-                                                                    <option value="purple">Purple</option>
+                                                                    <option value="blue" className="bg-brand-dark">Green</option>
+                                                                    <option value="purple" className="bg-brand-dark">Purple</option>
                                                                 </select>
                                                             </td>
                                                             <td className="px-2 py-1.5 text-center">
@@ -461,9 +461,9 @@ export default function AdminCertificates() {
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="flex gap-4 pt-4">
-                                        <button type="button" onClick={() => { setShowModal(false); setBulkData([]); }} className="flex-grow btn-secondary py-4 font-black uppercase tracking-widest">Cancel</button>
-                                        <button type="submit" disabled={submitting} className="flex-grow btn-primary py-4 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,194,255,0.2)]">
+                                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                                        <button type="button" onClick={() => { setShowModal(false); setBulkData([]); }} className="w-full sm:flex-1 btn-secondary py-3.5 sm:py-4 font-black uppercase tracking-widest">Cancel</button>
+                                        <button type="submit" disabled={submitting} className="w-full sm:flex-1 btn-primary py-3.5 sm:py-4 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,194,255,0.2)]">
                                             {submitting ? 'Issuing...' : 'Confirm Issue'}
                                         </button>
                                     </div>
@@ -471,8 +471,8 @@ export default function AdminCertificates() {
                             </>
                         ) : (
                             <>
-                                <h2 className="text-3xl font-black text-white mb-8">Issue <span className="text-brand-cyan">Certificate</span></h2>
-                                <form onSubmit={handleIssueCert} className="space-y-6">
+                                <h2 className="text-2xl sm:text-3xl font-black text-white mb-6 sm:mb-8">Issue <span className="text-brand-cyan">Certificate</span></h2>
+                                <form onSubmit={handleIssueCert} className="space-y-5 sm:space-y-6">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Recipient Name</label>
                                         <input
@@ -519,9 +519,9 @@ export default function AdminCertificates() {
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="flex gap-4 pt-4">
-                                        <button type="button" onClick={() => setShowModal(false)} className="flex-grow btn-secondary py-4 font-black uppercase tracking-widest">Cancel</button>
-                                        <button type="submit" disabled={submitting} className="flex-grow btn-primary py-4 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,194,255,0.2)]">
+                                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                                        <button type="button" onClick={() => setShowModal(false)} className="w-full sm:flex-1 btn-secondary py-3.5 sm:py-4 font-black uppercase tracking-widest">Cancel</button>
+                                        <button type="submit" disabled={submitting} className="w-full sm:flex-1 btn-primary py-3.5 sm:py-4 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,194,255,0.2)]">
                                             {submitting ? 'Issuing...' : 'Confirm Issue'}
                                         </button>
                                     </div>

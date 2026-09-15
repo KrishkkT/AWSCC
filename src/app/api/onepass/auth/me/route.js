@@ -3,8 +3,12 @@ import { getSessionFromRequest } from '@/lib/onepass/auth';
 import { OnePassDB } from '@/lib/onepass/db';
 import { seedOnePassDatabase } from '@/lib/onepass/seed';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req) {
     try {
+        await OnePassDB.ensureHydrated();
         seedOnePassDatabase(false);
         const user = await getSessionFromRequest(req);
         if (!user) {

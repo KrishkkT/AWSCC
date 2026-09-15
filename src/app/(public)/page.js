@@ -20,7 +20,9 @@ export default function Home() {
     const [galleryPhotos, setGalleryPhotos] = useState([]);
     const [events, setEvents] = useState([]);
     const [communityEvent, setCommunityEvent] = useState(null);
+    const [advisoryMembers, setAdvisoryMembers] = useState([]);
     const [teamMembers, setTeamMembers] = useState([]);
+    const [foundingMembers, setFoundingMembers] = useState([]);
     const [isMobile, setIsMobile] = useState(false);
     const [isTablet, setIsTablet] = useState(false);
     const [showGlimpseGallery, setShowGlimpseGallery] = useState(false);
@@ -60,31 +62,47 @@ export default function Home() {
                 const { data: scdEvent } = await supabase.from('community_events').select('*').eq('is_active', true).order('year', { ascending: false }).limit(1).maybeSingle();
                 if (scdEvent) setCommunityEvent(scdEvent);
 
-                const { data: teamData } = await supabase.from('team_members').select('*');
+                const { data: teamData } = await supabase.from('team_members').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: true });
                 if (teamData && teamData.length > 0) {
-                    const mainNames = ['Vipul Dabhi', 'Harshad Prajapati', 'Sandeep Suthar', 'Anand Patel'];
-                    let mainMembers = teamData.filter(m => {
-                        const name = (m.full_name || '').toLowerCase();
-                        return mainNames.some(mainName => name.includes(mainName.toLowerCase()));
-                    });
+                    // 1. Advisory Committee
+                    const advisory = teamData.filter(m => m.category === 'Advisory' || m.category === 'Advisor');
+                    setAdvisoryMembers(advisory);
 
-                    // Sort to match requested order
-                    mainMembers.sort((a, b) => {
-                        const nameA = (a.full_name || '').toLowerCase();
-                        const nameB = (b.full_name || '').toLowerCase();
-                        const indexA = mainNames.findIndex(n => nameA.includes(n.toLowerCase()));
-                        const indexB = mainNames.findIndex(n => nameB.includes(n.toLowerCase()));
-                        return indexA - indexB;
-                    });
+                    // 2. Academic Mentors / Faculty Mentors
+                    const mentorList = teamData.filter(m => m.category === 'Mentor' || m.category === 'Faculty');
+                    if (mentorList.length > 0) {
+                        setTeamMembers(mentorList);
+                    } else {
+                        const mainNames = ['Vipul Dabhi', 'Harshad Prajapati', 'Sandeep Suthar', 'Anand Patel'];
+                        let mainMembers = teamData.filter(m => {
+                            const name = (m.full_name || '').toLowerCase();
+                            return mainNames.some(mainName => name.includes(mainName.toLowerCase()));
+                        });
 
-                    // Fallback if none found
-                    if (mainMembers.length === 0) {
-                        mainMembers = teamData.slice(0, 4);
+                        // Sort to match requested order
+                        mainMembers.sort((a, b) => {
+                            const nameA = (a.full_name || '').toLowerCase();
+                            const nameB = (b.full_name || '').toLowerCase();
+                            const indexA = mainNames.findIndex(n => nameA.includes(n.toLowerCase()));
+                            const indexB = mainNames.findIndex(n => nameB.includes(n.toLowerCase()));
+                            return indexA - indexB;
+                        });
+
+                        // Fallback if none found
+                        if (mainMembers.length === 0) {
+                            mainMembers = teamData.slice(0, 4);
+                        }
+
+                        setTeamMembers(mainMembers);
                     }
 
-                    setTeamMembers(mainMembers);
+                    // 3. Founding Leaders
+                    const founding = teamData.filter(m => m.category === 'Founding');
+                    setFoundingMembers(founding);
                 } else {
+                    setAdvisoryMembers([]);
                     setTeamMembers([]);
+                    setFoundingMembers([]);
                 }
             } catch (err) {
                 console.error("Error fetching data:", err);
@@ -446,24 +464,123 @@ export default function Home() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {teamMembers.map((member) => (
-                            <div key={member.id} className="bg-white rounded-3xl p-6 relative overflow-hidden group flex flex-col h-[450px] sm:h-[380px]">
-                                <div className="flex justify-between items-start z-10 mb-4">
-                                    <h3 className="text-[#0C111D] text-2xl font-bold leading-tight max-w-[70%]">
-                                        {(member.full_name || 'Team Member').split(' ').map((n, i) => <span key={i} className="block">{n}</span>)}
+                    <div className="space-y-16">
+                        {/* 1. ADVISORY COMMITTEE */}
+                        {advisoryMembers.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-3 mb-8">
+                                    <span className="h-px bg-amber-500/30 w-8"></span>
+                                    <h3 className="text-amber-400 font-display font-bold text-xl md:text-2xl uppercase tracking-wider">
+                                        Advisory Committee
                                     </h3>
-                                    {member.linkedin_url && (
-                                        <Link href={member.linkedin_url} target="_blank" className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-[#0073BB] hover:text-white hover:border-[#0073BB] transition-colors bg-white text-[#0C111D]">
-                                            <Linkedin size={18} />
-                                        </Link>
-                                    )}
+                                    <span className="h-px bg-amber-500/20 flex-1"></span>
                                 </div>
-                                <div className="absolute bottom-0 left-0 right-0 h-[320px] sm:h-[250px] overflow-hidden rounded-b-3xl mt-4">
-                                    <img src={member.avatar_url} alt={member.full_name || 'Team Member'} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {advisoryMembers.map((member) => (
+                                        <div key={member.id} className="bg-white rounded-3xl p-6 relative overflow-hidden group flex flex-col h-[450px] sm:h-[390px] shadow-xl hover:shadow-2xl transition-all duration-300">
+                                            <div className="flex justify-between items-start z-10 mb-3 gap-2">
+                                                <div className="flex-1 min-w-0 pr-2">
+                                                    <h3 className="text-[#0C111D] text-xl font-bold leading-snug line-clamp-2">
+                                                        {member.full_name || 'Advisor'}
+                                                    </h3>
+                                                    {member.role_title && (
+                                                        <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider mt-1 line-clamp-1">
+                                                            {member.role_title}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                {member.linkedin_url && (
+                                                    <Link href={member.linkedin_url} target="_blank" className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-[#0073BB] hover:text-white hover:border-[#0073BB] transition-colors bg-white text-[#0C111D] flex-shrink-0">
+                                                        <Linkedin size={18} />
+                                                    </Link>
+                                                )}
+                                            </div>
+                                            <div className="absolute bottom-0 left-0 right-0 h-[320px] sm:h-[260px] overflow-hidden rounded-b-3xl mt-4">
+                                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name || 'Advisor')}&background=111111&color=fff`} alt={member.full_name || 'Advisor'} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
-                        ))}
+                        )}
+
+                        {/* 2. ACADEMIC MENTORS / FACULTY */}
+                        {teamMembers.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-3 mb-8">
+                                    <span className="h-px bg-amber-500/30 w-8"></span>
+                                    <h3 className="text-amber-400 font-display font-bold text-xl md:text-2xl uppercase tracking-wider">
+                                        Academic Mentors
+                                    </h3>
+                                    <span className="h-px bg-amber-500/20 flex-1"></span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {teamMembers.map((member) => (
+                                        <div key={member.id} className="bg-white rounded-3xl p-6 relative overflow-hidden group flex flex-col h-[450px] sm:h-[390px] shadow-xl hover:shadow-2xl transition-all duration-300">
+                                            <div className="flex justify-between items-start z-10 mb-3 gap-2">
+                                                <div className="flex-1 min-w-0 pr-2">
+                                                    <h3 className="text-[#0C111D] text-xl font-bold leading-snug line-clamp-2">
+                                                        {member.full_name || 'Academic Mentor'}
+                                                    </h3>
+                                                    {member.role_title && (
+                                                        <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider mt-1 line-clamp-1">
+                                                            {member.role_title}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                {member.linkedin_url && (
+                                                    <Link href={member.linkedin_url} target="_blank" className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-[#0073BB] hover:text-white hover:border-[#0073BB] transition-colors bg-white text-[#0C111D] flex-shrink-0">
+                                                        <Linkedin size={18} />
+                                                    </Link>
+                                                )}
+                                            </div>
+                                            <div className="absolute bottom-0 left-0 right-0 h-[320px] sm:h-[260px] overflow-hidden rounded-b-3xl mt-4">
+                                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name || 'Mentor')}&background=111111&color=fff`} alt={member.full_name || 'Academic Mentor'} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. FOUNDING LEADERS */}
+                        {foundingMembers.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-3 mb-8">
+                                    <span className="h-px bg-amber-500/30 w-8"></span>
+                                    <h3 className="text-amber-400 font-display font-bold text-xl md:text-2xl uppercase tracking-wider">
+                                        Founding Leaders
+                                    </h3>
+                                    <span className="h-px bg-amber-500/20 flex-1"></span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {foundingMembers.map((member) => (
+                                        <div key={member.id} className="bg-white rounded-3xl p-6 relative overflow-hidden group flex flex-col h-[450px] sm:h-[390px] shadow-xl hover:shadow-2xl transition-all duration-300">
+                                            <div className="flex justify-between items-start z-10 mb-3 gap-2">
+                                                <div className="flex-1 min-w-0 pr-2">
+                                                    <h3 className="text-[#0C111D] text-xl font-bold leading-snug line-clamp-2">
+                                                        {member.full_name || 'Founding Leader'}
+                                                    </h3>
+                                                    {member.role_title && (
+                                                        <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider mt-1 line-clamp-1">
+                                                            {member.role_title}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                {member.linkedin_url && (
+                                                    <Link href={member.linkedin_url} target="_blank" className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-[#0073BB] hover:text-white hover:border-[#0073BB] transition-colors bg-white text-[#0C111D] flex-shrink-0">
+                                                        <Linkedin size={18} />
+                                                    </Link>
+                                                )}
+                                            </div>
+                                            <div className="absolute bottom-0 left-0 right-0 h-[320px] sm:h-[260px] overflow-hidden rounded-b-3xl mt-4">
+                                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name || 'Leader')}&background=111111&color=fff`} alt={member.full_name || 'Founding Leader'} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="mt-16 flex justify-center">
