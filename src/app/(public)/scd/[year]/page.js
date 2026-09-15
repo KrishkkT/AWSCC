@@ -189,6 +189,7 @@ export default function SCDYearPage({ params }) {
     const [activeWorkshop, setActiveWorkshop] = useState(null);
     const [activeTicketBtnId, setActiveTicketBtnId] = useState(null);
     const [teamMembersState, setTeamMembersState] = useState([]);
+    const [selectedDeptFilter, setSelectedDeptFilter] = useState('all');
 
     // Dragging state for tickets section
     const ticketScrollRef = useRef(null);
@@ -327,6 +328,45 @@ export default function SCDYearPage({ params }) {
     const teamMembers = teamMembersState.length > 0
         ? teamMembersState
         : (safeArray(event.team_data).length > 0 ? safeArray(event.team_data) : safeArray(event.organizers_data));
+
+    const rawCommittee = safeArray(event.committee_data);
+    const committeeDepts = [];
+    const allCommitteeMembers = [];
+
+    rawCommittee.forEach((item) => {
+        if (item && Array.isArray(item.members)) {
+            const deptName = item.department?.trim() || 'Volunteers';
+            const validMembers = safeArray(item.members).filter(m => m && (m.name || m.full_name));
+            if (validMembers.length > 0) {
+                const formattedMembers = validMembers.map(m => ({
+                    ...m,
+                    name: m.name || m.full_name || '',
+                    role: m.role || m.role_title || 'Volunteer',
+                    department: deptName,
+                    image: m.image || m.avatar_url || ''
+                }));
+                committeeDepts.push({
+                    department: deptName,
+                    members: formattedMembers
+                });
+                formattedMembers.forEach(m => allCommitteeMembers.push(m));
+            }
+        } else if (item && (item.name || item.full_name)) {
+            const memberObj = {
+                ...item,
+                name: item.name || item.full_name || '',
+                role: item.role || item.role_title || 'Volunteer',
+                department: item.department || '',
+                image: item.image || item.avatar_url || ''
+            };
+            allCommitteeMembers.push(memberObj);
+        }
+    });
+
+    const displayedVolunteers = selectedDeptFilter === 'all'
+        ? allCommitteeMembers
+        : (committeeDepts.find(d => d.department === selectedDeptFilter)?.members || []);
+
     const tickets = safeArray(safeObject(event.ticket_data).tickets);
     const registrationUrl = safeObject(event.ticket_data).konfhub_url || "";
 
@@ -1083,6 +1123,132 @@ export default function SCDYearPage({ params }) {
                                             <a href={member.portfolio_url} target="_blank" rel="noopener noreferrer" className="hover:text-[#4F8EF7] transition-colors" title="Portfolio">
                                                 <Globe size={16} />
                                             </a>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            {/* ══════════════════════════════════════
+                SCD COMMITTEE & VOLUNTEERS — Space-Efficient Grid
+            ══════════════════════════════════════ */}
+            {allCommitteeMembers.length > 0 && (
+                <section id="committee" className="py-20 bg-slate-50 border-t border-slate-200">
+                    <div className="container mx-auto px-6 lg:px-12 max-w-7xl">
+                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+                            <div>
+                                <p className="label-teal mb-3">WORKING COMMITTEE &amp; VOLUNTEERS</p>
+                                <h2 className="text-3xl sm:text-5xl font-black text-[#23303E] leading-tight tracking-tight">SCD Committee</h2>
+                                <p className="text-slate-500 text-sm sm:text-base font-medium mt-2 max-w-xl">
+                                    The core student workforce managing event tracks, logistics, operations, registration, tech, and hospitality.
+                                </p>
+                            </div>
+
+                            {committeeDepts.length > 1 && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedDeptFilter('all')}
+                                        className={`px-3.5 py-1.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+                                            selectedDeptFilter === 'all'
+                                                ? 'bg-[#23303E] text-white shadow-sm'
+                                                : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        All ({allCommitteeMembers.length})
+                                    </button>
+                                    {committeeDepts.map((d, dIdx) => (
+                                        <button
+                                            key={dIdx}
+                                            type="button"
+                                            onClick={() => setSelectedDeptFilter(d.department)}
+                                            className={`px-3.5 py-1.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+                                                selectedDeptFilter === d.department
+                                                    ? 'bg-[#23303E] text-white shadow-sm'
+                                                    : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'
+                                            }`}
+                                        >
+                                            {d.department} ({d.members.length})
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4">
+                            {displayedVolunteers.map((member, vIdx) => (
+                                <div
+                                    key={vIdx}
+                                    className="bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 text-center shadow-2xs hover:shadow-md hover:border-[#4F8EF7]/40 hover:-translate-y-0.5 transition-all duration-200 group flex flex-col items-center justify-between"
+                                >
+                                    <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-2.5 rounded-2xl overflow-hidden bg-slate-50 border border-slate-200 group-hover:scale-105 transition-transform duration-200 shrink-0">
+                                        <img
+                                            src={member.image || member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || member.full_name || 'Volunteer')}&background=EFF0F3&color=23303E`}
+                                            alt={member.name || member.full_name}
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
+                                    </div>
+                                    <div className="w-full flex-1 flex flex-col justify-between">
+                                        <div>
+                                            <h4
+                                                className="text-xs sm:text-sm font-bold text-[#23303E] group-hover:text-[#4F8EF7] transition-colors leading-tight line-clamp-1"
+                                                title={member.name || member.full_name}
+                                            >
+                                                {member.name || member.full_name}
+                                            </h4>
+                                            <p
+                                                className="font-mono text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-tight mt-0.5 line-clamp-1"
+                                                title={member.role || 'Volunteer'}
+                                            >
+                                                {member.role || 'Volunteer'}
+                                            </p>
+                                            {member.department && selectedDeptFilter === 'all' && (
+                                                <span className="inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200/60 text-slate-500 mt-1 max-w-full truncate">
+                                                    {member.department}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {(member.linkedin_url || member.linkedin || member.github_url || member.instagram_url) && (
+                                            <div className="flex items-center justify-center gap-2 text-slate-400 mt-2 pt-1.5 border-t border-slate-100">
+                                                {(member.linkedin_url || member.linkedin) && (
+                                                    <a
+                                                        href={member.linkedin_url || member.linkedin}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="hover:text-[#4F8EF7] transition-colors"
+                                                        title="LinkedIn"
+                                                    >
+                                                        <Linkedin size={13} />
+                                                    </a>
+                                                )}
+                                                {member.github_url && (
+                                                    <a
+                                                        href={member.github_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="hover:text-[#23303E] transition-colors"
+                                                        title="GitHub"
+                                                    >
+                                                        <Github size={13} />
+                                                    </a>
+                                                )}
+                                                {member.instagram_url && (
+                                                    <a
+                                                        href={member.instagram_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="hover:text-pink-500 transition-colors"
+                                                        title="Instagram"
+                                                    >
+                                                        <Instagram size={13} />
+                                                    </a>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
