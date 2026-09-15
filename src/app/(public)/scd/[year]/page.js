@@ -363,9 +363,9 @@ export default function SCDYearPage({ params }) {
         }
     });
 
-    const displayedVolunteers = selectedDeptFilter === 'all'
-        ? allCommitteeMembers
-        : (committeeDepts.find(d => d.department === selectedDeptFilter)?.members || []);
+    const filteredDepartmentGroups = selectedDeptFilter === 'all'
+        ? (committeeDepts.length > 0 ? committeeDepts : (allCommitteeMembers.length > 0 ? [{ department: '', members: allCommitteeMembers }] : []))
+        : committeeDepts.filter(d => d.department === selectedDeptFilter);
 
     const tickets = safeArray(safeObject(event.ticket_data).tickets);
     const registrationUrl = safeObject(event.ticket_data).konfhub_url || "";
@@ -1178,78 +1178,92 @@ export default function SCDYearPage({ params }) {
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4">
-                            {displayedVolunteers.map((member, vIdx) => (
-                                <div
-                                    key={vIdx}
-                                    className="bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 text-center shadow-2xs hover:shadow-md hover:border-[#4F8EF7]/40 hover:-translate-y-0.5 transition-all duration-200 group flex flex-col items-center justify-between"
-                                >
-                                    <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-2.5 rounded-2xl overflow-hidden bg-slate-50 border border-slate-200 group-hover:scale-105 transition-transform duration-200 shrink-0">
-                                        <img
-                                            src={member.image || member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || member.full_name || 'Volunteer')}&background=EFF0F3&color=23303E`}
-                                            alt={member.name || member.full_name}
-                                            className="w-full h-full object-cover"
-                                            loading="lazy"
-                                        />
-                                    </div>
-                                    <div className="w-full flex-1 flex flex-col justify-between">
-                                        <div>
-                                            <h4
-                                                className="text-xs sm:text-sm font-bold text-[#23303E] group-hover:text-[#4F8EF7] transition-colors leading-tight line-clamp-1"
-                                                title={member.name || member.full_name}
-                                            >
-                                                {member.name || member.full_name}
-                                            </h4>
-                                            <p
-                                                className="font-mono text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-tight mt-0.5 line-clamp-1"
-                                                title={member.role || 'Volunteer'}
-                                            >
-                                                {member.role || 'Volunteer'}
-                                            </p>
-                                            {member.department && selectedDeptFilter === 'all' && (
-                                                <span className="inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200/60 text-slate-500 mt-1 max-w-full truncate">
-                                                    {member.department}
-                                                </span>
-                                            )}
+                        <div className="space-y-10">
+                            {filteredDepartmentGroups.map((deptGroup, gIdx) => (
+                                <div key={gIdx} className="space-y-4">
+                                    {deptGroup.department && (
+                                        <div className="flex items-center gap-3">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-[#FF9900]" />
+                                            <h3 className="text-base sm:text-lg font-black text-[#23303E] tracking-tight uppercase font-mono">
+                                                {deptGroup.department}
+                                            </h3>
+                                            <span className="text-xs font-mono font-bold text-slate-500 bg-white border border-slate-200 px-2.5 py-0.5 rounded-lg shadow-2xs">
+                                                {deptGroup.members.length} {deptGroup.members.length === 1 ? 'member' : 'members'}
+                                            </span>
+                                            <div className="flex-1 h-px bg-slate-200/90 ml-2" />
                                         </div>
+                                    )}
 
-                                        {(member.linkedin_url || member.linkedin || member.github_url || member.instagram_url) && (
-                                            <div className="flex items-center justify-center gap-2 text-slate-400 mt-2 pt-1.5 border-t border-slate-100">
-                                                {(member.linkedin_url || member.linkedin) && (
-                                                    <a
-                                                        href={member.linkedin_url || member.linkedin}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="hover:text-[#4F8EF7] transition-colors"
-                                                        title="LinkedIn"
-                                                    >
-                                                        <Linkedin size={13} />
-                                                    </a>
-                                                )}
-                                                {member.github_url && (
-                                                    <a
-                                                        href={member.github_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="hover:text-[#23303E] transition-colors"
-                                                        title="GitHub"
-                                                    >
-                                                        <Github size={13} />
-                                                    </a>
-                                                )}
-                                                {member.instagram_url && (
-                                                    <a
-                                                        href={member.instagram_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="hover:text-pink-500 transition-colors"
-                                                        title="Instagram"
-                                                    >
-                                                        <Instagram size={13} />
-                                                    </a>
-                                                )}
+                                    <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-5">
+                                        {deptGroup.members.map((member, vIdx) => (
+                                            <div
+                                                key={vIdx}
+                                                className="bg-white border border-slate-200/90 rounded-2xl p-4 text-center shadow-2xs hover:shadow-md hover:border-[#4F8EF7]/40 hover:-translate-y-0.5 transition-all duration-200 group flex flex-col items-center justify-between"
+                                            >
+                                                <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 rounded-2xl overflow-hidden bg-slate-50 border border-slate-200 group-hover:scale-105 transition-transform duration-200 shrink-0">
+                                                    <img
+                                                        src={member.image || member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || member.full_name || 'Volunteer')}&background=EFF0F3&color=23303E`}
+                                                        alt={member.name || member.full_name}
+                                                        className="w-full h-full object-cover"
+                                                        loading="lazy"
+                                                    />
+                                                </div>
+                                                <div className="w-full flex-1 flex flex-col justify-between">
+                                                    <div>
+                                                        <h4
+                                                            className="text-xs sm:text-sm font-bold text-[#23303E] group-hover:text-[#4F8EF7] transition-colors leading-tight line-clamp-1"
+                                                            title={member.name || member.full_name}
+                                                        >
+                                                            {member.name || member.full_name}
+                                                        </h4>
+                                                        <p
+                                                            className="font-mono text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-tight mt-1 line-clamp-1"
+                                                            title={member.role || 'Volunteer'}
+                                                        >
+                                                            {member.role || 'Volunteer'}
+                                                        </p>
+                                                    </div>
+
+                                                    {(member.linkedin_url || member.linkedin || member.github_url || member.instagram_url) && (
+                                                        <div className="flex items-center justify-center gap-2.5 text-slate-400 mt-2.5 pt-2 border-t border-slate-100">
+                                                            {(member.linkedin_url || member.linkedin) && (
+                                                                <a
+                                                                    href={member.linkedin_url || member.linkedin}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="hover:text-[#4F8EF7] transition-colors"
+                                                                    title="LinkedIn"
+                                                                >
+                                                                    <Linkedin size={14} />
+                                                                </a>
+                                                            )}
+                                                            {member.github_url && (
+                                                                <a
+                                                                    href={member.github_url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="hover:text-[#23303E] transition-colors"
+                                                                    title="GitHub"
+                                                                >
+                                                                    <Github size={14} />
+                                                                </a>
+                                                            )}
+                                                            {member.instagram_url && (
+                                                                <a
+                                                                    href={member.instagram_url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="hover:text-pink-500 transition-colors"
+                                                                    title="Instagram"
+                                                                >
+                                                                    <Instagram size={14} />
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        )}
+                                        ))}
                                     </div>
                                 </div>
                             ))}
