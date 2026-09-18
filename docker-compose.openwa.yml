@@ -1,0 +1,20 @@
+services:
+  openwa:
+    image: rmyndharis/openwa:latest
+    container_name: openwa-gateway
+    restart: always
+    shm_size: '2gb'
+    ports:
+      - "2785:2785"
+    volumes:
+      - ./openwa-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=2785
+      - CSP_UPGRADE_INSECURE_REQUESTS=false
+      - WWEBJS_WEB_VERSION=off
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:2785/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

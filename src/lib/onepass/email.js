@@ -1,5 +1,6 @@
 import { sendEmail } from '../emailService.js';
 import { OnePassDB } from './db.js';
+import { interpolateTemplate } from './template.js';
 
 /**
  * Premium, ultra-clean responsive AWSCC HTML Email Wrapper
@@ -404,56 +405,44 @@ export async function sendSwagClaimEmail({ attendee, event, resource }) {
 /**
  * Dynamic Tag Substitution Helper
  */
-export function substituteTags(templateText, { attendee = {}, event = {}, track = null, workshop = null }) {
+export function substituteTags(templateText, { attendee = {}, event = {}, track = null, workshop = null, passBaseUrl = null }) {
   if (!templateText) return '';
 
   const isWorkshop = !!workshop;
-  const sessionName = workshop ? workshop.name : track ? track.name : 'General Admission Session';
-  const sessionLocation = workshop ? (workshop.location || 'Workshop Lab / Ground Floor') : (track ? (track.room_number || track.location || 'Main Auditorium Floor') : (event.venue || 'Campus Main Venue'));
+  const sessionName = workshop ? workshop.name : track ? track.name : (attendee.session || 'General Admission Session');
+  const sessionLocation = workshop ? (workshop.location || 'Workshop Lab / Ground Floor') : (track ? (track.room_number || track.location || 'Main Auditorium Floor') : (attendee.location || event.venue || 'Campus Main Venue'));
   const sessionTime = workshop ? `${workshop.start_time || '10:00 AM'} - ${workshop.end_time || '01:00 PM'}` : (event.start_time ? `${event.start_time} - ${event.end_time}` : 'Full Day');
 
-  const attendeeName = attendee.name || 'Valued Attendee';
-  const firstName = attendeeName.split(' ')[0] || attendeeName;
+  const base = (passBaseUrl && passBaseUrl.trim()) ? passBaseUrl.trim().replace(/\/$/, '') : 'https://aws.ddu.ac.in';
   const bookingId = attendee.booking_id || attendee.registration_id || attendee.id || 'BK-ONEPASS';
-  const qrIdentifier = attendee.qr_identifier || bookingId;
-  const attendeeEmail = attendee.email || 'attendee@example.com';
-  const ticketType = attendee.ticket_type || 'General Delegate';
-  const eventName = event.name || 'AWS Community Day';
-  const eventVenue = event.venue || 'Campus Auditorium Complex';
+  const passLink = attendee.ticket_pdf || attendee.ticket_url || attendee.pass_link || `${base}/onepass/events/${event.id || 'event'}/badge/${bookingId}`;
 
-  return templateText
-    .replace(/{{name}}/gi, attendeeName)
-    .replace(/{{attendee_name}}/gi, attendeeName)
-    .replace(/{{first_name}}/gi, firstName)
-    .replace(/{{email}}/gi, attendeeEmail)
-    .replace(/{{attendee_email}}/gi, attendeeEmail)
-    .replace(/{{booking_id}}/gi, bookingId)
-    .replace(/{{bookingid}}/gi, bookingId)
-    .replace(/{{ticket_id}}/gi, bookingId)
-    .replace(/{{registration_id}}/gi, bookingId)
-    .replace(/{{qr_identifier}}/gi, qrIdentifier)
-    .replace(/{{qr_code}}/gi, qrIdentifier)
-    .replace(/{{qr}}/gi, qrIdentifier)
-    .replace(/{{session}}/gi, sessionName)
-    .replace(/{{session_name}}/gi, sessionName)
-    .replace(/{{track}}/gi, sessionName)
-    .replace(/{{track_name}}/gi, sessionName)
-    .replace(/{{workshop}}/gi, sessionName)
-    .replace(/{{workshop_name}}/gi, sessionName)
-    .replace(/{{location}}/gi, sessionLocation)
-    .replace(/{{room}}/gi, sessionLocation)
-    .replace(/{{room_number}}/gi, sessionLocation)
-    .replace(/{{session_location}}/gi, sessionLocation)
-    .replace(/{{time}}/gi, sessionTime)
-    .replace(/{{session_time}}/gi, sessionTime)
-    .replace(/{{timing}}/gi, sessionTime)
-    .replace(/{{ticket_type}}/gi, ticketType)
-    .replace(/{{ticket}}/gi, ticketType)
-    .replace(/{{event_name}}/gi, eventName)
-    .replace(/{{event}}/gi, eventName)
-    .replace(/{{venue}}/gi, eventVenue)
-    .replace(/{{event_venue}}/gi, eventVenue)
-    .replace(/{{campus}}/gi, eventVenue);
+  const isCheckedIn = attendee.check_in_status === 'CHECKED_IN';
+  const checkinStatus = isCheckedIn ? 'Checked In' : 'Not Checked In';
+  const checkinTime = attendee.check_in_time ? new Date(attendee.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Not Checked In';
+
+  const mergedData = {
+    ...attendee,
+    booking_id: bookingId,
+    session: sessionName,
+    location: sessionLocation,
+    time: sessionTime,
+    pass_link: passLink,
+    ticket_url: passLink,
+    ticket_pdf: attendee.ticket_pdf || passLink,
+    counter: attendee.counter || attendee.counter_assigned || 'Counter 1',
+    checkin_status: checkinStatus,
+    check_in_status: attendee.check_in_status || 'NOT_CHECKED_IN',
+    checkin_time: checkinTime,
+    check_in_time: attendee.check_in_time || null,
+    checked_in_by: attendee.checked_in_by_name || 'Registration Desk'
+  };
+
+  return interpolateTemplate(templateText, mergedData, {
+    venue: event.venue || 'Dharmsinh Desai University (DDU)',
+    eventName: event.name || 'AWS Students Community Day 2026',
+    passLink
+  });
 }
 
 /**

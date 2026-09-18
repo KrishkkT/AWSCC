@@ -1003,6 +1003,8 @@ export const OnePassDB = {
             registration_id: attendeeData.registration_id || `REG-${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
             qr_identifier: attendeeData.qr_identifier || `SCD-${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
             qr_token: attendeeData.qr_token || crypto.randomBytes(16).toString('hex'),
+            ticket_url: attendeeData.ticket_url || attendeeData.ticket_pdf || null,
+            ticket_pdf: attendeeData.ticket_pdf || attendeeData.ticket_url || null,
             check_in_status: attendeeData.check_in_status || 'NOT_CHECKED_IN', // 'NOT_CHECKED_IN' | 'CHECKED_IN'
             check_in_time: attendeeData.check_in_time || null,
             assigned_track_id: attendeeData.assigned_track_id || null,
@@ -1037,6 +1039,8 @@ export const OnePassDB = {
                 registration_id: data.registration_id || `REG-${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
                 qr_identifier: data.qr_identifier || `SCD-${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
                 qr_token: data.qr_token || crypto.randomBytes(16).toString('hex'),
+                ticket_url: data.ticket_url || data.ticket_pdf || null,
+                ticket_pdf: data.ticket_pdf || data.ticket_url || null,
                 check_in_status: 'NOT_CHECKED_IN',
                 check_in_time: null,
                 assigned_track_id: null,

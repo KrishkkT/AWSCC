@@ -119,7 +119,8 @@ export default function KonfHubImportPage() {
             booking_id: findKey(['bookingid', 'orderid', 'ticketid', 'booking']),
             registration_id: findKey(['registrationid', 'regid', 'reference']),
             ticket_type: findKey(['tickettype', 'ticketname', 'ticket', 'category']),
-            qr_identifier: findKey(['qrcode', 'qridentifier', 'qrid', 'qr', 'barcode'])
+            qr_identifier: findKey(['qrcode', 'qridentifier', 'qrid', 'qr', 'barcode']),
+            ticket_url: findKey(['ticketurl', 'ticketpdf', 'pdfurl', 'downloadticket', 'downloadlink', 'ticketlink', 'passlink', 'pdflink', 'konfhuburl', 'ticket', 'invoiceurl'])
         });
     };
 
@@ -382,6 +383,7 @@ export default function KonfHubImportPage() {
                             { key: 'ticket_type', label: 'Ticket Category / Type', desc: 'Used for Workshop vs Tracks counter allocation' },
                             { key: 'booking_id', label: 'Booking / Order ID', desc: 'KonfHub booking identifier' },
                             { key: 'registration_id', label: 'Registration ID', desc: 'Reference registration number' },
+                            { key: 'ticket_url', label: 'Ticket PDF / KonfHub URL', desc: 'Direct ticket link or PDF download URL from KonfHub' },
                             { key: 'qr_identifier', label: 'QR Code Identifier', desc: 'If blank, OnePass generates unique QR automatically' },
                         ].map((field) => (
                             <div key={field.key} className="p-3.5 bg-[#0C111D] rounded-2xl border border-[#1a2540] space-y-1.5">

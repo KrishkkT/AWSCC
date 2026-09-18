@@ -54,6 +54,7 @@ export async function POST(req) {
             let qrCode = (rawRow[mapping?.qr_code || 'qr_code'] || rawRow['QR Code'] || rawRow['QR Data'] || rawRow['QR Value'] || rawRow['QR'] || '').trim();
             let qrFileName = (rawRow[mapping?.qr_file_name || 'qr_file_name'] || rawRow['QR File Name'] || rawRow['QR Filename'] || rawRow['QR File'] || rawRow['File Name'] || rawRow['QR Image'] || '').trim();
             let qrIdentifier = (rawRow[mapping?.qr_identifier || 'qr_identifier'] || qrFileName || qrCode || '').trim();
+            let ticketUrl = (rawRow[mapping?.ticket_url || 'ticket_url'] || rawRow['Ticket URL'] || rawRow['Ticket Link'] || rawRow['Ticket PDF'] || rawRow['PDF Link'] || rawRow['Download Ticket'] || rawRow['Download Link'] || rawRow['Pass Link'] || rawRow['KonfHub URL'] || rawRow['Invoice URL'] || rawRow['Ticket Download URL'] || '').trim();
 
             // Smart extraction from QR Code (e.g. "id:10e90612|n:Meet|eid:ab9168b3-c610-4edc-bb16-b45f9517820c")
             if (qrCode && qrCode.includes('|')) {
@@ -158,7 +159,9 @@ export async function POST(req) {
                 registration_id: registrationId || `REG-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
                 ticket_type: ticketType,
                 qr_identifier: finalQRIdentifier,
-                qr_token: finalQRToken
+                qr_token: finalQRToken,
+                ticket_url: ticketUrl || (bookingId ? `https://konfhub.com/tickets/${bookingId}` : null),
+                ticket_pdf: ticketUrl || null
             });
         }
 
