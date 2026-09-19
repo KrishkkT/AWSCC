@@ -1732,19 +1732,19 @@ function BadgeStudio({ admin }) {
                 setSavedStatus('Saved');
             });
 
-            // 2. Supabase Cloud Sync (sanitized to avoid 413 Entity Too Large on raw base64)
+            // 2. Supabase Cloud Sync (sanitized to avoid 413 Entity Too Large on raw huge base64)
             const cleanTemplates = templates.map(t => ({
                 id: t.id,
                 name: t.name,
-                dataUrl: (t.dataUrl && t.dataUrl.length > 50000 && t.dataUrl.startsWith('data:')) ? '' : t.dataUrl
+                dataUrl: (t.dataUrl && t.dataUrl.length > 500000 && t.dataUrl.startsWith('data:')) ? '' : t.dataUrl
             }));
 
             const cleanAttendeesByTemplate = {};
             for (const [tplId, attList] of Object.entries(attendeesByTemplate)) {
                 if (Array.isArray(attList)) {
                     cleanAttendeesByTemplate[tplId] = attList.map(a => {
-                        const isHugePhoto = a.photo && a.photo.startsWith('data:') && a.photo.length > 20000;
-                        const isHugeOrig = a.originalPhoto && a.originalPhoto.startsWith('data:') && a.originalPhoto.length > 20000;
+                        const isHugePhoto = a.photo && a.photo.startsWith('data:') && a.photo.length > 300000;
+                        const isHugeOrig = a.originalPhoto && a.originalPhoto.startsWith('data:') && a.originalPhoto.length > 300000;
                         return {
                             ...a,
                             photo: isHugePhoto ? '' : a.photo,
@@ -1771,9 +1771,39 @@ function BadgeStudio({ admin }) {
                     else setCloudStatus('Offline');
                 })
                 .catch(() => setCloudStatus('Offline'));
-        }, 2000);
+        }, 1000);
         return () => clearTimeout(timer);
     }, [templates, fields, attendeesByTemplate, activeTemplateIdx, isLoadedFromDB]);
+
+    // Manual cloud refresh helper
+    const handleManualCloudRefresh = useCallback(() => {
+        setCloudStatus('Syncing...');
+        fetch('/api/onepass/sync')
+            .then(r => r.json())
+            .then(res => {
+                if (res.success && res.data) {
+                    if (Array.isArray(res.data.templates) && res.data.templates.length > 0) {
+                        setTemplates(prev => {
+                            const prevMap = new Map(prev.map(t => [t.id, t]));
+                            return res.data.templates.map(cTpl => {
+                                const pTpl = prevMap.get(cTpl.id);
+                                return {
+                                    ...cTpl,
+                                    dataUrl: (cTpl.dataUrl && cTpl.dataUrl.trim()) ? cTpl.dataUrl : (pTpl?.dataUrl || '')
+                                };
+                            });
+                        });
+                    }
+                    if (res.data.fields) setFields(res.data.fields);
+                    if (res.data.attendeesByTemplate) setAttendeesByTemplate(res.data.attendeesByTemplate);
+                    if (res.data.activeTemplateIdx !== undefined) setActiveTemplateIdx(res.data.activeTemplateIdx);
+                    setCloudStatus('Synced');
+                } else {
+                    setCloudStatus('Offline');
+                }
+            })
+            .catch(() => setCloudStatus('Offline'));
+    }, []);
 
     const tabs = [
         { label: 'Templates', icon: Layers },
@@ -1846,15 +1876,18 @@ function BadgeStudio({ admin }) {
         const container = editorContainerRef.current;
         if (!container) return { x: 0, y: 0 };
         const rect = container.getBoundingClientRect();
+        const touch = e.touches?.[0] || e.changedTouches?.[0];
+        const clientX = touch ? touch.clientX : e.clientX;
+        const clientY = touch ? touch.clientY : e.clientY;
         return {
-            x: Math.round((e.clientX - rect.left) / editorScale),
-            y: Math.round((e.clientY - rect.top) / editorScale)
+            x: Math.round((clientX - rect.left) / editorScale),
+            y: Math.round((clientY - rect.top) / editorScale)
         };
     };
 
     const handleCanvasMouseDown = (e) => {
         if (editorTool !== 'draw') return;
-        e.preventDefault();
+        if (e.cancelable && e.type.startsWith('touch')) e.preventDefault();
         const pos = getRelativePos(e);
         setDrawState({ startX: pos.x, startY: pos.y });
         setDrawRect({ x: pos.x, y: pos.y, w: 0, h: 0 });
@@ -1862,6 +1895,7 @@ function BadgeStudio({ admin }) {
 
     const handleCanvasMouseMove = (e) => {
         if (!drawState || editorTool !== 'draw') return;
+        if (e.cancelable && e.type.startsWith('touch')) e.preventDefault();
         const pos = getRelativePos(e);
         const x = Math.min(drawState.startX, pos.x);
         const y = Math.min(drawState.startY, pos.y);
@@ -1930,14 +1964,19 @@ function BadgeStudio({ admin }) {
     // Drag & resize for existing fields (select mode)
     const handleFieldMouseDown = (e, fieldId, action) => {
         if (editorTool !== 'select') return;
-        e.preventDefault(); e.stopPropagation();
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
         const field = activeFields.find(f => f.id === fieldId);
         if (!field) return;
 
+        const touch = e.touches?.[0] || e.changedTouches?.[0];
+        const clientX = touch ? touch.clientX : e.clientX;
+        const clientY = touch ? touch.clientY : e.clientY;
+
         if (action === 'move') {
-            setDragState({ fieldId, startX: e.clientX, startY: e.clientY, origX: field.x, origY: field.y });
+            setDragState({ fieldId, startX: clientX, startY: clientY, origX: field.x, origY: field.y });
         } else if (action === 'resize') {
-            setResizeState({ fieldId, startX: e.clientX, startY: e.clientY, origW: field.width, origH: field.height });
+            setResizeState({ fieldId, startX: clientX, startY: clientY, origW: field.width, origH: field.height });
         }
         setSelectedFieldId(fieldId);
     };
@@ -1947,14 +1986,18 @@ function BadgeStudio({ admin }) {
         const onMove = (e) => {
             if (animFrameId) cancelAnimationFrame(animFrameId);
             animFrameId = requestAnimationFrame(() => {
+                const touch = e.touches?.[0] || e.changedTouches?.[0];
+                const clientX = touch ? touch.clientX : e.clientX;
+                const clientY = touch ? touch.clientY : e.clientY;
+
                 if (dragState) {
-                    const dx = (e.clientX - dragState.startX) / editorScale;
-                    const dy = (e.clientY - dragState.startY) / editorScale;
+                    const dx = (clientX - dragState.startX) / editorScale;
+                    const dy = (clientY - dragState.startY) / editorScale;
                     updateField(dragState.fieldId, { x: Math.max(0, Math.round(dragState.origX + dx)), y: Math.max(0, Math.round(dragState.origY + dy)) });
                 }
                 if (resizeState) {
-                    const dx = (e.clientX - resizeState.startX) / editorScale;
-                    const dy = (e.clientY - resizeState.startY) / editorScale;
+                    const dx = (clientX - resizeState.startX) / editorScale;
+                    const dy = (clientY - resizeState.startY) / editorScale;
                     updateField(resizeState.fieldId, { width: Math.max(20, Math.round(resizeState.origW + dx)), height: Math.max(12, Math.round(resizeState.origH + dy)) });
                 }
             });
@@ -1967,11 +2010,15 @@ function BadgeStudio({ admin }) {
         if (dragState || resizeState) {
             window.addEventListener('mousemove', onMove, { passive: true });
             window.addEventListener('mouseup', onUp);
+            window.addEventListener('touchmove', onMove, { passive: true });
+            window.addEventListener('touchend', onUp);
         }
         return () => {
             if (animFrameId) cancelAnimationFrame(animFrameId);
             window.removeEventListener('mousemove', onMove);
             window.removeEventListener('mouseup', onUp);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('touchend', onUp);
         };
     }, [dragState, resizeState, editorScale, updateField]);
 
@@ -2830,6 +2877,15 @@ function BadgeStudio({ admin }) {
                                 {cloudStatus === 'Synced' ? 'Supabase Synced' : cloudStatus === 'Syncing...' ? 'Syncing Cloud...' : 'Offline'}
                             </span>
                         </div>
+                        <button
+                            type="button"
+                            onClick={handleManualCloudRefresh}
+                            className="px-2 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-[10px] font-mono font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                            title="Fetch latest Badge Studio layout & templates from cloud"
+                        >
+                            <RefreshCw className={`w-3 h-3 ${cloudStatus === 'Syncing...' ? 'animate-spin' : ''}`} />
+                            <span className="hidden sm:inline">Sync Cloud</span>
+                        </button>
                     </div>
                     <div className="flex items-center space-x-4">
                         <span className="text-[11px] text-slate-400">Signed in as <strong className="text-white">{admin.name}</strong></span>
@@ -3002,11 +3058,14 @@ function BadgeStudio({ admin }) {
                                             </div>
                                         ) : (
                                             <div ref={editorContainerRef}
-                                                className="relative inline-block"
-                                                style={{ transform: `scale(${editorScale})`, transformOrigin: 'top left', cursor: editorTool === 'draw' ? 'crosshair' : editorTool === 'eyedropper' ? 'crosshair' : 'default' }}
+                                                className="relative inline-block touch-none"
+                                                style={{ transform: `scale(${editorScale})`, transformOrigin: 'top left', cursor: editorTool === 'draw' ? 'crosshair' : editorTool === 'eyedropper' ? 'crosshair' : 'default', touchAction: 'none' }}
                                                 onMouseDown={editorTool === 'draw' ? handleCanvasMouseDown : editorTool === 'eyedropper' ? handleEyedropper : undefined}
                                                 onMouseMove={editorTool === 'draw' ? handleCanvasMouseMove : undefined}
                                                 onMouseUp={editorTool === 'draw' ? handleCanvasMouseUp : undefined}
+                                                onTouchStart={editorTool === 'draw' ? handleCanvasMouseDown : editorTool === 'eyedropper' ? handleEyedropper : undefined}
+                                                onTouchMove={editorTool === 'draw' ? handleCanvasMouseMove : undefined}
+                                                onTouchEnd={editorTool === 'draw' ? handleCanvasMouseUp : undefined}
                                                 onClick={editorTool === 'select' ? () => setSelectedFieldId(null) : undefined}>
                                                 <img ref={imgRef} src={activeTemplate.dataUrl} alt="template" className="block max-w-none select-none" draggable={false} />
 
@@ -3029,9 +3088,10 @@ function BadgeStudio({ admin }) {
 
                                                     return (
                                                         <div key={field.id}
-                                                            className={`absolute group select-none ${editorTool === 'select' ? 'cursor-move' : 'pointer-events-none'} ${isSel ? 'z-20' : 'z-10'}`}
-                                                            style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
+                                                            className={`absolute group select-none touch-none ${editorTool === 'select' ? 'cursor-move' : 'pointer-events-none'} ${isSel ? 'z-20' : 'z-10'}`}
+                                                            style={{ left: field.x, top: field.y, width: field.width, height: field.height, touchAction: 'none' }}
                                                             onMouseDown={e => handleFieldMouseDown(e, field.id, 'move')}
+                                                            onTouchStart={e => handleFieldMouseDown(e, field.id, 'move')}
                                                             onClick={e => { e.stopPropagation(); setSelectedFieldId(field.id); }}>
                                                             <div className={`w-full h-full border-2 flex items-center justify-center transition ${isSel ? 'border-[#0073BB] bg-[#0073BB]/15' : 'border-dashed border-amber-400/60 bg-amber-400/5 group-hover:bg-amber-400/10'}`}
                                                                 style={{ borderRadius: overlayRadius }}>
@@ -3042,8 +3102,10 @@ function BadgeStudio({ admin }) {
                                                             </div>
                                                             {isSel && editorTool === 'select' && (
                                                                 <>
-                                                                    <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-[#0073BB] rounded-sm cursor-se-resize border border-white/30"
-                                                                        onMouseDown={e => handleFieldMouseDown(e, field.id, 'resize')} />
+                                                                    <div className="absolute -bottom-2 -right-2 w-5 h-5 bg-[#0073BB] rounded-full cursor-se-resize border-2 border-white flex items-center justify-center shadow-md touch-none"
+                                                                        style={{ touchAction: 'none' }}
+                                                                        onMouseDown={e => handleFieldMouseDown(e, field.id, 'resize')}
+                                                                        onTouchStart={e => handleFieldMouseDown(e, field.id, 'resize')} />
                                                                     <button className="absolute -top-2 -right-2 w-4 h-4 bg-red-600 rounded-full flex items-center justify-center hover:bg-red-500 transition"
                                                                         onClick={e => { e.stopPropagation(); deleteField(field.id); }}><X className="w-2.5 h-2.5 text-white" /></button>
                                                                 </>

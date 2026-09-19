@@ -485,14 +485,15 @@ Regards,
             return;
         }
 
-        const fetchAudienceCount = async () => {
+        const fetchAudienceCount = async (syncCloud = true) => {
             setLoadingCount(true);
             try {
                 const queryParams = new URLSearchParams({
                     eventId,
                     audience,
                     channel,
-                    ...(filterId ? { filterId } : {})
+                    ...(filterId ? { filterId } : {}),
+                    ...(syncCloud ? { sync: 'true' } : {})
                 });
                 const res = await fetch(`/api/onepass/broadcast?${queryParams}`);
                 const data = await res.json();
@@ -507,7 +508,7 @@ Regards,
             }
         };
         if (eventId) {
-            fetchAudienceCount();
+            fetchAudienceCount(true);
         }
     }, [eventId, audience, filterId, channel, recipientSource, excelRecipients]);
 
@@ -938,11 +939,41 @@ Regards,
                                         <div className="flex items-center gap-3">
                                             <button
                                                 type="button"
+                                                onClick={async () => {
+                                                    setLoadingCount(true);
+                                                    try {
+                                                        const queryParams = new URLSearchParams({
+                                                            eventId,
+                                                            audience,
+                                                            channel,
+                                                            ...(filterId ? { filterId } : {}),
+                                                            sync: 'true'
+                                                        });
+                                                        const res = await fetch(`/api/onepass/broadcast?${queryParams}`);
+                                                        const data = await res.json();
+                                                        setRecipientCount(data.count || 0);
+                                                        if (Array.isArray(data.sample)) {
+                                                            setSampleAttendees(data.sample);
+                                                        }
+                                                    } catch (err) {
+                                                        console.error(err);
+                                                    } finally {
+                                                        setLoadingCount(false);
+                                                    }
+                                                }}
+                                                className="px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-400 text-[11px] font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                                                title="Re-fetch latest check-in statuses from deployed server database"
+                                            >
+                                                <RefreshCw size={12} className={loadingCount ? 'animate-spin' : ''} />
+                                                Sync Live Check-Ins
+                                            </button>
+                                            <button
+                                                type="button"
                                                 onClick={() => setShowKonfHubSync(!showKonfHubSync)}
                                                 className="px-2.5 py-1 rounded-lg bg-[#FF9900]/10 hover:bg-[#FF9900]/20 border border-[#FF9900]/30 text-[#FF9900] text-[11px] font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5"
                                             >
                                                 <RefreshCw size={12} className={syncingKonfhub ? 'animate-spin' : ''} />
-                                                Sync from KonfHub API
+                                                Sync KonfHub
                                             </button>
                                             <span className="font-mono text-sm font-black text-white">
                                                 {loadingCount ? 'Counting...' : `${recipientCount} recipients`}

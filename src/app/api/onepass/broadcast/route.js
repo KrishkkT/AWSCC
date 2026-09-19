@@ -59,8 +59,9 @@ function resolveAttendeePassLink(a, options = {}) {
 
 export async function GET(req) {
     try {
-        await OnePassDB.ensureHydrated();
         const { searchParams } = new URL(req.url);
+        const shouldSync = searchParams.get('sync') === 'true' || searchParams.get('refresh') === 'true';
+        await OnePassDB.ensureHydrated(shouldSync);
         const eventId = searchParams.get('eventId');
         const audience = searchParams.get('audience') || 'ALL';
         const filterId = searchParams.get('filterId');
@@ -154,7 +155,7 @@ export async function GET(req) {
 
 export async function POST(req) {
     try {
-        await OnePassDB.ensureHydrated();
+        await OnePassDB.ensureHydrated(true);
         const body = await req.json();
         const {
             eventId,

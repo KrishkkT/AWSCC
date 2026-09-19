@@ -134,9 +134,12 @@ export async function upsertToSupabaseDirect(tableName, recordOrRecords) {
 // SUPABASE HYDRATION: On cold start, pull ALL data from Supabase
 // as the sole source of truth. If cloud is empty, state is empty.
 // ═══════════════════════════════════════════════════════════════════
-async function hydrateFromSupabase() {
-    // Only hydrate once per container lifecycle
-    if (globalThis.__onepass_supabase_hydrated__) return;
+async function hydrateFromSupabase(force = false) {
+    // Only hydrate once per container lifecycle, unless force is explicitly true
+    if (globalThis.__onepass_supabase_hydrated__ && !force) return;
+    if (force) {
+        globalThis.__onepass_supabase_hydrated__ = false;
+    }
 
     // If another request is already hydrating, wait for it
     if (globalThis.__onepass_hydration_promise__) {
@@ -360,8 +363,8 @@ export const OnePassDB = {
      * It only fetches from Supabase ONCE per container lifecycle (cold start).
      * Subsequent calls are instant no-ops.
      */
-    async ensureHydrated() {
-        await hydrateFromSupabase();
+    async ensureHydrated(force = false) {
+        await hydrateFromSupabase(force);
     },
 
     // Acquire a lock for key

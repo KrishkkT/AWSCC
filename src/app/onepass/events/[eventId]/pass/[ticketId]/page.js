@@ -1,1 +1,1 @@
-export { default } from '../badge/[ticketId]/page';
+export { default } from '../../badge/[ticketId]/page';
