@@ -406,7 +406,7 @@ export default function SocialBadgeGeneratorPage() {
     // Official Trending Hashtags (Smallcase Only)
     // 5 Best trending for Instagram
     const instaHashtags = '#awsscd26 #awscommunity #awscloud #cloudcomputing #ddu';
-    // 10 Best trending for LinkedIn, Twitter, WhatsApp & Other Platforms
+    // 10 Best trending for LinkedIn, Twitter & Other Platforms
     const generalHashtags = '#awsscd26 #awscommunity #awscloud #cloudcomputing #ddu #awscommunityday #studentdeveloper #techconference #cloudpractitioner #awsevents';
 
     const eventUrl = 'https://aws.ddu.ac.in';
@@ -446,37 +446,6 @@ ${generalHashtags}`;
         navigator.clipboard.writeText(text);
         setCaptionCopied(true);
         setTimeout(() => setCaptionCopied(false), 2500);
-    };
-
-    // 1. WhatsApp Sharing (Direct with File on Mobile / Auto-copy & Download on Desktop)
-    const shareWhatsApp = async () => {
-        const file = await getBadgeFile();
-        const fullMessage = getOfficialPostText('whatsapp');
-
-        if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
-            try {
-                await navigator.share({
-                    title: 'AWS Student Community Day 2026 Badge',
-                    text: fullMessage,
-                    files: [file]
-                });
-                return;
-            } catch (err) {
-                if (err.name !== 'AbortError') console.log('Native share failed:', err);
-            }
-        }
-
-        // Desktop / Fallback
-        await handleCopyImage(true);
-        handleDownload();
-        const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(fullMessage)}`;
-        window.open(url, '_blank');
-        setShareModalNotice({
-            platform: 'WhatsApp',
-            icon: <MessageCircle className="w-6 h-6 text-emerald-400" />,
-            title: 'Badge Saved & WhatsApp Opened!',
-            desc: 'Your badge image was downloaded and copied to your clipboard. Paste (Ctrl+V) into your WhatsApp chat to send the image along with the link!'
-        });
     };
 
     // 2. LinkedIn Sharing (Copies image to clipboard, downloads, and opens feed composer)
@@ -624,7 +593,7 @@ ${generalHashtags}`;
                     </h1>
 
                     <p className="text-xs sm:text-sm text-slate-400">
-                        Upload your photo, add your name and college, and share your official attendee badge on WhatsApp, LinkedIn, X, and Instagram.
+                        Upload your photo, add your name and college, and share your official attendee badge on LinkedIn, X, and Instagram.
                     </p>
                 </div>
 
@@ -802,21 +771,12 @@ ${generalHashtags}`;
                             </div>
                         </div>
 
-                        {/* Social Media 1-Click Sharing (WhatsApp, LinkedIn, X, Instagram) */}
+                        {/* Social Media 1-Click Sharing (LinkedIn, X, Instagram) */}
                         <div className="space-y-2.5 pt-2">
                             <span className="text-[10px] font-mono uppercase text-slate-400 tracking-wider">
                                 Share badge with attached message to:
                             </span>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                                {/* WhatsApp */}
-                                <button
-                                    onClick={shareWhatsApp}
-                                    className="flex items-center justify-center space-x-2 py-3 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-600/40 rounded-xl text-xs font-bold transition hover:scale-[1.02]"
-                                >
-                                    <MessageCircle className="w-4 h-4 fill-current/20" />
-                                    <span>WhatsApp</span>
-                                </button>
-
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                                 {/* LinkedIn */}
                                 <button
                                     onClick={shareLinkedIn}
@@ -871,7 +831,7 @@ ${generalHashtags}`;
                                     }`}
                                 >
                                     <Linkedin className="w-3.5 h-3.5" />
-                                    <span>LinkedIn / X / WhatsApp (10 Tags)</span>
+                                    <span>LinkedIn / X (10 Tags)</span>
                                 </button>
 
                                 <button
@@ -974,7 +934,7 @@ ${generalHashtags}`;
                                 <span>Live Ultra-HD 2X Preview (1182 x 2008)</span>
                             </span>
                             <p className="text-[11px] text-slate-500 max-w-xs">
-                                Ready for high-resolution sharing on WhatsApp, LinkedIn, X, and Instagram.
+                                Ready for high-resolution sharing on LinkedIn, X, and Instagram.
                             </p>
                         </div>
                     </div>

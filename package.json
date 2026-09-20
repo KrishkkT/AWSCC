@@ -6,16 +6,13 @@
         "dev": "next dev -p 4000",
         "build": "next build",
         "start": "next start",
-        "lint": "next lint",
-        "whatsapp": "node scripts/whatsapp-server.js",
-        "whatsapp:clean": "node -e \"const fs=require('fs'); fs.rmSync('./whatsapp-session', {recursive:true, force:true}); console.log('WhatsApp session cleared.');\""
+        "lint": "next lint"
     },
     "dependencies": {
         "@gsap/react": "^2.1.2",
         "@mediapipe/selfie_segmentation": "^0.1.1675465747",
         "@supabase/ssr": "^0.8.0",
         "@supabase/supabase-js": "^2.95.3",
-        "@whiskeysockets/baileys": "^7.0.0-rc14",
         "animejs": "^4.3.6",
         "canvas-confetti": "^1.9.4",
         "clsx": "^2.1.0",

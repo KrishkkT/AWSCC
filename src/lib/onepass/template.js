@@ -46,7 +46,7 @@ export function interpolateTemplate(template, data = {}, context = {}) {
     // 1. Resolve semantic fields with friendly formatting
     const name = data.name || data['Full Name'] || data['Attendee Name'] || data['Name'] || data['buyer_name'] || context.name || 'Attendee';
     const firstName = data.first_name || data['First Name'] || (name && name !== 'Attendee' ? name.split(' ')[0] : 'Attendee');
-    const phone = data.phone || data.mobile || data.contact || data['Phone Number'] || data['Mobile'] || data['Phone'] || data['WhatsApp'] || context.phone || '';
+    const phone = data.phone || data.mobile || data.contact || data['Phone Number'] || data['Mobile'] || data['Phone'] || context.phone || '';
     const email = data.email || data['Email'] || data['Email Address'] || data['Email ID'] || context.email || '';
     const ticket = data.ticket || data.ticket_type || data.ticket_name || data['Ticket Type'] || data['Ticket Name'] || data['Ticket'] || data['Category'] || data['Pass'] || 'General Pass';
     const bookingId = data.booking_id || data.bookingId || data.order_id || data.orderId || data['Booking ID'] || data['Order ID'] || data['Ticket ID'] || data['Registration ID'] || data.id || '';
@@ -67,7 +67,7 @@ export function interpolateTemplate(template, data = {}, context = {}) {
     const aliasMap = [
         { aliases: ['name', 'full_name', 'full name', 'attendee_name', 'attendee name', 'buyer_name'], value: name },
         { aliases: ['first_name', 'firstname', 'first name'], value: firstName },
-        { aliases: ['phone', 'mobile', 'contact', 'whatsapp', 'phone_number', 'phone number', 'mobile_number', 'mobile number'], value: phone },
+        { aliases: ['phone', 'mobile', 'contact', 'phone_number', 'phone number', 'mobile_number', 'mobile number'], value: phone },
         { aliases: ['email', 'email_address', 'email address', 'email_id', 'email id'], value: email },
         { aliases: ['ticket', 'ticket_type', 'ticket type', 'ticket_name', 'ticket name', 'pass_type', 'pass type', 'category', 'ticket category'], value: ticket },
         { aliases: ['booking_id', 'booking id', 'order_id', 'order id', 'ticket_id', 'ticket id', 'registration_id', 'registration id'], value: bookingId },

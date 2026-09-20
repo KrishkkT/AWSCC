@@ -7,8 +7,8 @@ import * as xlsx from 'xlsx';
 import {
     Mail, Send, Sparkles, Users, Filter, CheckCircle2, AlertCircle,
     Layers, BookOpen, Coffee, Award, Clock, RefreshCw, ChevronRight,
-    HelpCircle, MapPin, Eye, Edit3, Code, Check, MessageSquare,
-    FileSpreadsheet, Upload, Phone, Smartphone, ShieldCheck, Zap
+    HelpCircle, MapPin, Eye, Edit3, Code, Check,
+    FileSpreadsheet, Upload, ShieldCheck, Zap
 } from 'lucide-react';
 import { interpolateTemplate } from '@/lib/onepass/template';
 
@@ -23,10 +23,7 @@ export default function OnePassBroadcastPage() {
     const [workshops, setWorkshops] = useState([]);
     const [loadingData, setLoadingData] = useState(true);
 
-    // Channel: 'WHATSAPP' | 'EMAIL'
-    const [channel, setChannel] = useState('WHATSAPP');
-    const [openwaOnline, setOpenwaOnline] = useState(false);
-    const [checkingOpenwa, setCheckingOpenwa] = useState(false);
+    const channel = 'EMAIL';
 
     // Recipient Source: 'DATABASE' | 'EXCEL'
     const [recipientSource, setRecipientSource] = useState('DATABASE');
@@ -42,7 +39,6 @@ export default function OnePassBroadcastPage() {
     const [sampleAttendees, setSampleAttendees] = useState([]);
     const [previewIndex, setPreviewIndex] = useState(0);
 
-
     // KonfHub Direct Sync State
     const [showKonfHubSync, setShowKonfHubSync] = useState(false);
     const [konfhubApiKey, setKonfhubApiKey] = useState('');
@@ -51,11 +47,9 @@ export default function OnePassBroadcastPage() {
     const [syncStatus, setSyncStatus] = useState(null);
 
     // Form state
-    const [activeTab, setActiveTab] = useState('EDIT'); // 'EDIT' | 'PREVIEW'
     const [selectedTemplate, setSelectedTemplate] = useState('KONFHUB_TICKET_PASS');
     const [subject, setSubject] = useState('');
     const [messageBody, setMessageBody] = useState('');
-    const [testPhone, setTestPhone] = useState('');
     const [testEmail, setTestEmail] = useState(user?.email || '');
     const [copiedTag, setCopiedTag] = useState('');
 
@@ -67,142 +61,6 @@ export default function OnePassBroadcastPage() {
 
     const textareaRef = useRef(null);
     const fileInputRef = useRef(null);
-
-
-
-    // WhatsApp Presets
-    // WhatsApp Presets
-    const WA_TEMPLATES = [
-        {
-            id: 'KONFHUB_TICKET_PASS',
-            title: '🎟️ Official KonfHub Ticket & E-Pass Link',
-            badge: 'Ticket Dispatch',
-            body: `🎟️ *Your Entry Ticket for {{event_name}}*
-
-Hello *{{name}}*, 👋
-
-Your registration is confirmed for *{{event_name}}*! 🚀
-
-📋 *Confirmed Ticket Details:*
-• *Attendee:* {{name}}
-• *Ticket Type:* {{ticket}}
-• *Booking ID:* {{booking_id}}
-• *Badge / Check-In Counter:* *{{counter}}*
-• *Venue:* {{venue}}
-
-📲 *View Your Digital E-Ticket & Entry QR Code:*
-{{pass_link}}
-
-Please keep your QR pass or Booking ID (*{{booking_id}}*) ready at *{{counter}}* upon arrival for instant badge printing & entry.
-
-See you at the event!
-_AWS Student Builder Group, DDU_`
-        },
-        {
-            id: 'TICKET_COUNTER',
-            title: '🏷️ Badge Counter & Registration Desk',
-            badge: 'Entrance Rush',
-            body: `🎉 *AWS Students Community Day 2026*
-
-Hello *{{name}}*! 👋
-Your entry badge is ready for pickup!
-
-📍 *Venue:* {{venue}}
-🏷️ *ID Card / Badge Counter:* *{{counter}}*
-🎟️ *Ticket Type:* {{ticket}}
-🆔 *Booking ID:* {{booking_id}}
-
-📲 *Your Digital Pass:* {{pass_link}}
-
-Please head directly to *{{counter}}* at the entrance lobby to collect your physical badge & welcome kit.
-
-See you there!
-_AWS Student Builder Group, DDU_`
-        },
-        {
-            id: 'CHECKED_IN_CONFIRMATION',
-            title: '✅ Check-In Confirmed & Session Guidance',
-            badge: 'Post Check-In',
-            body: `✅ *Welcome to {{event_name}}!*
-
-Hello *{{name}}*, 👋
-Your check-in is *Confirmed* (Check-In Time: *{{checkin_time}}*).
-
-📍 *Your Allocated Session Details:*
-• *Session:* {{session}}
-• *Location / Room:* {{location}}
-• *Booking ID:* {{booking_id}}
-• *Ticket Type:* {{ticket}}
-• *Status:* {{checkin_status}}
-
-📲 *View Your Digital Pass & QR:*
-{{pass_link}}
-
-Please be seated in *{{location}}* 5 minutes prior to session commencement. Have a wonderful learning experience!
-
-_AWS Student Builder Group, DDU_`
-        },
-        {
-            id: 'SESSION_GUIDANCE',
-            title: '📍 Room & Track Guidance',
-            badge: 'Track / Workshop',
-            body: `📍 *Session Room & Hall Guidance*
-
-Hi *{{first_name}}*,
-Welcome to *{{event_name}}*!
-
-Here is your allocated session details:
-• *Session:* {{session}}
-• *Location / Room:* {{location}}
-• *Booking ID:* {{booking_id}}
-• *Ticket Type:* {{ticket}}
-• *Check-in Status:* {{checkin_status}}
-
-Please be seated in {{location}} 5 minutes before session commencement. Enjoy learning!`
-        },
-        {
-            id: 'FOOD_ALERT',
-            title: '🍱 Lunch & Food Desk Open',
-            badge: 'Hospitality',
-            body: `🍱 *Lunch & Refreshment Counters are Now OPEN!*
-
-Hello *{{name}}*,
-Lunch service is now active in the hospitality dining lawn.
-
-• Please show this WhatsApp confirmation (Booking ID: *{{booking_id}}*) or E-Ticket ({{pass_link}}) at the food desk.
-• Food counters will be open until the afternoon session restart.
-
-Enjoy your meal!`
-        },
-        {
-            id: 'SWAG_ALERT',
-            title: '🎁 Swag Distribution Desk Active',
-            badge: 'Goodies',
-            body: `🎁 *Official Swag Kits Ready for Pickup!*
-
-Hello *{{name}}*,
-Your official AWS community swag kit is available for collection at the Swag Desk (*{{counter}}*).
-
-Keep your Booking ID (*{{booking_id}}*) handy for verification. Grab yours now!`
-        },
-        {
-            id: 'CUSTOM',
-            title: '✍️ Custom WhatsApp Announcement',
-            badge: 'Freeform',
-            body: `📢 *Announcement from {{event_name}}*
-
-Hello *{{name}}*,
-
-[Type your custom announcement text here...]
-
-• Your Booking ID: {{booking_id}}
-• Check-in Status: {{checkin_status}}
-• Your Pass Link: {{pass_link}}
-
-Regards,
-*AWS Student Builder Group, DDU*`
-        }
-    ];
 
     // Email Presets
     const EMAIL_TEMPLATES = [
@@ -262,24 +120,6 @@ Regards,
         { tag: '{{event_name}}', label: 'Event Name', sample: event?.name || 'AWS Students Community Day 2026' }
     ];
 
-    // Check OpenWA Health
-    const checkOpenWA = async () => {
-        setCheckingOpenwa(true);
-        try {
-            const res = await fetch('/api/onepass/whatsapp/send');
-            const data = await res.json();
-            setOpenwaOnline(data.status === 'connected');
-        } catch {
-            setOpenwaOnline(false);
-        } finally {
-            setCheckingOpenwa(false);
-        }
-    };
-
-    useEffect(() => {
-        checkOpenWA();
-    }, []);
-
     // Load event, tracks & workshops
     useEffect(() => {
         const loadMetadata = async () => {
@@ -305,9 +145,8 @@ Regards,
     }, [eventId]);
 
     // Apply template
-    const applyTemplate = (tplId, tplChannel = channel) => {
-        const list = tplChannel === 'WHATSAPP' ? WA_TEMPLATES : EMAIL_TEMPLATES;
-        const tpl = list.find(t => t.id === tplId) || list[0];
+    const applyTemplate = (tplId) => {
+        const tpl = EMAIL_TEMPLATES.find(t => t.id === tplId) || EMAIL_TEMPLATES[0];
         if (tpl) {
             setSelectedTemplate(tpl.id);
             if (tpl.subject) setSubject(tpl.subject);
@@ -315,15 +154,9 @@ Regards,
         }
     };
 
-    // Change channel
-    const handleChannelChange = (newChannel) => {
-        setChannel(newChannel);
-        applyTemplate('TICKET_COUNTER', newChannel);
-    };
-
     // Initialize default template on first load
     useEffect(() => {
-        applyTemplate('TICKET_COUNTER', 'WHATSAPP');
+        applyTemplate('KONFHUB_TICKET_PASS');
     }, []);
 
     // Insert Tag into Textarea
@@ -343,22 +176,6 @@ Regards,
         setTimeout(() => {
             textareaRef.current.focus();
             textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + tag.length + 2;
-        }, 50);
-    };
-
-    // Formatting Helpers for WhatsApp
-    const insertFormatting = (prefix, suffix = prefix) => {
-        if (!textareaRef.current) return;
-        const start = textareaRef.current.selectionStart;
-        const end = textareaRef.current.selectionEnd;
-        const text = textareaRef.current.value;
-        const selected = text.substring(start, end) || 'text';
-        const newText = text.substring(0, start) + prefix + selected + suffix + text.substring(end);
-        setMessageBody(newText);
-        setTimeout(() => {
-            textareaRef.current.focus();
-            textareaRef.current.selectionStart = start + prefix.length;
-            textareaRef.current.selectionEnd = start + prefix.length + selected.length;
         }, 50);
     };
 
@@ -404,7 +221,7 @@ Regards,
 
                     for (const k of keys) {
                         const lk = k.toLowerCase().trim();
-                        if (!phone && ['phone', 'mobile', 'contact', 'whatsapp', 'phone number', 'mobile number'].some(s => lk.includes(s))) {
+                        if (!phone && ['phone', 'mobile', 'contact', 'phone number', 'mobile number'].some(s => lk.includes(s))) {
                             phone = String(row[k] || '').trim();
                         }
                         if (!name && ['name', 'full name', 'attendee name', 'first name', 'buyer name'].some(s => lk.includes(s))) {
@@ -465,8 +282,7 @@ Regards,
                         check_in_time: checkinTime || row['Check-in Time'] || new Date().toISOString(),
                         checked_in_by: checkedInBy || row['Checked In By'] || 'Registration Desk'
                     };
-                }).filter(r => r.phone && String(r.phone).replace(/\D/g, '').length >= 10);
-
+                }).filter(r => (r.email && r.email.includes('@')) || r.name);
 
                 setExcelRecipients(recipients);
                 setRecipientSource('EXCEL');
@@ -491,7 +307,7 @@ Regards,
                 const queryParams = new URLSearchParams({
                     eventId,
                     audience,
-                    channel,
+                    channel: 'EMAIL',
                     ...(filterId ? { filterId } : {}),
                     ...(syncCloud ? { sync: 'true' } : {})
                 });
@@ -510,7 +326,7 @@ Regards,
         if (eventId) {
             fetchAudienceCount(true);
         }
-    }, [eventId, audience, filterId, channel, recipientSource, excelRecipients]);
+    }, [eventId, audience, filterId, recipientSource, excelRecipients]);
 
     // Live Sync from KonfHub API
     const handleSyncKonfhub = async (e) => {
@@ -544,7 +360,7 @@ Regards,
             const queryParams = new URLSearchParams({
                 eventId,
                 audience,
-                channel,
+                channel: 'EMAIL',
                 ...(filterId ? { filterId } : {})
             });
             const freshRes = await fetch(`/api/onepass/broadcast?${queryParams}`);
@@ -609,7 +425,6 @@ Regards,
 
     const currentPreviewAttendee = activeAttendeeList[previewIndex] || activeAttendeeList[0] || {};
 
-
     const KH_EVENT_ID = 'ab9168b3-c610-4edc-bb16-b45f9517820c';
     const [passLinkType, setPassLinkType] = useState('KONFHUB'); // 'KONFHUB' | 'ONEPASS' | 'CUSTOM'
     const [customPassUrlTemplate, setCustomPassUrlTemplate] = useState(`https://files.konfhub.com/${KH_EVENT_ID}/tickets/{{booking_id}}_ticket.pdf`);
@@ -652,11 +467,7 @@ Regards,
 
     // Send Test Message
     const handleSendTest = async () => {
-        if (channel === 'WHATSAPP' && !testPhone) {
-            alert('Please enter a test phone number (e.g. 9876543210)');
-            return;
-        }
-        if (channel === 'EMAIL' && !testEmail) {
+        if (!testEmail) {
             alert('Please enter a test email address');
             return;
         }
@@ -670,11 +481,10 @@ Regards,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     eventId,
-                    channel,
-                    subject: channel === 'EMAIL' ? subject : undefined,
+                    channel: 'EMAIL',
+                    subject,
                     messageBody,
-                    testPhone: channel === 'WHATSAPP' ? testPhone : undefined,
-                    testEmail: channel === 'EMAIL' ? testEmail : undefined,
+                    testEmail: testEmail.trim(),
                     templateType: selectedTemplate,
                     passBaseUrl: passBaseUrl.trim(),
                     passLinkType,
@@ -684,7 +494,7 @@ Regards,
 
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to send test message');
-            setTestResult({ success: true, message: `Test message sent successfully to ${channel === 'WHATSAPP' ? testPhone : testEmail}!` });
+            setTestResult({ success: true, message: `Test email sent successfully to ${testEmail}!` });
         } catch (err) {
             setTestResult({ success: false, error: err.message });
         } finally {
@@ -702,13 +512,7 @@ Regards,
             return;
         }
 
-        if (channel === 'WHATSAPP' && !openwaOnline) {
-            if (!confirm('Warning: OpenWA Gateway appears offline at http://localhost:2785. Make sure your Docker container is running! Do you still want to proceed?')) {
-                return;
-            }
-        }
-
-        if (!confirm(`Are you sure you want to broadcast this ${channel} campaign to ${total} recipients?`)) {
+        if (!confirm(`Are you sure you want to broadcast this Email campaign to ${total} recipients?`)) {
             return;
         }
 
@@ -721,10 +525,10 @@ Regards,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     eventId,
-                    channel,
+                    channel: 'EMAIL',
                     audience: recipientSource === 'DATABASE' ? audience : undefined,
                     filterId: recipientSource === 'DATABASE' ? (filterId || null) : undefined,
-                    subject: channel === 'EMAIL' ? subject : undefined,
+                    subject,
                     messageBody,
                     templateType: selectedTemplate,
                     customRecipients: recipientSource === 'EXCEL' ? excelRecipients : undefined,
@@ -749,60 +553,25 @@ Regards,
             <div className="max-w-7xl mx-auto space-y-8">
                 
                 {/* ══════════════════════════════════════
-                    HEADER & CHANNEL TABS
+                    HEADER
                 ══════════════════════════════════════ */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-800">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
-                            <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold bg-[#FF9900]/10 text-[#FF9900] border border-[#FF9900]/20 uppercase">
-                                Broadcaster
+                            <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold bg-[#4F8EF7]/10 text-[#4F8EF7] border border-[#4F8EF7]/20 uppercase">
+                                Email Broadcaster
                             </span>
-                            {channel === 'WHATSAPP' && (
-                                <button
-                                    onClick={checkOpenWA}
-                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition-all cursor-pointer ${
-                                        openwaOnline
-                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                                            : 'bg-red-500/10 text-red-400 border border-red-500/30'
-                                    }`}
-                                >
-                                    <span className={`w-2 h-2 rounded-full ${openwaOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
-                                    {checkingOpenwa ? 'Checking...' : openwaOnline ? 'OpenWA Gateway Online' : 'OpenWA Offline (Port 2785)'}
-                                </button>
-                            )}
                         </div>
                         <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center gap-3">
-                            Multi-Channel Broadcaster
+                            Campaign Broadcaster
                         </h1>
                         <p className="text-slate-400 text-sm mt-1">
-                            Send personalized WhatsApp &amp; Email updates, tickets, and counter badges directly to attendees.
+                            Send personalized Email updates, tickets, and counter badges directly to attendees.
                         </p>
                     </div>
 
-                    {/* Channel Selector */}
-                    <div className="flex bg-slate-900 border border-slate-800 p-1.5 rounded-2xl shrink-0">
-                        <button
-                            type="button"
-                            onClick={() => handleChannelChange('WHATSAPP')}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold font-mono text-xs uppercase tracking-wider transition-all cursor-pointer ${
-                                channel === 'WHATSAPP'
-                                    ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20'
-                                    : 'text-slate-400 hover:text-white'
-                            }`}
-                        >
-                            <MessageSquare size={16} /> WhatsApp
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => handleChannelChange('EMAIL')}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold font-mono text-xs uppercase tracking-wider transition-all cursor-pointer ${
-                                channel === 'EMAIL'
-                                    ? 'bg-[#4F8EF7] text-white shadow-lg shadow-[#4F8EF7]/20'
-                                    : 'text-slate-400 hover:text-white'
-                            }`}
-                        >
-                            <Mail size={16} /> Email
-                        </button>
+                    <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-2xl text-slate-300 font-mono text-xs">
+                        <Mail size={16} className="text-[#4F8EF7]" /> Email Broadcast Active
                     </div>
                 </div>
 
@@ -821,40 +590,38 @@ Regards,
                                     <Users size={16} className="text-[#FF9900]" /> 1. Select Recipients Source
                                 </h3>
                                 
-                                {channel === 'WHATSAPP' && (
-                                    <div className="flex bg-slate-950 border border-slate-800 p-1 rounded-xl">
-                                        <button
-                                            type="button"
-                                            onClick={() => setRecipientSource('DATABASE')}
-                                            className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
-                                                recipientSource === 'DATABASE'
-                                                    ? 'bg-slate-800 text-white shadow-xs'
-                                                    : 'text-slate-500 hover:text-slate-300'
-                                            }`}
-                                        >
-                                            KonfHub / Database
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setRecipientSource('EXCEL')}
-                                            className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
-                                                recipientSource === 'EXCEL'
-                                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                                    : 'text-slate-500 hover:text-slate-300'
-                                            }`}
-                                        >
-                                            Upload Excel (.xlsx)
-                                        </button>
-                                    </div>
-                                )}
+                                <div className="flex bg-slate-950 border border-slate-800 p-1 rounded-xl">
+                                    <button
+                                        type="button"
+                                        onClick={() => setRecipientSource('DATABASE')}
+                                        className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                                            recipientSource === 'DATABASE'
+                                                ? 'bg-slate-800 text-white shadow-xs'
+                                                : 'text-slate-500 hover:text-slate-300'
+                                        }`}
+                                    >
+                                        KonfHub / Database
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setRecipientSource('EXCEL')}
+                                        className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                                            recipientSource === 'EXCEL'
+                                                ? 'bg-[#4F8EF7]/20 text-[#4F8EF7] border border-[#4F8EF7]/30'
+                                                : 'text-slate-500 hover:text-slate-300'
+                                        }`}
+                                    >
+                                        Upload Excel (.xlsx)
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Excel Upload Mode */}
-                            {recipientSource === 'EXCEL' && channel === 'WHATSAPP' ? (
+                            {recipientSource === 'EXCEL' ? (
                                 <div className="space-y-4">
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="border-2 border-dashed border-slate-700 hover:border-emerald-500/60 rounded-2xl p-6 text-center cursor-pointer bg-slate-950/50 hover:bg-slate-950 transition-all group"
+                                        className="border-2 border-dashed border-slate-700 hover:border-[#4F8EF7]/60 rounded-2xl p-6 text-center cursor-pointer bg-slate-950/50 hover:bg-slate-950 transition-all group"
                                     >
                                         <input
                                             ref={fileInputRef}
@@ -863,20 +630,20 @@ Regards,
                                             className="hidden"
                                             onChange={handleExcelUpload}
                                         />
-                                        <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-3 text-emerald-400 group-hover:scale-110 transition-transform">
+                                        <div className="w-12 h-12 rounded-xl bg-[#4F8EF7]/10 border border-[#4F8EF7]/20 flex items-center justify-center mx-auto mb-3 text-[#4F8EF7] group-hover:scale-110 transition-transform">
                                             <FileSpreadsheet size={24} />
                                         </div>
                                         {excelFileName ? (
                                             <div>
                                                 <p className="font-bold text-white text-sm">{excelFileName}</p>
-                                                <p className="text-emerald-400 font-mono text-xs mt-1">
-                                                    ✅ {excelRecipients.length} valid phone numbers ready
+                                                <p className="text-[#4F8EF7] font-mono text-xs mt-1">
+                                                    ✅ {excelRecipients.length} valid recipients ready
                                                 </p>
                                             </div>
                                         ) : (
                                             <div>
                                                 <p className="font-bold text-slate-200 text-sm">Click to upload your Attendee Excel / CSV sheet</p>
-                                                <p className="text-slate-500 text-xs mt-1 font-mono">Supports .xlsx, .xls, .csv with Name, Phone, Counter, etc.</p>
+                                                <p className="text-slate-500 text-xs mt-1 font-mono">Supports .xlsx, .xls, .csv with Name, Email, Counter, etc.</p>
                                             </div>
                                         )}
                                     </div>
@@ -945,7 +712,7 @@ Regards,
                                                         const queryParams = new URLSearchParams({
                                                             eventId,
                                                             audience,
-                                                            channel,
+                                                            channel: 'EMAIL',
                                                             ...(filterId ? { filterId } : {}),
                                                             sync: 'true'
                                                         });
@@ -1014,7 +781,7 @@ Regards,
                                             </div>
                                             <div className="flex items-center justify-between pt-1">
                                                 <p className="text-[10px] font-mono text-slate-500">
-                                                    Fetches attendee names, phones, tickets, and e-ticket PDFs directly.
+                                                    Fetches attendee names, emails, tickets, and e-ticket PDFs directly.
                                                 </p>
                                                 <button
                                                     type="button"
@@ -1043,7 +810,7 @@ Regards,
                                 <Sparkles size={16} className="text-[#FF9900]" /> 2. Choose Campaign Preset
                             </h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {(channel === 'WHATSAPP' ? WA_TEMPLATES : EMAIL_TEMPLATES).map((tpl) => (
+                                {EMAIL_TEMPLATES.map((tpl) => (
                                     <button
                                         key={tpl.id}
                                         type="button"
@@ -1072,50 +839,19 @@ Regards,
                                 <h3 className="text-sm font-mono font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                                     <Edit3 size={16} className="text-[#FF9900]" /> 3. Message Template
                                 </h3>
-                                
-                                {channel === 'WHATSAPP' && (
-                                    <div className="flex items-center gap-1.5 text-slate-400">
-                                        <button
-                                            type="button"
-                                            onClick={() => insertFormatting('*')}
-                                            className="px-2 py-1 bg-slate-950 hover:bg-slate-800 rounded-lg text-xs font-bold font-mono border border-slate-800"
-                                            title="Bold"
-                                        >
-                                            *B*
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => insertFormatting('_')}
-                                            className="px-2 py-1 bg-slate-950 hover:bg-slate-800 rounded-lg text-xs italic font-mono border border-slate-800"
-                                            title="Italic"
-                                        >
-                                            _I_
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => insertFormatting('~')}
-                                            className="px-2 py-1 bg-slate-950 hover:bg-slate-800 rounded-lg text-xs line-through font-mono border border-slate-800"
-                                            title="Strikethrough"
-                                        >
-                                            ~S~
-                                        </button>
-                                    </div>
-                                )}
                             </div>
 
-                            {/* Email Subject Line (if Email channel) */}
-                            {channel === 'EMAIL' && (
-                                <div>
-                                    <label className="block text-xs font-mono text-slate-400 uppercase tracking-wider mb-2">Subject Line</label>
-                                    <input
-                                        type="text"
-                                        value={subject}
-                                        onChange={(e) => setSubject(e.target.value)}
-                                        placeholder="e.g. 📍 Your Session Guidance for SCD 2026"
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4F8EF7] font-medium"
-                                    />
-                                </div>
-                            )}
+                            {/* Email Subject Line */}
+                            <div>
+                                <label className="block text-xs font-mono text-slate-400 uppercase tracking-wider mb-2">Subject Line</label>
+                                <input
+                                    type="text"
+                                    value={subject}
+                                    onChange={(e) => setSubject(e.target.value)}
+                                    placeholder="e.g. 📍 Your Session Guidance for SCD 2026"
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4F8EF7] font-medium"
+                                />
+                            </div>
 
                             {/* Ticket Pass Link / KonfHub URL Controller */}
                             <div className="p-4 rounded-2xl bg-[#090E17] border border-slate-800 space-y-3">
@@ -1275,10 +1011,10 @@ Regards,
                             {/* 4. Test Send Section */}
                             <div className="pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center gap-3">
                                 <input
-                                    type={channel === 'WHATSAPP' ? 'tel' : 'email'}
-                                    value={channel === 'WHATSAPP' ? testPhone : testEmail}
-                                    onChange={(e) => channel === 'WHATSAPP' ? setTestPhone(e.target.value) : setTestEmail(e.target.value)}
-                                    placeholder={channel === 'WHATSAPP' ? 'Enter test phone (e.g. 9876543210)' : 'Enter test email address'}
+                                    type="email"
+                                    value={testEmail}
+                                    onChange={(e) => setTestEmail(e.target.value)}
+                                    placeholder="Enter test email address"
                                     className="w-full sm:flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#4F8EF7]"
                                 />
                                 <button
@@ -1287,7 +1023,7 @@ Regards,
                                     onClick={handleSendTest}
                                     className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-mono text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
                                 >
-                                    {isSendingTest ? 'Sending...' : `Send Test ${channel === 'WHATSAPP' ? 'WhatsApp' : 'Email'}`}
+                                    {isSendingTest ? 'Sending...' : 'Send Test Email'}
                                 </button>
                             </div>
 
@@ -1302,11 +1038,7 @@ Regards,
                                 type="button"
                                 disabled={isSending || recipientCount === 0}
                                 onClick={handleSendBroadcast}
-                                className={`w-full py-4 rounded-2xl font-bold font-mono text-sm uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xl ${
-                                    channel === 'WHATSAPP'
-                                        ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                                        : 'bg-[#4F8EF7] hover:bg-[#3b7ad6] text-white shadow-[#4F8EF7]/20'
-                                }`}
+                                className="w-full py-4 rounded-2xl font-bold font-mono text-sm uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xl bg-[#4F8EF7] hover:bg-[#3b7ad6] text-white shadow-[#4F8EF7]/20"
                             >
                                 <Send size={18} />
                                 {isSending ? 'Broadcasting Campaign...' : `Broadcast to ${recipientCount} Attendees Now`}
@@ -1329,12 +1061,12 @@ Regards,
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN: Live Mobile Preview & Attendee Inspector */}
+                    {/* RIGHT COLUMN: Live Inspector & Email Preview */}
                     <div className="lg:col-span-5 sticky top-8 space-y-6">
                         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                                    <Smartphone size={16} className="text-[#FF9900]" /> Live Message & Data Inspector
+                                    <Mail size={16} className="text-[#4F8EF7]" /> Live Message & Data Inspector
                                 </h3>
                                 <div className="flex items-center gap-1.5">
                                     {activeAttendeeList.slice(0, 4).map((att, idx) => (
@@ -1400,49 +1132,16 @@ Regards,
                                 </div>
                             </div>
 
-                            {channel === 'WHATSAPP' ? (
-                                /* WhatsApp Mockup */
-                                <div className="bg-[#0b141a] border-4 border-slate-800 rounded-3xl overflow-hidden shadow-2xl max-w-sm mx-auto">
-                                    {/* WA Top Bar */}
-                                    <div className="bg-[#1f2c34] p-3 flex items-center gap-3 border-b border-slate-800">
-                                        <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">
-                                            AWS
-                                        </div>
-                                        <div>
-                                            <p className="text-white text-xs font-bold leading-none">AWS Community Day DDU</p>
-                                            <p className="text-emerald-400 text-[10px] font-mono mt-0.5">Official Verified • Direct Gateway</p>
-                                        </div>
-                                    </div>
-
-                                    {/* WA Chat Body */}
-                                    <div className="p-4 min-h-[320px] max-h-[440px] overflow-y-auto space-y-3 bg-[#0b141a]" style={{ backgroundImage: 'radial-gradient(#1f2c34 1px, transparent 1px)', backgroundSize: '16px 16px' }}>
-                                        <div className="flex justify-center">
-                                            <span className="bg-[#182229] text-slate-400 text-[10px] font-mono px-2.5 py-1 rounded-lg">
-                                                TODAY
-                                            </span>
-                                        </div>
-
-                                        <div className="bg-[#005c4b] text-slate-100 rounded-2xl rounded-tl-none p-3.5 text-xs font-sans leading-relaxed shadow-md max-w-[95%] whitespace-pre-wrap">
-                                            {getPreviewMessage()}
-                                            <div className="text-[9px] text-emerald-200/60 text-right mt-1 flex items-center justify-end gap-1 font-mono">
-                                                <span>10:30 AM</span>
-                                                <span className="text-sky-300">✓✓</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                            {/* Email Mockup */}
+                            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4 max-w-md mx-auto text-xs font-sans">
+                                <div className="border-b border-slate-800 pb-3 space-y-1">
+                                    <p className="text-slate-400 text-[11px]"><strong className="text-white">Subject:</strong> {subject || '(No Subject)'}</p>
+                                    <p className="text-slate-400 text-[11px]"><strong className="text-white">To:</strong> {currentPreviewAttendee.email || 'attendee@example.com'}</p>
                                 </div>
-                            ) : (
-                                /* Email Mockup */
-                                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4 max-w-sm mx-auto text-xs font-sans">
-                                    <div className="border-b border-slate-800 pb-3 space-y-1">
-                                        <p className="text-slate-400 text-[11px]"><strong className="text-white">Subject:</strong> {subject || '(No Subject)'}</p>
-                                        <p className="text-slate-400 text-[11px]"><strong className="text-white">To:</strong> {currentPreviewAttendee.email || 'attendee@example.com'}</p>
-                                    </div>
-                                    <div className="text-slate-200 leading-relaxed whitespace-pre-wrap font-sans">
-                                        {getPreviewMessage()}
-                                    </div>
+                                <div className="text-slate-200 leading-relaxed whitespace-pre-wrap font-sans">
+                                    {getPreviewMessage()}
                                 </div>
-                            )}
+                            </div>
 
                             <p className="text-center text-[11px] text-slate-500 font-mono">
                                 🔒 Every attendee receives their own distinct Name, Ticket Type, Booking ID, Counter, and Digital Pass Link.
@@ -1455,4 +1154,3 @@ Regards,
         </div>
     );
 }
-

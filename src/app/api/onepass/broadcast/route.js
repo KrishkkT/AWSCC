@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { OnePassDB } from '@/lib/onepass/db';
 import { authorizeUser } from '@/lib/onepass/auth';
 import { sendCampaignBroadcast } from '@/lib/onepass/email';
-import { sendWhatsAppText, sendWhatsAppBatch, formatWhatsAppNumber } from '@/lib/whatsapp';
 import { interpolateTemplate } from '@/lib/onepass/template';
 
 export const dynamic = 'force-dynamic';
@@ -84,12 +83,8 @@ export async function GET(req) {
         const workshops = db.workshops || [];
         let attendees = (db.attendees || []).filter(a => a.event_id === eventId);
 
-        // Filter based on channel requirements
-        if (channel === 'WHATSAPP') {
-            attendees = attendees.filter(a => a.phone || a.mobile || a.contact);
-        } else {
-            attendees = attendees.filter(a => a.email);
-        }
+        // Filter based on email availability
+        attendees = attendees.filter(a => a.email);
 
         if (audience === 'CHECKED_IN') {
             attendees = attendees.filter(a => a.check_in_status === 'CHECKED_IN');
@@ -159,14 +154,13 @@ export async function POST(req) {
         const body = await req.json();
         const {
             eventId,
-            channel = 'EMAIL', // 'EMAIL' | 'WHATSAPP'
+            channel = 'EMAIL',
             audience,
             filterId,
             subject,
             messageBody,
             templateType,
             testEmail,
-            testPhone,
             customRecipients, // Array of recipients from uploaded Excel
             passBaseUrl, // Optional base domain override (e.g. http://172.20.10.7:4000 or custom)
             passLinkType = 'KONFHUB', // 'KONFHUB' | 'ONEPASS' | 'CUSTOM' | 'SHEET'
@@ -192,171 +186,6 @@ export async function POST(req) {
         const publicDomain = (passBaseUrl && passBaseUrl.trim())
             ? passBaseUrl.trim().replace(/\/$/, '')
             : getPublicDomain();
-
-        // ══════════════════════════════════════════════════════
-        // WHATSAPP CHANNEL
-        // ══════════════════════════════════════════════════════
-        if (channel === 'WHATSAPP') {
-            // Test single message
-            if (testPhone) {
-                const formatted = formatWhatsAppNumber(testPhone);
-                if (!formatted) {
-                    return NextResponse.json({ error: 'Invalid test phone number. Please enter a 10-digit or 12-digit number.' }, { status: 400 });
-                }
-
-                const sampleAttendee = {
-                    name: auth.user?.name || 'Attendee',
-                    phone: formatted,
-                    email: auth.user?.email || 'admin@ddu.ac.in',
-                    counter: 'Counter 1',
-                    ticket: 'Confirmed Delegate Pass',
-                    booking_id: '933008fc',
-                    registration_id: 'pay_TcEFCY1ssQ9lke',
-                    session: 'Keynote & AI Agent Architecture',
-                    location: 'Main Auditorium / Hall A',
-                    check_in_status: 'CHECKED_IN',
-                    checkin_status: 'Checked In',
-                    check_in_time: new Date().toISOString(),
-                    checkin_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
-                    checked_in_by: auth.user?.name || 'Desk 1'
-                };
-
-                const testPassLink = resolveAttendeePassLink(sampleAttendee, {
-                    passLinkType,
-                    customPassUrlTemplate,
-                    passBaseUrl,
-                    eventId,
-                    publicDomain
-                });
-
-                // Render test message with sample data using robust interpolation
-                const sampleMsg = interpolateTemplate(messageBody, {
-                    ...sampleAttendee,
-                    pass_link: testPassLink,
-                    ticket_url: testPassLink
-                }, { venue, eventName, passLink: testPassLink });
-
-                const res = await sendWhatsAppText({ to: formatted, message: sampleMsg });
-                if (!res.success) {
-                    return NextResponse.json({ error: res.error || 'WhatsApp Gateway failed to send' }, { status: 502 });
-                }
-                return NextResponse.json({ success: true, testSent: true, to: formatted });
-            }
-
-            // Determine recipient list
-            let targetList = [];
-            if (Array.isArray(customRecipients) && customRecipients.length > 0) {
-                targetList = customRecipients;
-            } else {
-                let dbAttendees = (db.attendees || []).filter(a => a.event_id === eventId);
-                if (audience === 'CHECKED_IN') {
-                    dbAttendees = dbAttendees.filter(a => a.check_in_status === 'CHECKED_IN');
-                } else if (audience === 'NOT_CHECKED_IN') {
-                    dbAttendees = dbAttendees.filter(a => a.check_in_status === 'NOT_CHECKED_IN');
-                } else if (audience === 'TRACK' && filterId) {
-                    dbAttendees = dbAttendees.filter(a => a.assigned_track_id === filterId);
-                } else if (audience === 'WORKSHOP' && filterId) {
-                    dbAttendees = dbAttendees.filter(a => a.assigned_workshop_id === filterId);
-                }
-                targetList = dbAttendees.map((a, idx) => {
-                    const assignedWk = workshops.find(w => w.id === a.assigned_workshop_id);
-                    const assignedTrk = tracks.find(t => t.id === a.assigned_track_id);
-                    const sessionName = assignedWk?.name || assignedTrk?.name || a.session || a.assigned_track_name || 'Cloud & AI Track';
-                    const locationName = assignedWk?.location || assignedTrk?.location || a.location || 'Main Auditorium / Hall A';
-                    const ticketLink = resolveAttendeePassLink(a, {
-                        passLinkType,
-                        customPassUrlTemplate,
-                        passBaseUrl,
-                        eventId,
-                        publicDomain
-                    });
-                    const isCheckedIn = a.check_in_status === 'CHECKED_IN';
-                    const checkinStatus = isCheckedIn ? 'Checked In' : 'Not Checked In';
-                    const checkinTime = a.check_in_time ? new Date(a.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Not Checked In';
-
-                    return {
-                        ...a,
-                        phone: a.phone || a.mobile || a.contact,
-                        name: a.name || `Attendee ${idx + 1}`,
-                        first_name: (a.name || 'Attendee').split(' ')[0],
-                        counter: a.counter || a.counter_assigned || `Counter ${Math.floor(idx / 30) + 1}`,
-                        ticket: a.ticket_type || 'General Pass',
-                        ticket_type: a.ticket_type || 'General Pass',
-                        booking_id: a.booking_id || a.id || `BK-${idx + 1}`,
-                        pass_link: ticketLink,
-                        ticket_url: ticketLink,
-                        session: sessionName,
-                        location: locationName,
-                        check_in_status: a.check_in_status || 'NOT_CHECKED_IN',
-                        checkin_status: checkinStatus,
-                        check_in_time: a.check_in_time || null,
-                        checkin_time: checkinTime,
-                        checked_in_by: a.checked_in_by_name || 'Registration Desk'
-                    };
-                });
-            }
-
-            // Filter out empty phone numbers
-            targetList = targetList.filter(r => r.phone && cleanPhone(r.phone));
-
-            if (targetList.length === 0) {
-                return NextResponse.json({ error: 'No valid recipients with phone numbers found' }, { status: 400 });
-            }
-
-            // Helper to interpolate variables per attendee
-            const getPersonalizedText = (item) => {
-                const passLink = resolveAttendeePassLink(item, {
-                    passLinkType,
-                    customPassUrlTemplate,
-                    passBaseUrl,
-                    eventId,
-                    publicDomain
-                });
-                return interpolateTemplate(messageBody, {
-                    ...item,
-                    pass_link: passLink,
-                    ticket_url: passLink
-                }, { venue, eventName, passLink });
-            };
-
-            const batchResult = await sendWhatsAppBatch({
-                recipients: targetList,
-                getMessageText: getPersonalizedText,
-                minDelayMs: 1500,
-                maxDelayMs: 3000
-            });
-
-            // Audit log
-            const now = new Date().toISOString();
-            if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
-            db.audit_logs.unshift({
-                id: `aud_${Date.now()}`,
-                event_id: eventId,
-                actor_id: auth.user.id,
-                actor_name: auth.user.name,
-                actor_role: 'ADMIN',
-                action: 'WHATSAPP_CAMPAIGN_BROADCAST',
-                entity_type: 'CAMPAIGN',
-                entity_id: templateType || 'CUSTOM',
-                metadata: {
-                    audience,
-                    targeted: batchResult.total,
-                    sent: batchResult.sent,
-                    failed: batchResult.failed
-                },
-                timestamp: now,
-                result: 'SUCCESS'
-            });
-            OnePassDB.saveDb(db);
-
-            return NextResponse.json({
-                success: true,
-                totalTargeted: batchResult.total,
-                sentCount: batchResult.sent,
-                failedCount: batchResult.failed,
-                errors: batchResult.errors
-            });
-        }
 
         // ══════════════════════════════════════════════════════
         // EMAIL CHANNEL
