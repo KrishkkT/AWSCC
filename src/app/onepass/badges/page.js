@@ -374,16 +374,20 @@ function drawShapePath(ctx, x, y, w, h, shape, uniformRadius, rTL, rTR, rBR, rBL
         const rtr = Math.max(0, Math.min(w / 2, h / 2, shape === 'custom' ? (rTR ?? 12) : defaultR));
         const rbr = Math.max(0, Math.min(w / 2, h / 2, shape === 'custom' ? (rBR ?? 12) : defaultR));
         const rbl = Math.max(0, Math.min(w / 2, h / 2, shape === 'custom' ? (rBL ?? 12) : defaultR));
-        ctx.moveTo(x + rtl, y);
-        ctx.lineTo(x + w - rtr, y);
-        ctx.quadraticCurveTo(x + w, y, x + w, y + rtr);
-        ctx.lineTo(x + w, y + h - rbr);
-        ctx.quadraticCurveTo(x + w, y + h, x + w - rbr, y + h);
-        ctx.lineTo(x + rbl, y + h);
-        ctx.quadraticCurveTo(x, y + h, x, y + h - rbl);
-        ctx.lineTo(x, y + rtl);
-        ctx.quadraticCurveTo(x, y, x + rtl, y);
-        ctx.closePath();
+        if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(x, y, w, h, [rtl, rtr, rbr, rbl]);
+        } else {
+            ctx.moveTo(x + rtl, y);
+            ctx.lineTo(x + w - rtr, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + rtr);
+            ctx.lineTo(x + w, y + h - rbr);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - rbr, y + h);
+            ctx.lineTo(x + rbl, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - rbl);
+            ctx.lineTo(x, y + rtl);
+            ctx.quadraticCurveTo(x, y, x + rtl, y);
+            ctx.closePath();
+        }
     } else {
         ctx.rect(x, y, w, h);
     }
@@ -449,9 +453,9 @@ async function renderBadgeToCanvas(template, fields, attendee, scale = 1, cached
                     const drawnW = imgW * finalScale;
                     const drawnH = imgH * finalScale;
 
-                    // Center position + pan offset
-                    const offsetX = (cw - drawnW) / 2 + (panX / 100) * (cw / 2);
-                    const offsetY = (ch - drawnH) / 2 + (panY / 100) * (ch / 2);
+                    // Center position + pan offset (pan is scaled by zoom to match CSS transform: scale(zoom) translate(panX/2%, panY/2%))
+                    const offsetX = (cw - drawnW) / 2 + (panX / 100) * (cw / 2) * zoom;
+                    const offsetY = (ch - drawnH) / 2 + (panY / 100) * (ch / 2) * zoom;
 
                     ctx.drawImage(photoImg, cx + offsetX, cy + offsetY, drawnW, drawnH);
                     ctx.restore();
@@ -909,12 +913,14 @@ function PhotoAdjustmentModal({ attendee, photoField, onSave, onSaveSelected, on
     const aspect = fw / fh;
     const previewHeight = 260;
     const previewWidth = Math.round(previewHeight * aspect);
+    const scaleFactor = previewWidth / fw;
 
+    const photoShape = photoField?.shape || photoField?.photoShape || 'rectangle';
     let borderRadius = '8px';
-    if (photoField?.photoShape === 'circle') borderRadius = '9999px';
-    else if (photoField?.photoShape === 'rounded') borderRadius = `${photoField.uniformRadius ?? 16}px`;
-    else if (photoField?.photoShape === 'custom') borderRadius = `${photoField.radiusTL ?? 16}px ${photoField.radiusTR ?? 16}px ${photoField.radiusBR ?? 16}px ${photoField.radiusBL ?? 16}px`;
-    else if (photoField?.photoShape === 'rectangle') borderRadius = '0px';
+    if (photoShape === 'circle') borderRadius = '9999px';
+    else if (photoShape === 'rounded') borderRadius = `${(photoField?.uniformRadius ?? 16) * scaleFactor}px`;
+    else if (photoShape === 'custom') borderRadius = `${(photoField?.radiusTL ?? 16) * scaleFactor}px ${(photoField?.radiusTR ?? 16) * scaleFactor}px ${(photoField?.radiusBR ?? 16) * scaleFactor}px ${(photoField?.radiusBL ?? 16) * scaleFactor}px`;
+    else if (photoShape === 'rectangle') borderRadius = '0px';
 
     // Live background change effect with debounce
     useEffect(() => {
@@ -2028,10 +2034,11 @@ function BadgeStudio({ admin }) {
         return attendees.find(a => a.id === previewAttendeeId) || SAMPLE_ATTENDEE;
     }, [previewAttendeeId, attendees]);
 
-    const refreshPreview = useCallback(async () => {
+    const refreshPreview = useCallback(async (overrideAttendee = null) => {
         if (!activeTemplate || activeFields.length === 0) { setPreviewCanvasUrl(null); return; }
         try {
-            const canvas = await renderBadgeToCanvas(activeTemplate, activeFields, currentPreviewAttendee, 1);
+            const attToRender = overrideAttendee || currentPreviewAttendee;
+            const canvas = await renderBadgeToCanvas(activeTemplate, activeFields, attToRender, 1);
             setPreviewCanvasUrl(canvas.toDataURL('image/png'));
         } catch { setPreviewCanvasUrl(null); }
     }, [activeTemplate, activeFields, currentPreviewAttendee]);
@@ -2683,8 +2690,9 @@ function BadgeStudio({ admin }) {
     };
 
     // ─── Memory-Safe Export & Previews ───────────────────────────────────────
-    const generatePreviews = useCallback(async () => {
-        const targetList = getTargetAttendees();
+    const generatePreviews = useCallback(async (overrideList = null) => {
+        const rawList = overrideList || getTargetAttendees();
+        const targetList = Array.isArray(rawList) ? rawList : getTargetAttendees();
         if (!activeTemplate || !targetList.length) {
             setPreviewCards([]);
             return;
@@ -2721,7 +2729,7 @@ function BadgeStudio({ admin }) {
         if (activeTab === 3 && activeTemplate && attendees.length) {
             generatePreviews();
         }
-    }, [activeTab, exportScope, selectedAttendeeIds, activeTemplate, generatePreviews]);
+    }, [activeTab, exportScope, selectedAttendeeIds, activeTemplate, generatePreviews, attendees]);
 
     const downloadSinglePNG = (card) => {
         const link = document.createElement('a');
@@ -4226,18 +4234,24 @@ function BadgeStudio({ admin }) {
                     selectedAttendeesCount={selectedAttendeeIds.size}
                     totalAttendeesCount={attendees.length}
                     onSave={(updates) => {
-                        setAttendees(prev => prev.map(a => a.id === adjustingAttendee.id ? { ...a, ...updates } : a));
+                        let nextList;
+                        setAttendees(prev => {
+                            nextList = prev.map(a => a.id === adjustingAttendee.id ? { ...a, ...updates } : a);
+                            return nextList;
+                        });
                         setAdjustingAttendee(null);
-                        if (activeTab === 3) generatePreviews();
-                        if (showPreview) refreshPreview();
+                        if (activeTab === 3 && nextList) generatePreviews(nextList);
+                        if (showPreview) {
+                            const updatedAttendee = nextList?.find(a => a.id === adjustingAttendee.id);
+                            refreshPreview(updatedAttendee);
+                        }
                     }}
                     onSaveSelected={async (updates) => {
                         const { photoZoom, photoPanX, photoPanY, photoBgColor, customBgColor, customBgImage, photoTolerance } = updates;
                         const targetColor = photoBgColor === 'custom' ? customBgColor : photoBgColor;
                         const targetSet = selectedAttendeeIds.size > 0 ? selectedAttendeeIds : new Set([adjustingAttendee.id]);
 
-                        // 1. Instantly apply photo crop/zoom/pan, tolerance and customBgImage to selected
-                        setAttendees(prev => prev.map(a => {
+                        let initialNextList = attendees.map(a => {
                             if (!targetSet.has(a.id)) return a;
                             return {
                                 ...a,
@@ -4249,15 +4263,17 @@ function BadgeStudio({ admin }) {
                                 customBgColor,
                                 customBgImage
                             };
-                        }));
+                        });
+
+                        setAttendees(initialNextList);
                         setAdjustingAttendee(null);
 
-                        // 2. If background color/image changed, process for selected attendees with photos
+                        let finalNextList = initialNextList;
                         if (targetColor && targetColor !== 'original') {
                             const isBgImg = targetColor === 'image';
                             setBulkFeedback(`Processing background ${isBgImg ? 'image composition' : 'removal'} for ${targetSet.size} selected attendee${targetSet.size > 1 ? 's' : ''}...`);
                             try {
-                                const nextList = await Promise.all(attendees.map(async (a) => {
+                                finalNextList = await Promise.all(initialNextList.map(async (a) => {
                                     if (!targetSet.has(a.id)) return a;
                                     if (!a.photo) return { ...a, photoZoom, photoPanX, photoPanY, photoTolerance, photoBgColor, customBgColor, customBgImage };
                                     const orig = a.originalPhoto || a.photo;
@@ -4282,40 +4298,36 @@ function BadgeStudio({ admin }) {
                                         return { ...a, photoZoom, photoPanX, photoPanY, photoTolerance, photoBgColor, customBgColor, customBgImage };
                                     }
                                 }));
-                                setAttendees(nextList);
+                                setAttendees(finalNextList);
                                 setBulkFeedback(`✓ Applied photo crop, zoom & ${isBgImg ? 'custom backdrop' : targetColor + ' BG'} to ${targetSet.size} selected attendee${targetSet.size > 1 ? 's' : ''}!`);
                                 setTimeout(() => setBulkFeedback(''), 4500);
                             } catch (err) {
                                 console.error('Bulk BG Error:', err);
                             }
                         } else {
-                            // Revert to original photos for selected
-                            setAttendees(prev => prev.map(a => {
+                            finalNextList = initialNextList.map(a => {
                                 if (!targetSet.has(a.id)) return a;
                                 return {
                                     ...a,
-                                    photoZoom,
-                                    photoPanX,
-                                    photoPanY,
-                                    photoTolerance,
-                                    photoBgColor: 'original',
-                                    customBgImage: undefined,
                                     photo: a.originalPhoto || a.photo
                                 };
-                            }));
+                            });
+                            setAttendees(finalNextList);
                             setBulkFeedback(`✓ Applied photo crop & zoom settings to ${targetSet.size} selected attendee${targetSet.size > 1 ? 's' : ''}!`);
                             setTimeout(() => setBulkFeedback(''), 4500);
                         }
 
-                        if (activeTab === 3) generatePreviews();
-                        if (showPreview) refreshPreview();
+                        if (activeTab === 3) generatePreviews(finalNextList);
+                        if (showPreview) {
+                            const updatedAttendee = finalNextList.find(a => a.id === previewAttendeeId) || finalNextList.find(a => a.id === adjustingAttendee.id);
+                            refreshPreview(updatedAttendee);
+                        }
                     }}
                     onSaveAll={async (updates) => {
                         const { photoZoom, photoPanX, photoPanY, photoBgColor, customBgColor, customBgImage, photoTolerance } = updates;
                         const targetColor = photoBgColor === 'custom' ? customBgColor : photoBgColor;
 
-                        // 1. Instantly apply photo crop/zoom/pan, tolerance and customBgImage to all
-                        setAttendees(prev => prev.map(a => ({
+                        let initialNextList = attendees.map(a => ({
                             ...a,
                             photoZoom,
                             photoPanX,
@@ -4324,15 +4336,17 @@ function BadgeStudio({ admin }) {
                             photoBgColor,
                             customBgColor,
                             customBgImage
-                        })));
+                        }));
+
+                        setAttendees(initialNextList);
                         setAdjustingAttendee(null);
 
-                        // 2. If background color/image changed, process for all attendees with photos
+                        let finalNextList = initialNextList;
                         if (targetColor && targetColor !== 'original') {
                             const isBgImg = targetColor === 'image';
                             setBulkFeedback(`Processing background ${isBgImg ? 'image composition' : 'removal'} for all ${attendees.length} attendees...`);
                             try {
-                                const nextList = await Promise.all(attendees.map(async (a) => {
+                                finalNextList = await Promise.all(initialNextList.map(async (a) => {
                                     if (!a.photo) return { ...a, photoZoom, photoPanX, photoPanY, photoTolerance, photoBgColor, customBgColor, customBgImage };
                                     const orig = a.originalPhoto || a.photo;
                                     try {
@@ -4356,30 +4370,27 @@ function BadgeStudio({ admin }) {
                                         return { ...a, photoZoom, photoPanX, photoPanY, photoTolerance, photoBgColor, customBgColor, customBgImage };
                                     }
                                 }));
-                                setAttendees(nextList);
+                                setAttendees(finalNextList);
                                 setBulkFeedback(`✓ Applied photo crop, zoom & ${isBgImg ? 'custom backdrop' : targetColor + ' BG'} to all ${attendees.length} attendees!`);
                                 setTimeout(() => setBulkFeedback(''), 4500);
                             } catch (err) {
                                 console.error('Bulk BG Error:', err);
                             }
                         } else {
-                            // Revert to original photos
-                            setAttendees(prev => prev.map(a => ({
+                            finalNextList = initialNextList.map(a => ({
                                 ...a,
-                                photoZoom,
-                                photoPanX,
-                                photoPanY,
-                                photoTolerance,
-                                photoBgColor: 'original',
-                                customBgImage: undefined,
                                 photo: a.originalPhoto || a.photo
-                            })));
+                            }));
+                            setAttendees(finalNextList);
                             setBulkFeedback(`✓ Applied photo crop & zoom settings to all ${attendees.length} attendees!`);
                             setTimeout(() => setBulkFeedback(''), 4500);
                         }
 
-                        if (activeTab === 3) generatePreviews();
-                        if (showPreview) refreshPreview();
+                        if (activeTab === 3) generatePreviews(finalNextList);
+                        if (showPreview) {
+                            const updatedAttendee = finalNextList.find(a => a.id === previewAttendeeId) || finalNextList.find(a => a.id === adjustingAttendee.id);
+                            refreshPreview(updatedAttendee);
+                        }
                     }}
                     onClose={() => setAdjustingAttendee(null)}
                 />
