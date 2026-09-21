@@ -8,6 +8,9 @@ import { parseScannedQR } from '@/lib/onepass/qr';
 export default function QRScannerModal({ isOpen, onClose, onScan, title = 'Scan QR Code' }) {
     const scannerRef = useRef(null);
     const html5QrCodeRef = useRef(null);
+    const scanLockRef = useRef(false);
+    const lastBeepTimeRef = useRef(0);
+
     const [cameras, setCameras] = useState([]);
     const [selectedCameraId, setSelectedCameraId] = useState('');
     const [isScanning, setIsScanning] = useState(false);
@@ -17,6 +20,7 @@ export default function QRScannerModal({ isOpen, onClose, onScan, title = 'Scan 
 
     useEffect(() => {
         if (isOpen) {
+            scanLockRef.current = false;
             Html5Qrcode.getCameras().then((devices) => {
                 if (devices && devices.length) {
                     setCameras(devices);
@@ -28,10 +32,12 @@ export default function QRScannerModal({ isOpen, onClose, onScan, title = 'Scan 
                 setErrorMsg("No camera devices detected. You can use manual entry or file upload.");
             });
         } else {
+            scanLockRef.current = false;
             stopCamera();
         }
 
         return () => {
+            scanLockRef.current = false;
             stopCamera();
         };
     }, [isOpen]);
@@ -45,6 +51,7 @@ export default function QRScannerModal({ isOpen, onClose, onScan, title = 'Scan 
     const startCamera = async (cameraId) => {
         try {
             setErrorMsg('');
+            scanLockRef.current = false;
             if (html5QrCodeRef.current) {
                 await stopCamera();
             }
@@ -61,12 +68,24 @@ export default function QRScannerModal({ isOpen, onClose, onScan, title = 'Scan 
             await qrCodeScanner.start(
                 cameraId,
                 config,
-                (decodedText) => {
-                    playBeep();
+                async (decodedText) => {
+                    if (scanLockRef.current) return;
+                    scanLockRef.current = true;
+
                     const clean = parseScannedQR(decodedText);
                     if (clean) {
-                        onScan(clean);
+                        playBeep();
+                        try {
+                            if (html5QrCodeRef.current) {
+                                html5QrCodeRef.current.pause(true);
+                            }
+                        } catch (e) {}
                         stopCamera();
+                        onScan(clean);
+                    } else {
+                        setTimeout(() => {
+                            scanLockRef.current = false;
+                        }, 1000);
                     }
                 },
                 (errorMessage) => {
@@ -120,6 +139,10 @@ export default function QRScannerModal({ isOpen, onClose, onScan, title = 'Scan 
     };
 
     const playBeep = () => {
+        const now = Date.now();
+        if (now - lastBeepTimeRef.current < 1000) return; // Debounce beep to max 1 per second
+        lastBeepTimeRef.current = now;
+
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();

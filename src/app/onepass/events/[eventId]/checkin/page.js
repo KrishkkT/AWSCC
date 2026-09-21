@@ -169,10 +169,19 @@ export default function AttendeeCheckInDesk() {
         }
     };
 
+    const lastScanRef = React.useRef({ code: '', time: 0 });
+
     // Handle Scanned QR Code - Lookup & Prompt for Session
     const handleQRScan = async (rawQR) => {
         const cleanQR = parseScannedQR(rawQR);
         if (!rawQR) return;
+
+        const now = Date.now();
+        const codeKey = cleanQR || rawQR;
+        if (submittingCheckIn || (lastScanRef.current.code === codeKey && now - lastScanRef.current.time < 3000)) {
+            return;
+        }
+        lastScanRef.current = { code: codeKey, time: now };
 
         setScannerOpen(false);
         try {

@@ -86,9 +86,17 @@ export default function WorkshopsPage() {
         fetchWorkshops();
     }, [eventId]);
 
+    const lastScanRef = React.useRef({ code: '', time: 0 });
+
     const handleWorkshopScan = async (qrInput) => {
         const clean = parseScannedQR(qrInput || manualCode);
         if (!clean || !selectedWorkshopId) return;
+
+        const now = Date.now();
+        if (evaluating || (lastScanRef.current.code === clean && now - lastScanRef.current.time < 3000)) {
+            return;
+        }
+        lastScanRef.current = { code: clean, time: now };
 
         setEvaluating(true);
         setScanResult(null);

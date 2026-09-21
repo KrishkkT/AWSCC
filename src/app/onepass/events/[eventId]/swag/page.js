@@ -83,9 +83,17 @@ export default function SwagManagementPage() {
         fetchSwagResources();
     }, [eventId]);
 
+    const lastScanRef = React.useRef({ code: '', time: 0 });
+
     const handleClaimScan = async (qrInput) => {
         const clean = parseScannedQR(qrInput || manualCode);
         if (!clean || !selectedResourceId) return;
+
+        const now = Date.now();
+        if (claiming || (lastScanRef.current.code === clean && now - lastScanRef.current.time < 3000)) {
+            return;
+        }
+        lastScanRef.current = { code: clean, time: now };
 
         setClaiming(true);
         setClaimResult(null);
