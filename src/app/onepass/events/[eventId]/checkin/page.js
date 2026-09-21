@@ -96,38 +96,38 @@ export default function AttendeeCheckInDesk() {
         return cat.includes('workshop') || tType.includes('workshop') || tType.includes('hands-on') || tType.includes('lab');
     };
 
-    // Instant Auto Check-In & Counter Display
-    const instantCheckInAttendee = async (attendee, explicitWorkshopId = null) => {
+    // Handle Scanned/Selected Attendee: Check if already checked in or prompt for session choice
+    const handleScanOrSelectAttendee = (attendee) => {
         if (!attendee) return;
-        setScannedAttendee(attendee);
 
-        // If attendee is already checked in, display warning with counter and workshop switcher
-        if (attendee.check_in_status === 'CHECKED_IN' && !explicitWorkshopId) {
+        // If attendee is already checked in, display warning with counter location
+        if (attendee.check_in_status === 'CHECKED_IN') {
             setAlreadyCheckedInWarning(attendee);
+            setScannedAttendee(null);
             setCheckInSuccess(null);
             return;
         }
 
-        const isWs = isWorkshopAttendee(attendee);
-        const targetWorkshopId = explicitWorkshopId || attendee.assigned_workshop_id || null;
+        // Unchecked-in attendee -> Open Session Choice Prompt
+        setScannedAttendee(attendee);
+        setAlreadyCheckedInWarning(null);
+        setCheckInSuccess(null);
+    };
 
-        // If attendee is Workshop ticket holder but hasn't picked a workshop yet and we have multiple workshops
-        if (isWs && !targetWorkshopId && workshops.length > 1 && !explicitWorkshopId) {
-            // Keep in scanned state to let volunteer/attendee pick workshop with 1 tap
-            setAlreadyCheckedInWarning(null);
-            setCheckInSuccess(null);
-            return;
-        }
-
+    // Confirm Check-In with selected Track or Workshop
+    const handleConfirmCheckInSession = async (sessionId, sessionType) => {
+        if (!scannedAttendee) return;
         setSubmittingCheckIn(true);
         try {
+            const isWs = sessionType === 'WORKSHOP';
             const res = await fetch('/api/onepass/checkin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     eventId,
-                    attendeeId: attendee.id,
-                    workshopId: targetWorkshopId,
+                    attendeeId: scannedAttendee.id,
+                    trackId: !isWs ? sessionId : null,
+                    workshopId: isWs ? sessionId : null,
                     sessionType: isWs ? 'WORKSHOP' : 'TRACK'
                 })
             });
@@ -136,8 +136,9 @@ export default function AttendeeCheckInDesk() {
 
             if (!res.ok) {
                 if (data.code === 'ALREADY_CHECKED_IN') {
-                    setAlreadyCheckedInWarning(data.attendee || attendee);
+                    setAlreadyCheckedInWarning(data.attendee || scannedAttendee);
                     setCheckInSuccess(null);
+                    setScannedAttendee(null);
                 } else {
                     alert(data.message || 'Check-in failed');
                 }
@@ -152,12 +153,13 @@ export default function AttendeeCheckInDesk() {
             });
 
             setCheckInSuccess({
-                attendee: data.attendee || attendee,
+                attendee: data.attendee || scannedAttendee,
                 track: data.track,
                 workshop: data.workshop,
                 session_choice: data.session_choice
             });
             setAlreadyCheckedInWarning(null);
+            setScannedAttendee(null);
             loadCapacities();
         } catch (err) {
             console.error(err);
@@ -167,7 +169,7 @@ export default function AttendeeCheckInDesk() {
         }
     };
 
-    // Handle Scanned QR Code - Instant Lookup & Auto Check-in
+    // Handle Scanned QR Code - Lookup & Prompt for Session
     const handleQRScan = async (rawQR) => {
         const cleanQR = parseScannedQR(rawQR);
         if (!rawQR) return;
@@ -178,7 +180,7 @@ export default function AttendeeCheckInDesk() {
             const res = await fetch(`/api/onepass/attendees/search?eventId=${eventId}&q=${encodeURIComponent(cleanQR || rawQR)}`);
             const data = await res.json();
             if (data.attendees && data.attendees.length > 0) {
-                instantCheckInAttendee(data.attendees[0]);
+                handleScanOrSelectAttendee(data.attendees[0]);
                 return;
             }
 
@@ -186,7 +188,7 @@ export default function AttendeeCheckInDesk() {
             const directRes = await fetch(`/api/onepass/attendees?eventId=${eventId}&qr=${encodeURIComponent(rawQR)}`);
             const directData = await directRes.json();
             if (directData.found && directData.attendee) {
-                instantCheckInAttendee(directData.attendee);
+                handleScanOrSelectAttendee(directData.attendee);
                 return;
             }
 
@@ -208,7 +210,7 @@ export default function AttendeeCheckInDesk() {
             const data = await res.json();
             setSearchResults(data.attendees || []);
             if (data.attendees?.length === 1) {
-                instantCheckInAttendee(data.attendees[0]);
+                handleScanOrSelectAttendee(data.attendees[0]);
                 setSearchResults([]);
             }
         } catch (e) {
@@ -219,7 +221,7 @@ export default function AttendeeCheckInDesk() {
     };
 
     const selectAttendeeForCheckIn = (attendee) => {
-        instantCheckInAttendee(attendee);
+        handleScanOrSelectAttendee(attendee);
     };
 
     const handleConfirmCheckIn = async () => {
@@ -561,67 +563,123 @@ export default function AttendeeCheckInDesk() {
                 </div>
             )}
 
-            {/* STATE 3: WORKSHOP CHOICE PROMPT (ONLY for Workshop ticket with unselected workshop) */}
-            {scannedAttendee && !checkInSuccess && !alreadyCheckedInWarning && isWorkshop && (
-                <div className="p-6 bg-[#151c2e] border-2 border-purple-500/50 rounded-3xl space-y-5 shadow-2xl animate-fade-in">
-                    <div className="flex items-center justify-between border-b border-[#1a2540] pb-3">
+            {/* STATE 3: UNIFIED SESSION CHOICE PROMPT (FOR ALL UNCHECKED-IN ATTENDEES) */}
+            {scannedAttendee && !checkInSuccess && !alreadyCheckedInWarning && (
+                <div className="p-6 bg-[#151c2e] border-2 border-[#0073BB] rounded-3xl space-y-6 shadow-2xl animate-fade-in">
+                    {/* Attendee Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#1a2540] pb-4 gap-3">
                         <div>
-                            <span className="text-[10px] font-mono uppercase bg-purple-500/20 text-purple-300 px-2.5 py-0.5 rounded-full font-bold border border-purple-500/40">
-                                Workshop Ticket Holder
+                            <span className="text-[10px] font-mono uppercase bg-[#0073BB]/20 text-[#4F8EF7] px-2.5 py-0.5 rounded-full font-bold border border-[#0073BB]/40">
+                                Ready for Check-In
                             </span>
                             <h2 className="text-2xl font-black text-white mt-1">{scannedAttendee.name}</h2>
+                            <p className="text-xs text-slate-400 font-mono mt-0.5">
+                                {scannedAttendee.email} • {scannedAttendee.ticket_type} • ID: {scannedAttendee.booking_id || scannedAttendee.id}
+                            </p>
                         </div>
-                        <div className="text-right">
-                            <div className="text-[10px] text-slate-400 font-mono">ID CARD BOX:</div>
-                            <div className="text-2xl font-black text-[#4F8EF7]">{scannedAttendee.counter || 'Counter 1'}</div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="text-xs font-mono font-bold uppercase text-purple-300">
-                            ⚡ Select 1 Workshop Room to Check-In:
-                        </div>
-                        <div className="grid grid-cols-1 gap-3">
-                            {workshops.map(w => {
-                                const currentOccupancy = w.occupancy || w.attendee_count || 0;
-                                const capacity = w.capacity || 30;
-                                const isFull = currentOccupancy >= capacity;
-
-                                return (
-                                    <button
-                                        key={w.id}
-                                        disabled={isFull || submittingCheckIn}
-                                        onClick={() => instantCheckInAttendee(scannedAttendee, w.id)}
-                                        className={`p-4 rounded-2xl border text-left transition flex items-center justify-between ${
-                                            isFull
-                                                ? 'bg-neutral-900 border-neutral-800 opacity-40 cursor-not-allowed text-slate-500'
-                                                : 'bg-[#0C111D] hover:bg-purple-950/40 border-[#1a2540] hover:border-purple-500 text-white hover:scale-[1.01]'
-                                        }`}
-                                    >
-                                        <div className="space-y-1">
-                                            <div className="font-bold text-base text-white">{w.name}</div>
-                                            <div className="text-xs text-slate-400 font-mono">{w.venue || 'Lab Room'} {w.speaker ? `• ${w.speaker}` : ''}</div>
-                                        </div>
-                                        <div className="text-right">
-                                            <span className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold ${
-                                                isFull ? 'bg-red-500/20 text-red-400' : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                                            }`}>
-                                                {isFull ? 'FULL' : `${currentOccupancy}/${capacity} Seats`}
-                                            </span>
-                                        </div>
-                                    </button>
-                                );
-                            })}
+                        <div className="bg-[#0C111D] border-2 border-[#0073BB] px-5 py-3 rounded-2xl text-center shadow-lg">
+                            <div className="text-[10px] text-slate-400 font-mono font-bold uppercase">🏷️ ID CARD BOX:</div>
+                            <div className="text-2xl font-black text-[#4F8EF7] font-mono">{scannedAttendee.counter || 'GENERAL DESK'}</div>
                         </div>
                     </div>
 
-                    <div className="flex justify-between items-center pt-2">
+                    <div className="space-y-4">
+                        <div className="text-xs font-mono font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                            <Sparkles size={14} /> Select Track or Workshop to Check-In:
+                        </div>
+
+                        {/* Tracks */}
+                        {tracks.length > 0 && (
+                            <div className="space-y-2">
+                                <div className="text-[11px] font-mono text-slate-400 uppercase font-semibold flex items-center gap-1">
+                                    <Layers size={12} className="text-[#4F8EF7]" /> Tracks:
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {tracks.map(t => {
+                                        const currentOccupancy = t.occupancy || t.attendee_count || 0;
+                                        const capacity = t.capacity || 150;
+                                        const isFull = currentOccupancy >= capacity;
+
+                                        return (
+                                            <button
+                                                key={t.id}
+                                                disabled={isFull || submittingCheckIn}
+                                                onClick={() => handleConfirmCheckInSession(t.id, 'TRACK')}
+                                                className={`p-4 rounded-2xl border text-left transition flex items-center justify-between ${
+                                                    isFull
+                                                        ? 'bg-neutral-900 border-neutral-800 opacity-40 cursor-not-allowed text-slate-500'
+                                                        : 'bg-[#0C111D] hover:bg-[#0073BB]/20 border-[#1a2540] hover:border-[#0073BB] text-white hover:scale-[1.01]'
+                                                }`}
+                                            >
+                                                <div className="space-y-1">
+                                                    <div className="font-bold text-sm text-white">{t.name}</div>
+                                                    <div className="text-[11px] text-slate-400 line-clamp-1">{t.description || 'Track Session'}</div>
+                                                </div>
+                                                <span className={`px-2.5 py-1 rounded-xl text-[11px] font-mono font-bold ${
+                                                    isFull ? 'bg-red-500/20 text-red-400' : 'bg-[#0073BB]/20 text-[#4F8EF7] border border-[#0073BB]/30'
+                                                }`}>
+                                                    {isFull ? 'FULL' : `${currentOccupancy}/${capacity}`}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Workshops */}
+                        {workshops.length > 0 && (
+                            <div className="space-y-2">
+                                <div className="text-[11px] font-mono text-slate-400 uppercase font-semibold flex items-center gap-1">
+                                    <BookOpen size={12} className="text-purple-400" /> Workshops &amp; Hands-On Labs:
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {workshops.map(w => {
+                                        const currentOccupancy = w.occupancy || w.attendee_count || 0;
+                                        const capacity = w.capacity || 30;
+                                        const isFull = currentOccupancy >= capacity;
+
+                                        return (
+                                            <button
+                                                key={w.id}
+                                                disabled={isFull || submittingCheckIn}
+                                                onClick={() => handleConfirmCheckInSession(w.id, 'WORKSHOP')}
+                                                className={`p-4 rounded-2xl border text-left transition flex items-center justify-between ${
+                                                    isFull
+                                                        ? 'bg-neutral-900 border-neutral-800 opacity-40 cursor-not-allowed text-slate-500'
+                                                        : 'bg-[#0C111D] hover:bg-purple-950/40 border-[#1a2540] hover:border-purple-500 text-white hover:scale-[1.01]'
+                                                }`}
+                                            >
+                                                <div className="space-y-1">
+                                                    <div className="font-bold text-sm text-white">{w.name}</div>
+                                                    <div className="text-[11px] text-slate-400 font-mono line-clamp-1">{w.venue || 'Lab Room'} {w.speaker ? `• ${w.speaker}` : ''}</div>
+                                                </div>
+                                                <span className={`px-2.5 py-1 rounded-xl text-[11px] font-mono font-bold ${
+                                                    isFull ? 'bg-red-500/20 text-red-400' : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                                }`}>
+                                                    {isFull ? 'FULL' : `${currentOccupancy}/${capacity}`}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {tracks.length === 0 && workshops.length === 0 && (
+                            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-center text-xs text-amber-300">
+                                No Tracks or Workshops currently available for selection.
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 border-t border-[#1a2540]">
                         <button
                             type="button"
                             onClick={resetForNextScan}
                             className="px-4 py-2 text-xs text-slate-400 hover:text-white rounded-xl transition"
                         >
-                            Cancel
+                            Cancel / Scan Different Ticket
                         </button>
                     </div>
                 </div>

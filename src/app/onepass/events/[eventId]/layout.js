@@ -93,7 +93,7 @@ export default function EventShellLayout({ children }) {
     // Tracks & Track Access Gate
     if (isAdmin || hasPermission(eventId, 'TRACK_ACCESS')) {
         navItems.push({
-            name: 'General Sessions',
+            name: 'Tracks',
             href: `/onepass/events/${eventId}/tracks`,
             icon: Layers
         });

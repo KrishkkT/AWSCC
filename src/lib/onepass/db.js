@@ -1676,7 +1676,7 @@ export const OnePassDB = {
         });
     },
 
-    // TRACK ACCESS VERIFICATION & LOGGING
+    // TRACK ACCESS VERIFICATION & LOGGING (WITH DIRECT CHECK-IN & SINGLE LOCATION ENFORCEMENT)
     async recordTrackAccess({ eventId, qrToken, trackId, volunteerId, volunteerName }) {
         const db = loadDb();
         const attendee = this.getAttendeeByQR(eventId, qrToken);
@@ -1695,7 +1695,52 @@ export const OnePassDB = {
             };
         }
 
+        // If attendee is NOT checked in yet -> DIRECTLY CHECK THEM IN to this Track!
         if (attendee.check_in_status !== 'CHECKED_IN') {
+            const checkInRes = await this.atomicCheckIn({
+                eventId,
+                attendeeId: attendee.id,
+                trackId: track.id,
+                sessionType: 'TRACK',
+                volunteerId,
+                actorName: volunteerName || 'Gate Scanner'
+            });
+
+            if (!checkInRes.success) {
+                return {
+                    granted: false,
+                    code: checkInRes.code,
+                    message: checkInRes.message,
+                    attendee
+                };
+            }
+
+            const logEntry = {
+                id: `tal_${crypto.randomBytes(6).toString('hex')}`,
+                event_id: eventId,
+                attendee_id: attendee.id,
+                track_id: trackId,
+                volunteer_id: volunteerId,
+                timestamp: now,
+                result: 'GRANTED',
+                reason: 'Checked in directly at General Session gate.'
+            };
+            if (!Array.isArray(db.track_access_logs)) db.track_access_logs = [];
+            db.track_access_logs.unshift(logEntry);
+            saveDb(db);
+
+            return {
+                granted: true,
+                code: 'CHECKED_IN_AND_GRANTED',
+                message: `Checked in & access granted to ${track.name}.`,
+                attendee: checkInRes.attendee,
+                track
+            };
+        }
+
+        // If ALREADY checked in elsewhere -> BLOCK duplicate check-in / wrong room
+        if (attendee.assigned_workshop_id) {
+            const assignedWorkshop = db.workshops.find(w => w.id === attendee.assigned_workshop_id);
             const logEntry = {
                 id: `tal_${crypto.randomBytes(6).toString('hex')}`,
                 event_id: eventId,
@@ -1704,7 +1749,7 @@ export const OnePassDB = {
                 volunteer_id: volunteerId,
                 timestamp: now,
                 result: 'DENIED',
-                reason: 'Attendee has not checked in at the main gate.'
+                reason: `Already checked in to Workshop: "${assignedWorkshop ? assignedWorkshop.name : 'Workshop'}".`
             };
             if (!Array.isArray(db.track_access_logs)) db.track_access_logs = [];
             db.track_access_logs.unshift(logEntry);
@@ -1712,25 +1757,13 @@ export const OnePassDB = {
 
             return {
                 granted: false,
-                code: 'NOT_CHECKED_IN',
-                message: 'Attendee has not checked in at the main gate.',
-                attendee
-            };
-        }
-
-        // If enrolled in a workshop instead of a track
-        if (attendee.assigned_workshop_id && !attendee.assigned_track_id) {
-            const assignedWorkshop = db.workshops.find(w => w.id === attendee.assigned_workshop_id);
-            return {
-                granted: false,
-                code: 'ENROLLED_IN_WORKSHOP',
-                message: `Access denied. Attendee is enrolled in Workshop: "${assignedWorkshop ? assignedWorkshop.name : 'Workshop'}" instead of Track.`,
+                code: 'ALREADY_CHECKED_IN_ELSEWHERE',
+                message: `Access denied. Attendee is already checked in to Workshop: "${assignedWorkshop ? assignedWorkshop.name : 'Workshop'}" and cannot check in at another place.`,
                 attendee,
                 assigned_workshop: assignedWorkshop
             };
         }
 
-        // If assigned to a different track
         if (attendee.assigned_track_id && attendee.assigned_track_id !== trackId) {
             const assignedTrack = db.tracks.find(t => t.id === attendee.assigned_track_id);
             const logEntry = {
@@ -1741,7 +1774,7 @@ export const OnePassDB = {
                 volunteer_id: volunteerId,
                 timestamp: now,
                 result: 'DENIED',
-                reason: `Assigned to ${assignedTrack ? assignedTrack.name : 'another track'}.`
+                reason: `Already checked in to ${assignedTrack ? assignedTrack.name : 'another track'}.`
             };
             if (!Array.isArray(db.track_access_logs)) db.track_access_logs = [];
             db.track_access_logs.unshift(logEntry);
@@ -1750,13 +1783,13 @@ export const OnePassDB = {
             return {
                 granted: false,
                 code: 'WRONG_TRACK',
-                message: `Access denied. Attendee is assigned to ${assignedTrack ? assignedTrack.name : 'another track'}.`,
+                message: `Access denied. Attendee is already checked in to ${assignedTrack ? assignedTrack.name : 'another track'} and cannot check in at another place.`,
                 attendee,
                 assigned_track: assignedTrack
             };
         }
 
-        // Access Granted
+        // Access Granted for already checked-in attendee to this same track
         const logEntry = {
             id: `tal_${crypto.randomBytes(6).toString('hex')}`,
             event_id: eventId,
@@ -1780,7 +1813,7 @@ export const OnePassDB = {
         };
     },
 
-    // WORKSHOP ACCESS VERIFICATION & LOGGING
+    // WORKSHOP ACCESS VERIFICATION & LOGGING (WITH DIRECT CHECK-IN & SINGLE LOCATION ENFORCEMENT)
     async recordWorkshopAccess({ eventId, qrToken, workshopId, volunteerId, volunteerName }) {
         const db = loadDb();
         const attendee = this.getAttendeeByQR(eventId, qrToken);
@@ -1795,34 +1828,66 @@ export const OnePassDB = {
             return { granted: false, code: 'INVALID_QR', message: 'QR code not recognized.' };
         }
 
+        // If attendee is NOT checked in yet -> DIRECTLY CHECK THEM IN to this Workshop!
         if (attendee.check_in_status !== 'CHECKED_IN') {
+            const checkInRes = await this.atomicCheckIn({
+                eventId,
+                attendeeId: attendee.id,
+                workshopId: workshop.id,
+                sessionType: 'WORKSHOP',
+                volunteerId,
+                actorName: volunteerName || 'Gate Scanner'
+            });
+
+            if (!checkInRes.success) {
+                return {
+                    granted: false,
+                    code: checkInRes.code,
+                    message: checkInRes.message,
+                    attendee
+                };
+            }
+
+            const logEntry = {
+                id: `wal_${crypto.randomBytes(6).toString('hex')}`,
+                event_id: eventId,
+                attendee_id: attendee.id,
+                workshop_id: workshopId,
+                volunteer_id: volunteerId,
+                timestamp: now,
+                result: 'GRANTED'
+            };
+            if (!Array.isArray(db.workshop_access_logs)) db.workshop_access_logs = [];
+            db.workshop_access_logs.unshift(logEntry);
+            saveDb(db);
+
             return {
-                granted: false,
-                code: 'NOT_CHECKED_IN',
-                message: 'Attendee has not checked in at the main gate.',
-                attendee
+                granted: true,
+                code: 'CHECKED_IN_AND_GRANTED',
+                message: `Checked in & access granted to ${workshop.name}.`,
+                attendee: checkInRes.attendee,
+                workshop
             };
         }
 
-        // If enrolled in a track instead of a workshop
-        if (attendee.assigned_track_id && !attendee.assigned_workshop_id) {
+        // If ALREADY checked in elsewhere -> BLOCK duplicate check-in / wrong room
+        if (attendee.assigned_track_id) {
             const assignedTrack = db.tracks.find(t => t.id === attendee.assigned_track_id);
             return {
                 granted: false,
                 code: 'ENROLLED_IN_TRACK',
-                message: `Access denied. Attendee is assigned to Track: "${assignedTrack ? assignedTrack.name : 'Track'}" instead of Workshop.`,
+                message: `Access denied. Attendee is already checked in to Track: "${assignedTrack ? assignedTrack.name : 'Track'}" and cannot check in at another place.`,
                 attendee,
                 assigned_track: assignedTrack
             };
         }
 
-        // If assigned to a different workshop
         if (attendee.assigned_workshop_id && attendee.assigned_workshop_id !== workshopId) {
             const assignedWk = db.workshops.find(w => w.id === attendee.assigned_workshop_id);
             return {
                 granted: false,
                 code: 'WRONG_WORKSHOP',
-                message: `Access denied. Attendee is assigned to Workshop: "${assignedWk ? assignedWk.name : 'another workshop'}".`,
+                message: `Access denied. Attendee is already checked in to Workshop: "${assignedWk ? assignedWk.name : 'another workshop'}" and cannot check in at another place.`,
                 attendee,
                 assigned_workshop: assignedWk
             };
