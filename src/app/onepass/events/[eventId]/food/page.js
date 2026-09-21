@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
-    Coffee, Camera, CheckCircle2, AlertTriangle, XCircle, Plus,
+    Coffee, Camera, CheckCircle2, AlertTriangle, XCircle, Plus, Search,
     Clock, RefreshCw, Sparkles, UserCheck, Utensils, Edit2, Trash2, X
 } from 'lucide-react';
 import QRScannerModal from '@/components/onepass/QRScannerModal';
@@ -24,6 +24,31 @@ export default function FoodManagementPage() {
     const [manualCode, setManualCode] = useState('');
     const [claiming, setClaiming] = useState(false);
     const [claimResult, setClaimResult] = useState(null);
+
+    // Live attendee search state as user types
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+
+    useEffect(() => {
+        if (!manualCode || manualCode.trim().length < 2) {
+            setSearchResults([]);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            setIsSearching(true);
+            try {
+                const query = manualCode.trim();
+                const res = await fetch(`/api/onepass/attendees/search?eventId=${eventId}&q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                setSearchResults(data.attendees || []);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 250);
+        return () => clearTimeout(timer);
+    }, [manualCode, eventId]);
 
     // Create & Edit Modals
     const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -287,28 +312,55 @@ export default function FoodManagementPage() {
                     </button>
                 </div>
 
+                {/* Manual Search & Verification */}
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
                         handleClaimScan(manualCode);
+                        setSearchResults([]);
                     }}
                     className="max-w-md mx-auto flex space-x-2 pt-2"
                 >
-                    <input
-                        type="text"
-                        placeholder="Scan or enter QR Code..."
-                        value={manualCode}
-                        onChange={(e) => setManualCode(e.target.value)}
-                        className="flex-1 bg-[#0C111D] border border-[#1a2540] rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 font-mono outline-none focus:border-[#FF9900]"
-                    />
+                    <div className="relative flex-1">
+                        <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="text"
+                            placeholder="Search by name, email, booking ID, or QR..."
+                            value={manualCode}
+                            onChange={(e) => setManualCode(e.target.value)}
+                            className="w-full bg-[#0C111D] border border-[#1a2540] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 font-mono outline-none focus:border-[#FF9900]"
+                        />
+                    </div>
                     <button
                         type="submit"
                         disabled={!manualCode.trim() || claiming || !currentResource}
-                        className="px-5 py-2.5 bg-[#1a2540] hover:bg-[#0073BB] disabled:opacity-50 text-white rounded-xl text-xs font-semibold font-mono"
+                        className="px-5 py-2.5 bg-[#1a2540] hover:bg-[#FF9900] hover:text-black disabled:opacity-50 text-white rounded-xl text-xs font-semibold font-mono"
                     >
                         Claim
                     </button>
                 </form>
+
+                {searchResults.length > 0 && (
+                    <div className="max-w-md mx-auto p-2 bg-[#0C111D] border border-[#1a2540] rounded-2xl space-y-1 max-h-56 overflow-y-auto text-left">
+                        {searchResults.map((att) => (
+                            <button
+                                key={att.id}
+                                onClick={() => {
+                                    handleClaimScan(att.booking_id || att.qr_identifier || att.email || att.name);
+                                    setSearchResults([]);
+                                    setManualCode(att.name || att.booking_id);
+                                }}
+                                className="w-full text-left p-2.5 hover:bg-[#1a2540] rounded-xl transition flex items-center justify-between text-xs"
+                            >
+                                <div>
+                                    <div className="font-bold text-white">{att.name}</div>
+                                    <div className="text-[11px] text-slate-400 font-mono">{att.email} • {att.booking_id}</div>
+                                </div>
+                                <span className="text-[10px] font-mono font-bold text-[#FF9900]">{att.check_in_status}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Claim Result Display */}

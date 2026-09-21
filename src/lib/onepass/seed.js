@@ -3,15 +3,25 @@ import { hashPassword } from './auth';
 
 export function seedOnePassDatabase(force = false) {
     const current = OnePassDB.getSnapshot();
-    if (!force && current.users && current.users.length > 0) {
-        return { message: 'Database already initialized', usersCount: current.users.length };
+    if (!Array.isArray(current.users)) current.users = [];
+    if (!Array.isArray(current.events)) current.events = [];
+    if (!Array.isArray(current.attendees)) current.attendees = [];
+    if (!Array.isArray(current.tracks)) current.tracks = [];
+    if (!Array.isArray(current.workshops)) current.workshops = [];
+    if (!Array.isArray(current.resources)) current.resources = [];
+    if (!Array.isArray(current.resource_claims)) current.resource_claims = [];
+    if (!Array.isArray(current.track_access_logs)) current.track_access_logs = [];
+    if (!Array.isArray(current.workshop_access_logs)) current.workshop_access_logs = [];
+    if (!Array.isArray(current.audit_logs)) current.audit_logs = [];
+
+    const existingAdmin = current.users.find(u => u.id === 'usr_admin_master' || u.email === 'admin@onepass.ddu.ac.in');
+    if (!force && existingAdmin) {
+        return { message: 'Master admin already initialized', usersCount: current.users.length };
     }
 
-    console.log('[OnePass] Setting master admin account...');
+    console.log('[OnePass] Ensuring master admin account exists...');
 
-    // Master Admin User
     const adminPasswordHash = hashPassword('Aws@2025#Scd');
-
     const adminUser = {
         id: 'usr_admin_master',
         name: 'Administrator',
@@ -23,41 +33,21 @@ export function seedOnePassDatabase(force = false) {
         updated_at: new Date().toISOString()
     };
 
-    const cleanDB = {
-        users: [adminUser],
-        events: [],
-        event_volunteers: [],
-        attendees: [],
-        tracks: [],
-        workshops: [],
-        resources: [],
-        resource_claims: [],
-        track_access_logs: [],
-        workshop_access_logs: [],
-        audit_logs: [
-            {
-                id: 'aud_init',
-                event_id: 'SYSTEM',
-                actor_id: 'usr_admin_master',
-                actor_name: 'Administrator',
-                actor_role: 'ADMIN',
-                action: 'INITIALIZE_ONEPASS',
-                entity_type: 'SYSTEM',
-                entity_id: 'SYSTEM',
-                metadata: { note: 'OnePass Platform initialized for admin@onepass.ddu.ac.in' },
-                timestamp: new Date().toISOString(),
-                result: 'SUCCESS'
-            }
-        ]
-    };
+    if (existingAdmin) {
+        const idx = current.users.findIndex(u => u.id === 'usr_admin_master' || u.email === 'admin@onepass.ddu.ac.in');
+        current.users[idx] = adminUser;
+    } else {
+        current.users.unshift(adminUser);
+    }
 
-    OnePassDB.save(cleanDB);
+    // Preserve ALL existing events, attendees, tracks, workshops, etc. Never wipe them!
+    OnePassDB.save(current);
     console.log('[OnePass] Admin account configured: admin@onepass.ddu.ac.in');
 
     return {
         message: 'Admin account setup complete (admin@onepass.ddu.ac.in).',
-        usersCount: 1,
-        eventsCount: 0,
-        attendeesCount: 0
+        usersCount: current.users.length,
+        eventsCount: current.events.length,
+        attendeesCount: current.attendees.length
     };
 }

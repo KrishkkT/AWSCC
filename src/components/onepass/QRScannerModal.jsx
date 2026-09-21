@@ -211,25 +211,25 @@ export default function QRScannerModal({ isOpen, onClose, onScan, title = 'Scan 
                         </div>
                     )}
 
-                    {/* Fallback 1: Manual Code Entry */}
+                    {/* Fallback 1: Manual Code / Name / Email Entry */}
                     <form onSubmit={handleManualSubmit} className="space-y-2">
                         <div className="flex items-center justify-between text-xs text-slate-400">
-                            <span>Manual Code Entry</span>
-                            <span className="font-mono text-[10px]">e.g. SCD26-A1B2-C3D4</span>
+                            <span>Manual Entry / Search</span>
+                            <span className="font-mono text-[10px]">Name, Email, Booking ID, or QR</span>
                         </div>
                         <div className="flex space-x-2">
                             <input
                                 type="text"
                                 value={manualCode}
                                 onChange={(e) => setManualCode(e.target.value)}
-                                placeholder="Paste or type QR token / Booking ID"
+                                placeholder="Type attendee name, email, booking ID, or QR..."
                                 className="flex-1 bg-[#0C111D] border border-[#1a2540] rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 font-mono outline-none focus:border-[#0073BB]"
                             />
                             <button
                                 type="submit"
                                 className="px-4 py-2 bg-[#0073BB] hover:bg-[#0073BB]/90 text-white rounded-xl text-xs font-semibold"
                             >
-                                Submit
+                                Search
                             </button>
                         </div>
                     </form>

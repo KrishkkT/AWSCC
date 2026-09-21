@@ -52,7 +52,7 @@ export async function POST(req) {
             const list = data.attendees || data.data || (Array.isArray(data) ? data : []);
             allAttendees = allAttendees.concat(list);
 
-            if (list.length < limit || allAttendees.length >= 2000) {
+            if (list.length < limit || allAttendees.length >= 50000) {
                 hasMore = false;
             } else {
                 offset += limit;

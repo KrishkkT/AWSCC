@@ -199,18 +199,41 @@ export default function AttendeeCheckInDesk() {
         }
     };
 
-    // Handle Manual Search
+    // Live debounced search as user types
+    useEffect(() => {
+        if (!manualSearchQuery || manualSearchQuery.trim().length < 2) {
+            setSearchResults([]);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            setIsSearching(true);
+            try {
+                const query = manualSearchQuery.trim();
+                const res = await fetch(`/api/onepass/attendees/search?eventId=${eventId}&q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                setSearchResults(data.attendees || []);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 250);
+        return () => clearTimeout(timer);
+    }, [manualSearchQuery, eventId]);
+
+    // Handle Manual Search Submit
     const handleManualSearch = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!manualSearchQuery.trim()) return;
         setIsSearching(true);
         try {
             const query = manualSearchQuery.trim();
             const res = await fetch(`/api/onepass/attendees/search?eventId=${eventId}&q=${encodeURIComponent(query)}`);
             const data = await res.json();
-            setSearchResults(data.attendees || []);
-            if (data.attendees?.length === 1) {
-                handleScanOrSelectAttendee(data.attendees[0]);
+            const results = data.attendees || [];
+            setSearchResults(results);
+            if (results.length === 1) {
+                handleScanOrSelectAttendee(results[0]);
                 setSearchResults([]);
             }
         } catch (e) {
@@ -399,22 +422,36 @@ export default function AttendeeCheckInDesk() {
                         </p>
                     </div>
 
-                    {/* HERO COUNTER BADGE LOCATION BOX */}
+                    {/* HERO ASSIGNED TRACK / WORKSHOP LOCATION BOX */}
                     <div className="p-6 bg-[#0C111D] rounded-2xl border-2 border-[#0073BB] max-w-md w-full mx-auto space-y-3 text-center shadow-xl">
                         <div className="text-[11px] font-mono uppercase text-slate-400 font-bold tracking-wider">
-                            🏷️ ID CARD / BADGE LOCATION
+                            📍 ASSIGNED TRACK / WORKSHOP
                         </div>
-                        <div className="text-4xl font-black text-white tracking-tight text-[#4F8EF7]">
-                            {checkInSuccess.attendee?.counter || 'GENERAL DESK'}
+                        <div className="text-3xl font-black text-amber-400 tracking-tight">
+                            {checkInSuccess.workshop?.name ||
+                             checkInSuccess.track?.name ||
+                             checkInSuccess.session_choice?.name ||
+                             checkInSuccess.attendee?.assigned_workshop ||
+                             checkInSuccess.attendee?.workshop_name ||
+                             checkInSuccess.attendee?.assigned_track ||
+                             checkInSuccess.attendee?.track_name ||
+                             checkInSuccess.attendee?.ticket_type ||
+                             'MAIN SESSION'}
                         </div>
-                        <p className="text-xs text-slate-400 font-medium">
-                            Grab attendee badge from <strong className="text-white font-mono">{checkInSuccess.attendee?.counter || 'Desk'}</strong> box and hand it over.
-                        </p>
+                        {checkInSuccess.attendee?.counter ? (
+                            <p className="text-xs text-slate-400 font-medium border-t border-[#1a2540] pt-2">
+                                Grab badge from <strong className="text-white font-mono">{checkInSuccess.attendee.counter}</strong> counter box and hand it over.
+                            </p>
+                        ) : (
+                            <p className="text-xs text-slate-400 font-medium border-t border-[#1a2540] pt-2">
+                                Grab attendee badge and hand it over.
+                            </p>
+                        )}
                         
                         {/* Workshop Confirmation if Applicable */}
                         {checkInSuccess.workshop && (
                             <div className="pt-2 border-t border-[#1a2540] text-xs font-mono text-purple-300">
-                                Assigned Workshop: <strong className="text-white font-bold">{checkInSuccess.workshop.name}</strong>
+                                Workshop Room: <strong className="text-white font-bold">{checkInSuccess.workshop.name}</strong>
                             </div>
                         )}
                     </div>
@@ -492,14 +529,24 @@ export default function AttendeeCheckInDesk() {
                         </div>
                     </div>
 
-                    {/* HERO COUNTER BADGE LOCATION */}
+                    {/* HERO ASSIGNED TRACK / WORKSHOP LOCATION */}
                     <div className="p-5 bg-[#0C111D] rounded-2xl border border-[#1a2540] text-center space-y-2">
                         <div className="text-[10px] font-mono uppercase text-slate-400 font-bold">
-                            🏷️ ID Card Counter Box:
+                            📍 ASSIGNED TRACK / WORKSHOP:
                         </div>
-                        <div className="text-3xl font-black text-[#4F8EF7]">
-                            {alreadyCheckedInWarning.counter || 'GENERAL DESK'}
+                        <div className="text-2xl font-black text-amber-400 tracking-tight">
+                            {alreadyCheckedInWarning.workshop_name ||
+                             alreadyCheckedInWarning.assigned_workshop ||
+                             alreadyCheckedInWarning.track_name ||
+                             alreadyCheckedInWarning.assigned_track ||
+                             alreadyCheckedInWarning.ticket_type ||
+                             'MAIN SESSION'}
                         </div>
+                        {alreadyCheckedInWarning.counter && (
+                            <div className="text-xs font-mono text-slate-400 pt-1 border-t border-[#1a2540]">
+                                Counter Box: <span className="text-white font-bold">{alreadyCheckedInWarning.counter}</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Workshop Switcher for Checked-in Workshop Attendee */}
@@ -577,9 +624,21 @@ export default function AttendeeCheckInDesk() {
                                 {scannedAttendee.email} • {scannedAttendee.ticket_type} • ID: {scannedAttendee.booking_id || scannedAttendee.id}
                             </p>
                         </div>
-                        <div className="bg-[#0C111D] border-2 border-[#0073BB] px-5 py-3 rounded-2xl text-center shadow-lg">
-                            <div className="text-[10px] text-slate-400 font-mono font-bold uppercase">🏷️ ID CARD BOX:</div>
-                            <div className="text-2xl font-black text-[#4F8EF7] font-mono">{scannedAttendee.counter || 'GENERAL DESK'}</div>
+                        <div className="bg-[#0C111D] border-2 border-[#0073BB] px-5 py-3 rounded-2xl text-center shadow-lg max-w-xs">
+                            <div className="text-[10px] text-slate-400 font-mono font-bold uppercase">📍 ASSIGNED ACCESS / TICKET:</div>
+                            <div className="text-lg font-black text-amber-400 font-mono leading-tight mt-0.5">
+                                {scannedAttendee.workshop_name ||
+                                 scannedAttendee.assigned_workshop ||
+                                 scannedAttendee.track_name ||
+                                 scannedAttendee.assigned_track ||
+                                 scannedAttendee.ticket_type ||
+                                 'MAIN SESSION'}
+                            </div>
+                            {scannedAttendee.counter && (
+                                <div className="text-[10px] text-slate-400 font-mono mt-1 pt-1 border-t border-[#1a2540]">
+                                    Counter: {scannedAttendee.counter}
+                                </div>
+                            )}
                         </div>
                     </div>
 

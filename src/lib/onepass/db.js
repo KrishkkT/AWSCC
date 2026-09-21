@@ -127,12 +127,49 @@ export async function upsertToSupabaseDirect(tableName, recordOrRecords) {
     }
 }
 
+/**
+ * Helper to fetch ALL records from a Supabase table using range pagination loop.
+ * Prevents PostgREST 1000-row truncation limit.
+ */
+async function fetchAllFromSupabase(supabaseClient, tableName, selectStr = '*', orderCol = null, limit = null) {
+    const PAGE_SIZE = 1000;
+    let allRecords = [];
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+        let to = from + PAGE_SIZE - 1;
+        if (limit && to >= limit) {
+            to = limit - 1;
+        }
+
+        let query = supabaseClient.from(tableName).select(selectStr);
+        if (orderCol) {
+            query = query.order(orderCol, { ascending: false });
+        }
+        query = query.range(from, to);
+
+        const { data, error } = await query;
+        if (error || !Array.isArray(data)) {
+            console.warn(`[OnePass DB] Warning fetching ${tableName} at range [${from}-${to}]:`, error?.message);
+            break;
+        }
+
+        allRecords = allRecords.concat(data);
+
+        if (data.length < PAGE_SIZE || (limit && allRecords.length >= limit)) {
+            hasMore = false;
+        } else {
+            from += PAGE_SIZE;
+        }
+    }
+
+    return allRecords;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // SUPABASE HYDRATION: On cold start, pull ALL data from Supabase
-// so the local cache reflects the latest cloud state, not a stale
-// ═══════════════════════════════════════════════════════════════════
-// SUPABASE HYDRATION: On cold start, pull ALL data from Supabase
-// as the sole source of truth. If cloud is empty, state is empty.
+// so the local cache reflects the latest cloud state.
 // ═══════════════════════════════════════════════════════════════════
 async function hydrateFromSupabase(force = false) {
     // Only hydrate once per container lifecycle, unless force is explicitly true
@@ -155,9 +192,9 @@ async function hydrateFromSupabase(force = false) {
                 return;
             }
 
-            console.log('[OnePass DB] ☁️ Connecting directly to Supabase...');
+            console.log('[OnePass DB] ☁️ Connecting directly to Supabase with paginated fetching...');
 
-            // Pull all tables in parallel for speed
+            // Fetch all tables with full pagination to bypass 1000 row limits
             const [
                 usersRes,
                 eventsRes,
@@ -171,22 +208,22 @@ async function hydrateFromSupabase(force = false) {
                 workshopAccessRes,
                 auditRes
             ] = await Promise.allSettled([
-                supabase.from('onepass_users').select('*'),
-                supabase.from('onepass_events').select('*'),
-                supabase.from('onepass_event_volunteers').select('*'),
-                supabase.from('onepass_attendees').select('*'),
-                supabase.from('onepass_tracks').select('*'),
-                supabase.from('onepass_workshops').select('*'),
-                supabase.from('onepass_resources').select('*'),
-                supabase.from('onepass_resource_claims').select('*'),
-                supabase.from('onepass_track_access_logs').select('*'),
-                supabase.from('onepass_workshop_access_logs').select('*'),
-                supabase.from('onepass_audit_logs').select('*').order('timestamp', { ascending: false }).limit(500)
+                fetchAllFromSupabase(supabase, 'onepass_users'),
+                fetchAllFromSupabase(supabase, 'onepass_events'),
+                fetchAllFromSupabase(supabase, 'onepass_event_volunteers'),
+                fetchAllFromSupabase(supabase, 'onepass_attendees'),
+                fetchAllFromSupabase(supabase, 'onepass_tracks'),
+                fetchAllFromSupabase(supabase, 'onepass_workshops'),
+                fetchAllFromSupabase(supabase, 'onepass_resources'),
+                fetchAllFromSupabase(supabase, 'onepass_resource_claims'),
+                fetchAllFromSupabase(supabase, 'onepass_track_access_logs'),
+                fetchAllFromSupabase(supabase, 'onepass_workshop_access_logs'),
+                fetchAllFromSupabase(supabase, 'onepass_audit_logs', '*', 'timestamp', 500)
             ]);
 
             const extract = (res) => {
-                if (res.status === 'fulfilled' && res.value && !res.value.error && Array.isArray(res.value.data)) {
-                    return res.value.data;
+                if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+                    return res.value;
                 }
                 return null;
             };
@@ -203,19 +240,33 @@ async function hydrateFromSupabase(force = false) {
             const cloudWorkshopAccess = extract(workshopAccessRes);
             const cloudAudit = extract(auditRes);
 
-            // Supabase is the sole source of truth. If empty, database is empty.
+            const localBaseline = loadDbFromFile();
+
+            // Safe fallback: if cloud returned empty or null for attendees/events but local file has data,
+            // fallback to local baseline to prevent wiping data on transient cloud errors
+            const finalUsers = cloudUsers !== null && cloudUsers.length > 0 ? cloudUsers : (localBaseline.users || []);
+            const finalEvents = cloudEvents !== null && cloudEvents.length > 0 ? cloudEvents : (localBaseline.events || []);
+            const finalVolunteers = cloudEventVolunteers !== null ? cloudEventVolunteers : (localBaseline.event_volunteers || []);
+            
+            // For attendees: if cloud fetch succeeded, use cloud. If cloud returned 0 items but local file has items, keep local items
+            let finalAttendees = cloudAttendees !== null ? cloudAttendees : [];
+            if (finalAttendees.length === 0 && Array.isArray(localBaseline.attendees) && localBaseline.attendees.length > 0) {
+                console.warn(`[OnePass DB] Supabase returned 0 attendees but local disk has ${localBaseline.attendees.length}. Preserving local baseline.`);
+                finalAttendees = localBaseline.attendees;
+            }
+
             const hydratedDb = {
-                users: cloudUsers !== null ? cloudUsers : [],
-                events: cloudEvents !== null ? cloudEvents : [],
-                event_volunteers: cloudEventVolunteers !== null ? cloudEventVolunteers : [],
-                attendees: cloudAttendees !== null ? cloudAttendees : [],
-                tracks: cloudTracks !== null ? cloudTracks : [],
-                workshops: cloudWorkshops !== null ? cloudWorkshops : [],
-                resources: cloudResources !== null ? cloudResources : [],
-                resource_claims: cloudResourceClaims !== null ? cloudResourceClaims : [],
-                track_access_logs: cloudTrackAccess !== null ? cloudTrackAccess : [],
-                workshop_access_logs: cloudWorkshopAccess !== null ? cloudWorkshopAccess : [],
-                audit_logs: cloudAudit !== null ? cloudAudit : [],
+                users: finalUsers,
+                events: finalEvents,
+                event_volunteers: finalVolunteers,
+                attendees: finalAttendees,
+                tracks: cloudTracks !== null ? cloudTracks : (localBaseline.tracks || []),
+                workshops: cloudWorkshops !== null ? cloudWorkshops : (localBaseline.workshops || []),
+                resources: cloudResources !== null ? cloudResources : (localBaseline.resources || []),
+                resource_claims: cloudResourceClaims !== null ? cloudResourceClaims : (localBaseline.resource_claims || []),
+                track_access_logs: cloudTrackAccess !== null ? cloudTrackAccess : (localBaseline.track_access_logs || []),
+                workshop_access_logs: cloudWorkshopAccess !== null ? cloudWorkshopAccess : (localBaseline.workshop_access_logs || []),
+                audit_logs: cloudAudit !== null ? cloudAudit : (localBaseline.audit_logs || []),
                 system_settings: {
                     app_name: 'OnePass',
                     tagline: 'One QR. Every interaction.',
@@ -957,24 +1008,36 @@ export const OnePassDB = {
         if (!qrIdentifierOrToken) return null;
         const cleanQR = qrIdentifierOrToken.trim().toLowerCase();
 
-        // 1. Direct match on qr_identifier or qr_token (case-insensitive)
+        // 1. Direct exact match on qr_identifier, qr_token, booking_id, registration_id, email, or id
         let attendee = db.attendees.find(a =>
             a.event_id === eventId && (
                 (a.qr_identifier && a.qr_identifier.toLowerCase() === cleanQR) ||
                 (a.qr_token && a.qr_token.toLowerCase() === cleanQR) ||
                 (a.booking_id && a.booking_id.toLowerCase() === cleanQR) ||
-                (a.registration_id && a.registration_id.toLowerCase() === cleanQR)
+                (a.registration_id && a.registration_id.toLowerCase() === cleanQR) ||
+                (a.email && a.email.toLowerCase() === cleanQR) ||
+                (a.id && a.id.toLowerCase() === cleanQR)
             )
         );
         if (attendee) return attendee;
 
-        // 2. Parsed token match (strip prefix, file extension, or handle piped format)
+        // 2. Exact match on full name or phone number
+        attendee = db.attendees.find(a =>
+            a.event_id === eventId && (
+                (a.name && a.name.toLowerCase() === cleanQR) ||
+                (a.phone && a.phone.toLowerCase() === cleanQR)
+            )
+        );
+        if (attendee) return attendee;
+
+        // 3. Parsed token match (strip prefix, file extension, or handle piped format)
         if (cleanQR.includes('|') || cleanQR.includes('-') || cleanQR.includes('.')) {
             const stripped = cleanQR.replace(/\.(png|jpg|jpeg|webp|svg)$/i, '');
             attendee = db.attendees.find(a =>
                 a.event_id === eventId && (
                     (a.qr_identifier && a.qr_identifier.toLowerCase() === stripped) ||
                     (a.booking_id && a.booking_id.toLowerCase() === stripped) ||
+                    (a.email && a.email.toLowerCase() === stripped) ||
                     (stripped.includes(a.qr_identifier?.toLowerCase())) ||
                     (a.booking_id && stripped.includes(a.booking_id.toLowerCase()))
                 )
@@ -982,11 +1045,32 @@ export const OnePassDB = {
             if (attendee) return attendee;
         }
 
-        // 3. Fallback across all attendees if eventId has changed or was re-imported
+        // 4. Substring / partial search match on booking_id, name, email, phone, or qr_identifier
+        if (cleanQR.length >= 2) {
+            attendee = db.attendees.find(a =>
+                a.event_id === eventId && (
+                    (a.booking_id && a.booking_id.toLowerCase().includes(cleanQR)) ||
+                    (a.name && a.name.toLowerCase().includes(cleanQR)) ||
+                    (a.email && a.email.toLowerCase().includes(cleanQR)) ||
+                    (a.phone && a.phone.toLowerCase().includes(cleanQR)) ||
+                    (a.qr_identifier && a.qr_identifier.toLowerCase().includes(cleanQR))
+                )
+            );
+            if (attendee) return attendee;
+        }
+
+        // 5. Global fallback across all event attendees if eventId has changed or was re-imported
         attendee = db.attendees.find(a =>
             (a.qr_identifier && a.qr_identifier.toLowerCase() === cleanQR) ||
             (a.qr_token && a.qr_token.toLowerCase() === cleanQR) ||
-            (a.booking_id && a.booking_id.toLowerCase() === cleanQR)
+            (a.booking_id && a.booking_id.toLowerCase() === cleanQR) ||
+            (a.email && a.email.toLowerCase() === cleanQR) ||
+            (a.name && a.name.toLowerCase() === cleanQR) ||
+            (cleanQR.length >= 3 && (
+                (a.booking_id && a.booking_id.toLowerCase().includes(cleanQR)) ||
+                (a.name && a.name.toLowerCase().includes(cleanQR)) ||
+                (a.email && a.email.toLowerCase().includes(cleanQR))
+            ))
         );
         if (attendee) return attendee;
 
@@ -1806,8 +1890,9 @@ export const OnePassDB = {
 
         return {
             granted: true,
-            code: 'ACCESS_GRANTED',
-            message: `Access granted to ${track.name}.`,
+            already_checked_in: true,
+            code: 'ALREADY_CHECKED_IN',
+            message: `Attendee is already checked in to ${track.name}. Access re-verified & granted.`,
             attendee,
             track
         };
@@ -1863,6 +1948,7 @@ export const OnePassDB = {
 
             return {
                 granted: true,
+                already_checked_in: false,
                 code: 'CHECKED_IN_AND_GRANTED',
                 message: `Checked in & access granted to ${workshop.name}.`,
                 attendee: checkInRes.attendee,
@@ -1908,8 +1994,9 @@ export const OnePassDB = {
 
         return {
             granted: true,
-            code: 'ACCESS_GRANTED',
-            message: `Access granted to ${workshop.name}.`,
+            already_checked_in: true,
+            code: 'ALREADY_CHECKED_IN',
+            message: `Attendee is already checked in to ${workshop.name}. Access re-verified & granted.`,
             attendee,
             workshop
         };

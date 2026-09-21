@@ -305,23 +305,9 @@ export async function syncOnePassFullDatabaseToSupabase() {
             }
         }
 
-        // Reconcile deleted attendees from Supabase:
-        // Delete any attendee rows in Supabase that are not present in snapshot.attendees for existing events
-        if (events.length > 0) {
-            for (const evt of events) {
-                const localEventAttIds = new Set(attendees.filter(a => a.event_id === evt.id).map(a => a.id));
-                const { data: cloudAtts } = await supabase.from('onepass_attendees').select('id').eq('event_id', evt.id);
-                if (cloudAtts && cloudAtts.length > 0) {
-                    const deletedIds = cloudAtts.filter(ca => !localEventAttIds.has(ca.id)).map(ca => ca.id);
-                    if (deletedIds.length > 0) {
-                        for (let i = 0; i < deletedIds.length; i += 50) {
-                            const chunk = deletedIds.slice(i, i + 50);
-                            await supabase.from('onepass_attendees').delete().in('id', chunk);
-                        }
-                    }
-                }
-            }
-        }
+        // Note: Automatic bulk reconciliation deletion of attendees is omitted to prevent 
+        // accidental data loss when local cache is incomplete or during server restart.
+        // Attendee deletions are handled explicitly via deleteAttendee / deleteEvent calls.
 
         // 7. Sync resource claims
         const resourceClaims = snapshot.resource_claims || [];

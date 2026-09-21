@@ -26,27 +26,26 @@ export async function GET(req) {
             return NextResponse.json({ attendees: [] });
         }
 
-        // 1. Try finding by direct QR / Piped token lookup
+        // 1. Combine direct QR lookup and multi-field search results
         const cleanQR = parseScannedQR(q);
         const directAttendee = OnePassDB.getAttendeeByQR(eventId, cleanQR) || OnePassDB.getAttendeeByQR(eventId, q);
+        const searchList = OnePassDB.getAttendees(eventId, { search: q });
 
+        const resultMap = new Map();
         if (directAttendee) {
-            const tracks = OnePassDB.getTracks(eventId);
-            const workshops = OnePassDB.getWorkshops(eventId);
-            const enriched = {
-                ...directAttendee,
-                track_name: directAttendee.assigned_track_id ? tracks.find(t => t.id === directAttendee.assigned_track_id)?.name : null,
-                workshop_name: directAttendee.assigned_workshop_id ? workshops.find(w => w.id === directAttendee.assigned_workshop_id)?.name : null
-            };
-            return NextResponse.json({ attendees: [enriched], total: 1 });
+            resultMap.set(directAttendee.id, directAttendee);
         }
+        for (const att of searchList) {
+            if (!resultMap.has(att.id)) {
+                resultMap.set(att.id, att);
+            }
+        }
+        const combined = Array.from(resultMap.values());
 
-        // 2. Perform broad multi-field search
-        const attendees = OnePassDB.getAttendees(eventId, { search: q });
         const tracks = OnePassDB.getTracks(eventId);
         const workshops = OnePassDB.getWorkshops(eventId);
 
-        const enriched = attendees.map(a => ({
+        const enriched = combined.map(a => ({
             ...a,
             track_name: a.assigned_track_id ? tracks.find(t => t.id === a.assigned_track_id)?.name : null,
             workshop_name: a.assigned_workshop_id ? workshops.find(w => w.id === a.assigned_workshop_id)?.name : null

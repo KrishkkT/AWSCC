@@ -27,6 +27,31 @@ export default function TracksAndGateAccessPage() {
     const [evaluating, setEvaluating] = useState(false);
     const [scanResult, setScanResult] = useState(null);
 
+    // Live attendee search state as user types
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+
+    useEffect(() => {
+        if (!manualCode || manualCode.trim().length < 2) {
+            setSearchResults([]);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            setIsSearching(true);
+            try {
+                const query = manualCode.trim();
+                const res = await fetch(`/api/onepass/attendees/search?eventId=${eventId}&q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                setSearchResults(data.attendees || []);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 250);
+        return () => clearTimeout(timer);
+    }, [manualCode, eventId]);
+
     // Track Create & Edit Modals
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [newTrack, setNewTrack] = useState({ name: '', description: '', capacity: 150 });
@@ -287,21 +312,25 @@ export default function TracksAndGateAccessPage() {
                     </button>
                 </div>
 
-                {/* Manual QR Fallback */}
+                {/* Manual Search & Verification */}
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
                         handleGateScan(manualCode);
+                        setSearchResults([]);
                     }}
                     className="max-w-md mx-auto flex space-x-2 pt-2"
                 >
-                    <input
-                        type="text"
-                        placeholder="Scan or enter QR Code..."
-                        value={manualCode}
-                        onChange={(e) => setManualCode(e.target.value)}
-                        className="flex-1 bg-[#0C111D] border border-[#1a2540] rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 font-mono outline-none focus:border-[#0073BB]"
-                    />
+                    <div className="relative flex-1">
+                        <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="text"
+                            placeholder="Search by name, email, booking ID, or QR..."
+                            value={manualCode}
+                            onChange={(e) => setManualCode(e.target.value)}
+                            className="w-full bg-[#0C111D] border border-[#1a2540] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 font-mono outline-none focus:border-[#0073BB]"
+                        />
+                    </div>
                     <button
                         type="submit"
                         disabled={!manualCode.trim() || evaluating || !currentGateTrack}
@@ -310,6 +339,28 @@ export default function TracksAndGateAccessPage() {
                         Verify
                     </button>
                 </form>
+
+                {searchResults.length > 0 && (
+                    <div className="max-w-md mx-auto p-2 bg-[#0C111D] border border-[#1a2540] rounded-2xl space-y-1 max-h-56 overflow-y-auto text-left">
+                        {searchResults.map((att) => (
+                            <button
+                                key={att.id}
+                                onClick={() => {
+                                    handleGateScan(att.booking_id || att.qr_identifier || att.email || att.name);
+                                    setSearchResults([]);
+                                    setManualCode(att.name || att.booking_id);
+                                }}
+                                className="w-full text-left p-2.5 hover:bg-[#1a2540] rounded-xl transition flex items-center justify-between text-xs"
+                            >
+                                <div>
+                                    <div className="font-bold text-white">{att.name}</div>
+                                    <div className="text-[11px] text-slate-400 font-mono">{att.email} • {att.booking_id}</div>
+                                </div>
+                                <span className="text-[10px] font-mono font-bold text-[#4F8EF7]">{att.check_in_status}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* SCAN RESULT DISPLAY */}
