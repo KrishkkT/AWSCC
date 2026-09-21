@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
-    BookOpen, Camera, CheckCircle2, XCircle, Plus, Search,
+    BookOpen, Camera, CheckCircle2, XCircle, AlertTriangle, Plus, Search,
     RefreshCw, MapPin, Clock, User, Edit2, Trash2, X
 } from 'lucide-react';
 import QRScannerModal from '@/components/onepass/QRScannerModal';
@@ -370,14 +370,36 @@ export default function WorkshopsPage() {
             {/* Scan Feedback */}
             {scanResult && (
                 <div className="animate-fade-in">
-                    {scanResult.granted ? (
+                    {scanResult.already_checked_in || scanResult.code === 'ALREADY_CHECKED_IN' ? (
+                        <div className="p-8 bg-amber-950/40 border-2 border-amber-500 rounded-3xl text-center space-y-4 shadow-2xl shadow-amber-500/15">
+                            <div className="w-20 h-20 bg-amber-500/20 text-amber-400 border border-amber-500/40 rounded-full flex items-center justify-center mx-auto">
+                                <AlertTriangle className="w-12 h-12" />
+                            </div>
+                            <div className="space-y-1">
+                                <div className="text-sm font-mono font-bold tracking-widest text-amber-400 uppercase">
+                                    ⚠️ ALREADY CHECKED IN TO THIS WORKSHOP
+                                </div>
+                                <h3 className="text-3xl font-extrabold text-white">{scanResult.attendee?.name}</h3>
+                                <p className="text-xs text-amber-200 font-mono">
+                                    Attendee was previously checked in to <strong>{scanResult.workshop?.name}</strong>
+                                    {scanResult.attendee?.check_in_time && ` at ${new Date(scanResult.attendee.check_in_time).toLocaleTimeString()}`}
+                                </p>
+                            </div>
+                            <div className="text-xs text-slate-300 bg-[#0C111D] p-3 rounded-xl border border-amber-500/30 max-w-sm mx-auto font-mono">
+                                ✓ Re-verified: Access granted to Workshop Room.
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono">
+                                Scan logged at {scanResult.timestamp}
+                            </div>
+                        </div>
+                    ) : scanResult.granted ? (
                         <div className="p-8 bg-emerald-950/40 border-2 border-emerald-500 rounded-3xl text-center space-y-4 shadow-2xl">
                             <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
                                 <CheckCircle2 className="w-12 h-12" />
                             </div>
                             <div className="space-y-1">
                                 <div className="text-sm font-mono font-bold tracking-widest text-emerald-400 uppercase">
-                                    ✓ WORKSHOP ACCESS GRANTED
+                                    ✓ FIRST-TIME WORKSHOP CHECK-IN &amp; ACCESS GRANTED
                                 </div>
                                 <h3 className="text-3xl font-extrabold text-white">{scanResult.attendee?.name}</h3>
                                 <p className="text-xs text-slate-300 font-mono">{scanResult.workshop?.name}</p>

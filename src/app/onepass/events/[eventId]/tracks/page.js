@@ -366,14 +366,36 @@ export default function TracksAndGateAccessPage() {
             {/* SCAN RESULT DISPLAY */}
             {scanResult && (
                 <div className="animate-fade-in">
-                    {scanResult.granted ? (
+                    {scanResult.already_checked_in || scanResult.code === 'ALREADY_CHECKED_IN' ? (
+                        <div className="p-8 bg-amber-950/40 border-2 border-amber-500 rounded-3xl text-center space-y-4 shadow-2xl shadow-amber-500/15">
+                            <div className="w-20 h-20 bg-amber-500/20 text-amber-400 border border-amber-500/40 rounded-full flex items-center justify-center mx-auto">
+                                <AlertTriangle className="w-12 h-12" />
+                            </div>
+                            <div className="space-y-1">
+                                <div className="text-sm font-mono font-bold tracking-widest text-amber-400 uppercase">
+                                    ⚠️ ALREADY CHECKED IN TO THIS TRACK
+                                </div>
+                                <h3 className="text-3xl font-extrabold text-white">{scanResult.attendee?.name}</h3>
+                                <p className="text-xs text-amber-200 font-mono">
+                                    Attendee was previously checked in to <strong>{scanResult.track?.name}</strong>
+                                    {scanResult.attendee?.check_in_time && ` at ${new Date(scanResult.attendee.check_in_time).toLocaleTimeString()}`}
+                                </p>
+                            </div>
+                            <div className="text-xs text-slate-300 bg-[#0C111D] p-3 rounded-xl border border-amber-500/30 max-w-sm mx-auto font-mono">
+                                ✓ Re-verified: Access granted to Track Gate.
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono">
+                                Scan logged at {scanResult.timestamp}
+                            </div>
+                        </div>
+                    ) : scanResult.granted ? (
                         <div className="p-8 bg-emerald-950/40 border-2 border-emerald-500 rounded-3xl text-center space-y-4 shadow-2xl shadow-emerald-500/10">
                             <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full flex items-center justify-center mx-auto">
                                 <CheckCircle2 className="w-12 h-12" />
                             </div>
                             <div className="space-y-1">
                                 <div className="text-sm font-mono font-bold tracking-widest text-emerald-400 uppercase">
-                                    ✓ ACCESS GRANTED
+                                    ✓ FIRST-TIME TRACK CHECK-IN &amp; ACCESS GRANTED
                                 </div>
                                 <h3 className="text-3xl font-extrabold text-white">{scanResult.attendee?.name}</h3>
                                 <p className="text-xs text-slate-300 font-mono">
