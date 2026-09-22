@@ -8,7 +8,7 @@ import {
     Check, Flame, Radio
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import QRScannerModal from '@/components/onepass/QRScannerModal';
+import InlineQRScanner from '@/components/onepass/InlineQRScanner';
 import { useOnePass } from '@/components/onepass/OnePassContext';
 import { parseScannedQR } from '@/lib/onepass/qr';
 
@@ -72,7 +72,9 @@ export default function AttendeeCheckInDesk() {
             const ctrData = await ctrRes.json();
             setTracks(trkData.tracks || []);
             setWorkshops(wkData.workshops || []);
-            if (ctrData.stats?.counters) {
+            if (Array.isArray(ctrData.stats)) {
+                setCounterList(ctrData.stats);
+            } else if (ctrData.stats?.counters) {
                 setCounterList(ctrData.stats.counters);
             }
         } catch (e) {
@@ -349,16 +351,28 @@ export default function AttendeeCheckInDesk() {
             <div className="p-6 bg-[#151c2e] border border-[#1a2540] rounded-3xl space-y-5 shadow-2xl">
                 <div className="text-center space-y-3">
                     <button
-                        onClick={() => setScannerOpen(true)}
-                        className="flex items-center justify-center space-x-3 px-8 py-5 bg-[#0073BB] hover:bg-[#0073BB]/90 text-white font-extrabold text-base rounded-2xl transition shadow-xl shadow-[#0073BB]/25 mx-auto hover:scale-105 active:scale-95"
+                        onClick={() => setScannerOpen(!scannerOpen)}
+                        className={`flex items-center justify-center space-x-3 px-8 py-5 ${scannerOpen ? 'bg-red-600 hover:bg-red-700' : 'bg-[#0073BB] hover:bg-[#0073BB]/90'} text-white font-extrabold text-base rounded-2xl transition shadow-xl mx-auto hover:scale-105 active:scale-95`}
                     >
                         <Camera className="w-6 h-6 stroke-[2.5]" />
-                        <span>Launch Camera QR Scanner</span>
+                        <span>{scannerOpen ? 'Close Camera Scanner' : 'Launch Camera QR Scanner'}</span>
                     </button>
                     <p className="text-xs text-slate-400 font-mono">
                         Scan attendee ticket QR from KonfHub confirmation email / pass
                     </p>
                 </div>
+
+                {/* Inline QR Scanner - expands right here below button (no popup modal) */}
+                {scannerOpen && (
+                    <div className="max-w-md mx-auto">
+                        <InlineQRScanner
+                            isOpen={scannerOpen}
+                            onClose={() => setScannerOpen(false)}
+                            onScan={(decoded) => { setScannerOpen(false); handleQRScan(decoded); }}
+                            title="Scan Attendee Check-In QR"
+                        />
+                    </div>
+                )}
 
                 <div className="relative flex items-center">
                     <div className="flex-grow border-t border-[#1a2540]"></div>
@@ -447,15 +461,28 @@ export default function AttendeeCheckInDesk() {
                              checkInSuccess.attendee?.ticket_type ||
                              'MAIN SESSION'}
                         </div>
-                        {checkInSuccess.attendee?.counter ? (
-                            <p className="text-xs text-slate-400 font-medium border-t border-[#1a2540] pt-2">
-                                Grab badge from <strong className="text-white font-mono">{checkInSuccess.attendee.counter}</strong> counter box and hand it over.
+
+                        {/* Counter Number — always shown */}
+                        <div className="pt-3 border-t border-[#1a2540] space-y-1">
+                            {(checkInSuccess.attendee?.counter || checkInSuccess.attendee?.counter_number) ? (
+                                <div className="flex items-center justify-center gap-3">
+                                    <div className="px-4 py-2 bg-[#0073BB]/20 border border-[#0073BB]/50 rounded-xl text-center">
+                                        <div className="text-[10px] font-mono text-slate-400 uppercase">🏷️ Badge Counter</div>
+                                        <div className="text-xl font-black text-[#4F8EF7]">
+                                            {checkInSuccess.attendee.counter || `Counter ${checkInSuccess.attendee.counter_number}`}
+                                        </div>
+                                        {checkInSuccess.attendee.counter_number && (
+                                            <div className="text-[10px] font-mono text-slate-400">Box #{checkInSuccess.attendee.counter_number}</div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : null}
+                            <p className="text-xs text-slate-400 font-medium">
+                                {checkInSuccess.attendee?.counter
+                                    ? `Grab badge from counter box and hand it over.`
+                                    : 'Grab attendee badge and hand it over.'}
                             </p>
-                        ) : (
-                            <p className="text-xs text-slate-400 font-medium border-t border-[#1a2540] pt-2">
-                                Grab attendee badge and hand it over.
-                            </p>
-                        )}
+                        </div>
                         
                         {/* Workshop Confirmation if Applicable */}
                         {checkInSuccess.workshop && (
@@ -551,9 +578,17 @@ export default function AttendeeCheckInDesk() {
                              alreadyCheckedInWarning.ticket_type ||
                              'MAIN SESSION'}
                         </div>
-                        {alreadyCheckedInWarning.counter && (
-                            <div className="text-xs font-mono text-slate-400 pt-1 border-t border-[#1a2540]">
-                                Counter Box: <span className="text-white font-bold">{alreadyCheckedInWarning.counter}</span>
+                        {(alreadyCheckedInWarning.counter || alreadyCheckedInWarning.counter_number) && (
+                            <div className="flex items-center justify-center pt-2 border-t border-[#1a2540]">
+                                <div className="px-4 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center">
+                                    <div className="text-[10px] font-mono text-slate-400 uppercase">🏷️ Badge Counter</div>
+                                    <div className="text-lg font-black text-amber-300">
+                                        {alreadyCheckedInWarning.counter || `Counter ${alreadyCheckedInWarning.counter_number}`}
+                                    </div>
+                                    {alreadyCheckedInWarning.counter_number && (
+                                        <div className="text-[10px] font-mono text-slate-500">Box #{alreadyCheckedInWarning.counter_number}</div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -753,13 +788,7 @@ export default function AttendeeCheckInDesk() {
                 </div>
             )}
 
-            {/* QR Scanner Camera Modal */}
-            <QRScannerModal
-                isOpen={scannerOpen}
-                onClose={() => setScannerOpen(false)}
-                onScan={(decoded) => handleQRScan(decoded)}
-                title="Scan Attendee Check-In QR"
-            />
+
         </div>
     );
 }

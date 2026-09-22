@@ -96,7 +96,12 @@ export default function QRScannerModal({ isOpen, onClose, onScan, title = 'Scan 
             setIsScanning(true);
         } catch (err) {
             console.error("Camera start error:", err);
-            setErrorMsg("Could not access camera stream. Please allow camera permissions in browser.");
+            const msg = (err?.message || '').toLowerCase();
+            if (msg.includes('permission') || msg.includes('denied') || msg.includes('not allowed') || msg.includes('notallowed')) {
+                setErrorMsg('CAMERA_PERMISSION_DENIED');
+            } else {
+                setErrorMsg("Could not start camera. Use manual entry or image upload below.");
+            }
             setIsScanning(false);
         }
     };
@@ -193,12 +198,38 @@ export default function QRScannerModal({ isOpen, onClose, onScan, title = 'Scan 
 
                 {/* Modal Body */}
                 <div className="p-6 space-y-6 overflow-y-auto">
-                    {errorMsg && (
+                    {errorMsg === 'CAMERA_PERMISSION_DENIED' ? (
+                        <div className="p-4 bg-amber-950/50 border border-amber-600/60 rounded-2xl space-y-3">
+                            <div className="flex items-center space-x-2 text-amber-400">
+                                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                <span className="font-bold text-sm">Camera Permission Blocked</span>
+                            </div>
+                            <p className="text-xs text-amber-200 leading-relaxed">
+                                Your browser is blocking camera access. Follow these steps to allow it:
+                            </p>
+                            <ol className="text-xs text-slate-300 space-y-1.5 list-decimal list-inside font-mono">
+                                <li><strong className="text-white">Chrome / Edge:</strong> Click the 🔒 lock icon in the address bar → Camera → Allow → Reload</li>
+                                <li><strong className="text-white">Firefox:</strong> Click the camera icon in address bar → Remove Block → Reload</li>
+                                <li><strong className="text-white">Safari (iPhone/iPad):</strong> Settings → Safari → Camera → Allow</li>
+                                <li><strong className="text-white">Android Chrome:</strong> Tap ⋮ menu → Settings → Site Settings → Camera → Allow</li>
+                            </ol>
+                            <div className="pt-1 flex items-center justify-between">
+                                <p className="text-[10px] text-slate-400 font-mono">Or use manual entry / file upload below ↓</p>
+                                <button
+                                    onClick={() => { setErrorMsg(''); if (selectedCameraId) startCamera(selectedCameraId); }}
+                                    className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-xl transition"
+                                >
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                    <span>Retry Camera</span>
+                                </button>
+                            </div>
+                        </div>
+                    ) : errorMsg ? (
                         <div className="p-3 bg-red-950/40 border border-red-800 rounded-xl text-xs text-red-300 flex items-center space-x-2">
                             <AlertCircle className="w-4 h-4 flex-shrink-0" />
                             <span>{errorMsg}</span>
                         </div>
-                    )}
+                    ) : null}
 
                     {/* Camera Stream Viewport */}
                     <div className="relative w-full aspect-square max-w-[320px] mx-auto bg-black rounded-2xl overflow-hidden border border-[#1a2540] shadow-inner flex items-center justify-center">

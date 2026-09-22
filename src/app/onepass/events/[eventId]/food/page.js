@@ -6,7 +6,7 @@ import {
     Coffee, Camera, CheckCircle2, AlertTriangle, XCircle, Plus, Search,
     Clock, RefreshCw, Sparkles, UserCheck, Utensils, Edit2, Trash2, X
 } from 'lucide-react';
-import QRScannerModal from '@/components/onepass/QRScannerModal';
+import InlineQRScanner from '@/components/onepass/InlineQRScanner';
 import { useOnePass } from '@/components/onepass/OnePassContext';
 import { parseScannedQR } from '@/lib/onepass/qr';
 
@@ -311,14 +311,26 @@ export default function FoodManagementPage() {
 
                 <div className="flex justify-center">
                     <button
-                        onClick={() => setScannerOpen(true)}
+                        onClick={() => setScannerOpen(!scannerOpen)}
                         disabled={!currentResource}
-                        className="flex items-center space-x-2 px-8 py-4 bg-[#FF9900] hover:bg-[#FF9900]/90 disabled:opacity-50 text-neutral-950 font-extrabold text-sm rounded-2xl transition shadow-xl shadow-[#FF9900]/20 hover:scale-105"
+                        className={`flex items-center space-x-2 px-8 py-4 ${scannerOpen ? 'bg-red-600 hover:bg-red-700' : 'bg-[#FF9900] hover:bg-[#FF9900]/90'} disabled:opacity-50 text-white font-extrabold text-sm rounded-2xl transition shadow-xl hover:scale-105`}
                     >
                         <Camera className="w-5 h-5 stroke-[2.5]" />
-                        <span>Open Food Camera Scanner</span>
+                        <span>{scannerOpen ? 'Close Camera Scanner' : 'Open Food Camera Scanner'}</span>
                     </button>
                 </div>
+
+                {/* Inline QR Scanner - expands right here (no popup modal) */}
+                {scannerOpen && (
+                    <div className="max-w-md mx-auto">
+                        <InlineQRScanner
+                            isOpen={scannerOpen}
+                            onClose={() => setScannerOpen(false)}
+                            onScan={(decoded) => { setScannerOpen(false); handleClaimScan(decoded); }}
+                            title={`Scan for ${currentResource?.name || 'Meal Claim'}`}
+                        />
+                    </div>
+                )}
 
                 {/* Manual Search & Verification */}
                 <form
@@ -386,6 +398,14 @@ export default function FoodManagementPage() {
                                 <h3 className="text-3xl font-extrabold text-white">{claimResult.attendee?.name}</h3>
                                 <p className="text-xs text-slate-300 font-mono">{claimResult.attendee?.booking_id}</p>
                             </div>
+                            {(claimResult.attendee?.counter || claimResult.attendee?.counter_number) && (
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                                    <span className="text-[10px] font-mono text-slate-400 uppercase">🏷️ Counter:</span>
+                                    <span className="text-base font-black text-emerald-300">
+                                        {claimResult.attendee.counter || `Counter ${claimResult.attendee.counter_number}`}
+                                    </span>
+                                </div>
+                            )}
                             <div className="text-[11px] text-slate-400 font-mono">
                                 Claim recorded at {claimResult.timestamp}
                             </div>
@@ -594,12 +614,7 @@ export default function FoodManagementPage() {
                 </div>
             )}
 
-            <QRScannerModal
-                isOpen={scannerOpen}
-                onClose={() => setScannerOpen(false)}
-                onScan={(decoded) => handleClaimScan(decoded)}
-                title={`Scan for ${currentResource?.name || 'Meal Claim'}`}
-            />
+
         </div>
     );
 }

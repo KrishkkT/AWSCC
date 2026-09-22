@@ -7,7 +7,7 @@ import {
     Search, RefreshCw, Sparkles, Shield, User, Clock, ArrowRight,
     Edit2, Trash2, X
 } from 'lucide-react';
-import QRScannerModal from '@/components/onepass/QRScannerModal';
+import InlineQRScanner from '@/components/onepass/InlineQRScanner';
 import { useOnePass } from '@/components/onepass/OnePassContext';
 import { parseScannedQR } from '@/lib/onepass/qr';
 
@@ -311,14 +311,26 @@ export default function TracksAndGateAccessPage() {
 
                 <div className="flex flex-wrap items-center justify-center gap-4">
                     <button
-                        onClick={() => setScannerOpen(true)}
+                        onClick={() => setScannerOpen(!scannerOpen)}
                         disabled={!currentGateTrack}
-                        className="flex items-center space-x-2 px-8 py-4 bg-[#0073BB] hover:bg-[#0073BB]/90 disabled:opacity-50 text-white font-extrabold text-sm rounded-2xl transition shadow-xl shadow-[#0073BB]/20 hover:scale-105"
+                        className={`flex items-center space-x-2 px-8 py-4 ${scannerOpen ? 'bg-red-600 hover:bg-red-700' : 'bg-[#0073BB] hover:bg-[#0073BB]/90'} disabled:opacity-50 text-white font-extrabold text-sm rounded-2xl transition shadow-xl hover:scale-105`}
                     >
                         <Camera className="w-5 h-5 stroke-[2.5]" />
-                        <span>Open Gate Camera Scanner</span>
+                        <span>{scannerOpen ? 'Close Camera Scanner' : 'Open Gate Camera Scanner'}</span>
                     </button>
                 </div>
+
+                {/* Inline QR Scanner - expands right here (no popup modal) */}
+                {scannerOpen && (
+                    <div className="max-w-md mx-auto">
+                        <InlineQRScanner
+                            isOpen={scannerOpen}
+                            onClose={() => setScannerOpen(false)}
+                            onScan={(decoded) => { setScannerOpen(false); handleGateScan(decoded); }}
+                            title={`Scan for ${currentGateTrack?.name || 'Gate Access'}`}
+                        />
+                    </div>
+                )}
 
                 {/* Manual Search & Verification */}
                 <form
@@ -410,6 +422,14 @@ export default function TracksAndGateAccessPage() {
                                     Assigned Track: <strong>{scanResult.track?.name}</strong>
                                 </p>
                             </div>
+                            {(scanResult.attendee?.counter || scanResult.attendee?.counter_number) && (
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                                    <span className="text-[10px] font-mono text-slate-400 uppercase">🏷️ Counter:</span>
+                                    <span className="text-base font-black text-emerald-300">
+                                        {scanResult.attendee.counter || `Counter ${scanResult.attendee.counter_number}`}
+                                    </span>
+                                </div>
+                            )}
                             <div className="text-[11px] text-slate-400 font-mono">
                                 Gate scan logged at {scanResult.timestamp}
                             </div>
@@ -574,13 +594,7 @@ export default function TracksAndGateAccessPage() {
                 </div>
             )}
 
-            {/* QR Scanner Modal */}
-            <QRScannerModal
-                isOpen={scannerOpen}
-                onClose={() => setScannerOpen(false)}
-                onScan={(decoded) => handleGateScan(decoded)}
-                title={`Scan for ${currentGateTrack?.name || 'Gate Access'}`}
-            />
+
         </div>
     );
 }
