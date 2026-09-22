@@ -120,7 +120,6 @@ export default function TracksAndGateAccessPage() {
             });
         } finally {
             setEvaluating(false);
-            setScannerOpen(false);
         }
     };
 
@@ -326,8 +325,9 @@ export default function TracksAndGateAccessPage() {
                         <InlineQRScanner
                             isOpen={scannerOpen}
                             onClose={() => setScannerOpen(false)}
-                            onScan={(decoded) => { setScannerOpen(false); handleGateScan(decoded); }}
+                            onScan={(decoded) => handleGateScan(decoded)}
                             title={`Scan for ${currentGateTrack?.name || 'Gate Access'}`}
+                            continuous={true}
                         />
                     </div>
                 )}

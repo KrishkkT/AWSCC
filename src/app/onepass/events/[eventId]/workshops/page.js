@@ -127,7 +127,6 @@ export default function WorkshopsPage() {
             });
         } finally {
             setEvaluating(false);
-            setScannerOpen(false);
         }
     };
 
@@ -330,8 +329,9 @@ export default function WorkshopsPage() {
                         <InlineQRScanner
                             isOpen={scannerOpen}
                             onClose={() => setScannerOpen(false)}
-                            onScan={(decoded) => { setScannerOpen(false); handleWorkshopScan(decoded); }}
+                            onScan={(decoded) => handleWorkshopScan(decoded)}
                             title={`Scan for ${currentWk?.name || 'Workshop Access'}`}
+                            continuous={true}
                         />
                     </div>
                 )}

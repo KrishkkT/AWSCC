@@ -295,7 +295,12 @@ export async function syncOnePassFullDatabaseToSupabase() {
                 assigned_workshop_id: a.assigned_workshop_id || null,
                 checked_in_by_id: a.checked_in_by_id || null,
                 checked_in_by_name: a.checked_in_by_name || null,
-                checked_in_by_role: a.checked_in_by_role || null
+                checked_in_by_role: a.checked_in_by_role || null,
+                counter: a.counter || null,
+                counter_number: a.counter_number ? Number(a.counter_number) : null,
+                counter_category: a.counter_category || null,
+                created_at: a.created_at || new Date().toISOString(),
+                updated_at: a.updated_at || new Date().toISOString()
             }));
 
             for (let i = 0; i < attRows.length; i += 50) {

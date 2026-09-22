@@ -26,10 +26,16 @@ export async function GET(req) {
             return NextResponse.json({ error: 'No active event found in database' }, { status: 404 });
         }
 
-        // Allow access via session cookie OR via token
+        // Allow access via session cookie, token, or open sync (optional secret protection)
         const auth = await authorizeUser(req, null, targetEventId);
-        if (!auth.authorized && token !== `onepass_gs_${targetEventId}` && token !== 'onepass_gs_sync' && !token?.startsWith('onepass_gs_')) {
-            return NextResponse.json({ error: 'Unauthorized. Provide valid session cookie or token parameter.' }, { status: 401 });
+        const headerToken = req.headers.get('x-sync-token') || req.headers.get('authorization') || '';
+        const requiredSecret = process.env.ONEPASS_SYNC_TOKEN;
+
+        if (requiredSecret) {
+            const matchesSecret = token === requiredSecret || headerToken.includes(requiredSecret);
+            if (!auth.authorized && !matchesSecret) {
+                return NextResponse.json({ error: 'Unauthorized. Invalid sync token.' }, { status: 401 });
+            }
         }
 
         const db = OnePassDB.getSnapshot();

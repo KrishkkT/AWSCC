@@ -332,14 +332,19 @@ async function hydrateFromSupabase(force = false) {
             const finalEvents = cloudEvents !== null && cloudEvents.length > 0 ? cloudEvents : (localBaseline.events || []);
             const finalVolunteers = cloudEventVolunteers !== null ? cloudEventVolunteers : (localBaseline.event_volunteers || []);
             
-            // For attendees: Build local map to preserve local check-ins and prevent state reversion
+            // For attendees: Build local map from active in-memory cache, local overrides, and disk baseline
+            // This prevents race conditions where cloud reads temporarily lag behind live terminal check-ins
             const localAttendeeMap = new Map();
-            if (Array.isArray(localBaseline.attendees)) {
-                for (const la of localBaseline.attendees) {
-                    if (la && la.id) localAttendeeMap.set(la.id, la);
-                    if (la && la.booking_id) localAttendeeMap.set(la.booking_id, la);
-                    if (la && la.qr_identifier) localAttendeeMap.set(la.qr_identifier, la);
-                }
+            const activeCache = globalThis.__onepass_db_cache__ || {};
+            const candidates = [
+                ...(Array.isArray(localBaseline.attendees) ? localBaseline.attendees : []),
+                ...(Array.isArray(activeCache.attendees) ? activeCache.attendees : [])
+            ];
+            for (const la of candidates) {
+                if (!la) continue;
+                if (la.id) localAttendeeMap.set(la.id, la);
+                if (la.booking_id) localAttendeeMap.set(la.booking_id, la);
+                if (la.qr_identifier) localAttendeeMap.set(la.qr_identifier, la);
             }
 
             let rawAttendees = cloudAttendees !== null ? cloudAttendees : (localBaseline.attendees || []);
@@ -368,22 +373,21 @@ async function hydrateFromSupabase(force = false) {
 
                 let merged = { ...a };
 
-                // If local disk recorded a check-in that hasn't synced yet, preserve local state
-                if (localRecord) {
-                    if (localRecord.check_in_status === 'CHECKED_IN' && a.check_in_status !== 'CHECKED_IN') {
-                        merged.check_in_status = 'CHECKED_IN';
-                        merged.check_in_time = localRecord.check_in_time || a.check_in_time || new Date().toISOString();
-                        merged.assigned_track_id = localRecord.assigned_track_id || a.assigned_track_id;
-                        merged.assigned_workshop_id = localRecord.assigned_workshop_id || a.assigned_workshop_id;
-                        merged.checked_in_by_id = localRecord.checked_in_by_id || a.checked_in_by_id;
-                        merged.checked_in_by_name = localRecord.checked_in_by_name || a.checked_in_by_name;
-                        merged.checked_in_by_role = localRecord.checked_in_by_role || a.checked_in_by_role;
-                    }
-                    if (localRecord.counter && !merged.counter) {
-                        merged.counter = localRecord.counter;
-                        merged.counter_number = localRecord.counter_number;
-                        merged.counter_category = localRecord.counter_category;
-                    }
+                // If local memory or disk recorded a check-in, ensure check-in is never reverted by older cloud reads
+                if (localRecord && localRecord.check_in_status === 'CHECKED_IN') {
+                    merged.check_in_status = 'CHECKED_IN';
+                    merged.check_in_time = localRecord.check_in_time || merged.check_in_time || new Date().toISOString();
+                    merged.assigned_track_id = localRecord.assigned_track_id || merged.assigned_track_id;
+                    merged.assigned_workshop_id = localRecord.assigned_workshop_id || merged.assigned_workshop_id;
+                    merged.checked_in_by_id = localRecord.checked_in_by_id || merged.checked_in_by_id;
+                    merged.checked_in_by_name = localRecord.checked_in_by_name || merged.checked_in_by_name;
+                    merged.checked_in_by_role = localRecord.checked_in_by_role || merged.checked_in_by_role;
+                }
+
+                if (localRecord && localRecord.counter && !merged.counter) {
+                    merged.counter = localRecord.counter;
+                    merged.counter_number = localRecord.counter_number;
+                    merged.counter_category = localRecord.counter_category;
                 }
 
                 if (localOverride) {
@@ -394,9 +398,9 @@ async function hydrateFromSupabase(force = false) {
             });
 
             // If any local attendee wasn't in cloud list yet, keep them
-            if (Array.isArray(localBaseline.attendees)) {
+            if (candidates.length > 0) {
                 const existingIds = new Set(finalAttendees.map(a => a.id));
-                for (const la of localBaseline.attendees) {
+                for (const la of candidates) {
                     if (la && la.id && !existingIds.has(la.id) && !globalThis.__onepass_deleted_ids__.has(la.id)) {
                         finalAttendees.push(la);
                         existingIds.add(la.id);

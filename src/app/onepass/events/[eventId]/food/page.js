@@ -126,7 +126,6 @@ export default function FoodManagementPage() {
             });
         } finally {
             setClaiming(false);
-            setScannerOpen(false);
         }
     };
 
@@ -326,8 +325,9 @@ export default function FoodManagementPage() {
                         <InlineQRScanner
                             isOpen={scannerOpen}
                             onClose={() => setScannerOpen(false)}
-                            onScan={(decoded) => { setScannerOpen(false); handleClaimScan(decoded); }}
+                            onScan={(decoded) => handleClaimScan(decoded)}
                             title={`Scan for ${currentResource?.name || 'Meal Claim'}`}
+                            continuous={true}
                         />
                     </div>
                 )}

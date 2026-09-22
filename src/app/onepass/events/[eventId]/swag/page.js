@@ -124,7 +124,6 @@ export default function SwagManagementPage() {
             });
         } finally {
             setClaiming(false);
-            setScannerOpen(false);
         }
     };
 
@@ -326,8 +325,9 @@ export default function SwagManagementPage() {
                         <InlineQRScanner
                             isOpen={scannerOpen}
                             onClose={() => setScannerOpen(false)}
-                            onScan={(decoded) => { setScannerOpen(false); handleClaimScan(decoded); }}
+                            onScan={(decoded) => handleClaimScan(decoded)}
                             title={`Scan for ${currentResource?.name || 'Swag Kit'}`}
+                            continuous={true}
                         />
                     </div>
                 )}
