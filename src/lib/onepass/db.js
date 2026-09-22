@@ -90,18 +90,85 @@ function getActiveDbFilePath() {
 // ═══════════════════════════════════════════════════════════════════
 // SUPABASE DIRECT HELPERS: Non-blocking, instant writes & deletes
 // ═══════════════════════════════════════════════════════════════════
+
+if (!globalThis.__onepass_deleted_ids__) {
+    globalThis.__onepass_deleted_ids__ = new Set();
+}
+if (!globalThis.__onepass_locally_updated_attendees__) {
+    globalThis.__onepass_locally_updated_attendees__ = new Map();
+}
+
+export function registerDeletedAttendeeIds(ids) {
+    if (!ids) return;
+    const arr = Array.isArray(ids) ? ids : [ids];
+    for (const id of arr) {
+        if (!id) continue;
+        const str = id.toString().trim();
+        globalThis.__onepass_deleted_ids__.add(str);
+        globalThis.__onepass_deleted_ids__.add(str.toLowerCase());
+    }
+}
+
+export function registerUpdatedAttendee(attendee) {
+    if (!attendee || !attendee.id) return;
+    globalThis.__onepass_locally_updated_attendees__.set(attendee.id, attendee);
+    if (attendee.booking_id) globalThis.__onepass_locally_updated_attendees__.set(attendee.booking_id, attendee);
+    if (attendee.qr_identifier) globalThis.__onepass_locally_updated_attendees__.set(attendee.qr_identifier, attendee);
+}
+
+function sanitizeRecordForSupabase(tableName, record) {
+    if (!record || typeof record !== 'object') return record;
+    if (tableName === 'onepass_attendees') {
+        return {
+            id: record.id,
+            event_id: record.event_id,
+            name: record.name || '',
+            email: record.email || '',
+            phone: record.phone || '',
+            ticket_type: record.ticket_type || 'Attendee',
+            booking_id: record.booking_id || record.id,
+            qr_identifier: record.qr_identifier || record.id,
+            qr_token: record.qr_token || record.id,
+            check_in_status: record.check_in_status || 'NOT_CHECKED_IN',
+            check_in_time: record.check_in_time || null,
+            assigned_track_id: record.assigned_track_id || null,
+            assigned_workshop_id: record.assigned_workshop_id || null,
+            checked_in_by_id: record.checked_in_by_id || null,
+            checked_in_by_name: record.checked_in_by_name || null,
+            checked_in_by_role: record.checked_in_by_role || null,
+            counter: record.counter || null,
+            counter_category: record.counter_category || null,
+            created_at: record.created_at || new Date().toISOString(),
+            updated_at: record.updated_at || new Date().toISOString()
+        };
+    }
+    return record;
+}
+
 export async function deleteFromSupabaseDirect(tableName, filter) {
     try {
         const { supabase } = await import('@/lib/supabase');
         if (!supabase) return;
         if (typeof filter === 'string') {
-            const { error } = await supabase.from(tableName).delete().eq('id', filter);
-            if (error) console.warn(`[Supabase Delete] Error on ${tableName}:`, error.message);
+            const { error: err1 } = await supabase.from(tableName).delete().eq('id', filter);
+            if (tableName === 'onepass_attendees') {
+                registerDeletedAttendeeIds(filter);
+                await supabase.from(tableName).delete().eq('booking_id', filter);
+                await supabase.from(tableName).delete().eq('qr_identifier', filter);
+            }
+            if (err1) console.warn(`[Supabase Delete] Error on ${tableName}:`, err1.message);
         } else if (Array.isArray(filter)) {
+            if (tableName === 'onepass_attendees') {
+                registerDeletedAttendeeIds(filter);
+            }
             for (let i = 0; i < filter.length; i += 50) {
                 const chunk = filter.slice(i, i + 50);
-                const { error } = await supabase.from(tableName).delete().in('id', chunk);
-                if (error) console.warn(`[Supabase Delete Batch] Error on ${tableName}:`, error.message);
+                const { error: err1 } = await supabase.from(tableName).delete().in('id', chunk);
+                if (tableName === 'onepass_attendees') {
+                    await supabase.from(tableName).delete().in('booking_id', chunk);
+                    await supabase.from(tableName).delete().in('qr_identifier', chunk);
+                }
+                if (err1) console.warn(`[Supabase Delete Batch] Error on ${tableName}:`, err1.message);
             }
         } else if (typeof filter === 'object' && filter !== null) {
             const { error } = await supabase.from(tableName).delete().match(filter);
@@ -118,8 +185,9 @@ export async function upsertToSupabaseDirect(tableName, recordOrRecords) {
         if (!supabase) return;
         const rows = Array.isArray(recordOrRecords) ? recordOrRecords : [recordOrRecords];
         if (rows.length === 0) return;
-        for (let i = 0; i < rows.length; i += 50) {
-            const chunk = rows.slice(i, i + 50);
+        const sanitizedRows = rows.map(r => sanitizeRecordForSupabase(tableName, r));
+        for (let i = 0; i < sanitizedRows.length; i += 50) {
+            const chunk = sanitizedRows.slice(i, i + 50);
             await supabase.from(tableName).upsert(chunk, { onConflict: 'id' });
         }
     } catch (e) {
@@ -248,11 +316,41 @@ async function hydrateFromSupabase(force = false) {
             const finalEvents = cloudEvents !== null && cloudEvents.length > 0 ? cloudEvents : (localBaseline.events || []);
             const finalVolunteers = cloudEventVolunteers !== null ? cloudEventVolunteers : (localBaseline.event_volunteers || []);
             
-            // For attendees: if cloud fetch succeeded, use cloud. If cloud returned 0 items but local file has items, keep local items
-            let finalAttendees = cloudAttendees !== null ? cloudAttendees : [];
+            // For attendees: Filter out locally deleted IDs and merge local status overrides
+            let rawAttendees = cloudAttendees !== null ? cloudAttendees : (localBaseline.attendees || []);
+            let finalAttendees = rawAttendees.filter(a => {
+                if (!a) return false;
+                const idStr = (a.id || '').toString().trim();
+                const bIdStr = (a.booking_id || '').toString().trim();
+                const qrStr = (a.qr_identifier || '').toString().trim();
+                if (globalThis.__onepass_deleted_ids__.has(idStr) ||
+                    globalThis.__onepass_deleted_ids__.has(idStr.toLowerCase()) ||
+                    globalThis.__onepass_deleted_ids__.has(bIdStr) ||
+                    globalThis.__onepass_deleted_ids__.has(bIdStr.toLowerCase()) ||
+                    globalThis.__onepass_deleted_ids__.has(qrStr) ||
+                    globalThis.__onepass_deleted_ids__.has(qrStr.toLowerCase())) {
+                    return false;
+                }
+                return true;
+            });
+
+            // Apply any local status overrides (e.g. recent uncheck-ins / check-ins)
+            finalAttendees = finalAttendees.map(a => {
+                const localOverride = globalThis.__onepass_locally_updated_attendees__.get(a.id) ||
+                                       globalThis.__onepass_locally_updated_attendees__.get(a.booking_id) ||
+                                       globalThis.__onepass_locally_updated_attendees__.get(a.qr_identifier);
+                if (localOverride) {
+                    return {
+                        ...a,
+                        ...localOverride
+                    };
+                }
+                return a;
+            });
+
             if (finalAttendees.length === 0 && Array.isArray(localBaseline.attendees) && localBaseline.attendees.length > 0) {
                 console.warn(`[OnePass DB] Supabase returned 0 attendees but local disk has ${localBaseline.attendees.length}. Preserving local baseline.`);
-                finalAttendees = localBaseline.attendees;
+                finalAttendees = localBaseline.attendees.filter(a => !globalThis.__onepass_deleted_ids__.has(a.id));
             }
 
             const hydratedDb = {
@@ -1318,6 +1416,7 @@ export const OnePassDB = {
         if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
         db.audit_logs.unshift(auditEntry);
 
+        registerDeletedAttendeeIds([id, existing.booking_id, existing.qr_identifier]);
         saveDb(db);
         await deleteFromSupabaseDirect('onepass_attendees', id);
         await deleteFromSupabaseDirect('onepass_resource_claims', { attendee_id: id });
@@ -1333,6 +1432,11 @@ export const OnePassDB = {
         const idsSet = new Set(attendeeIds);
         const deletedAttendees = db.attendees.filter(a => idsSet.has(a.id));
         const initialCount = db.attendees.length;
+
+        registerDeletedAttendeeIds(attendeeIds);
+        for (const att of deletedAttendees) {
+            registerDeletedAttendeeIds([att.id, att.booking_id, att.qr_identifier]);
+        }
 
         db.attendees = db.attendees.filter(a => !idsSet.has(a.id));
         db.resource_claims = (db.resource_claims || []).filter(c => !idsSet.has(c.attendee_id));
@@ -1477,6 +1581,7 @@ export const OnePassDB = {
             if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
             db.audit_logs.unshift(auditEntry);
 
+            registerUpdatedAttendee(db.attendees[attendeeIndex]);
             saveDb(db);
             upsertToSupabaseDirect('onepass_attendees', db.attendees[attendeeIndex]);
             upsertToSupabaseDirect('onepass_audit_logs', auditEntry);
@@ -1570,6 +1675,7 @@ export const OnePassDB = {
             if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
             db.audit_logs.unshift(auditEntry);
 
+            registerUpdatedAttendee(db.attendees[attendeeIndex]);
             saveDb(db);
             upsertToSupabaseDirect('onepass_attendees', db.attendees[attendeeIndex]);
             upsertToSupabaseDirect('onepass_audit_logs', auditEntry);
