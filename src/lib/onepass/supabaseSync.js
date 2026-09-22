@@ -277,7 +277,26 @@ export async function syncOnePassFullDatabaseToSupabase() {
         }
 
         // 6. Sync attendees (with full attribution data)
-        const attendees = snapshot.attendees || [];
+        // 6. Sync attendees (with full attribution data, excluding tombstones)
+        const rawAttendees = snapshot.attendees || [];
+        const tombstoneSet = new Set([
+            ...(globalThis.__onepass_deleted_ids__ || []),
+            ...(Array.isArray(snapshot.deleted_attendee_ids) ? snapshot.deleted_attendee_ids : [])
+        ]);
+
+        const attendees = rawAttendees.filter(a => {
+            if (!a || !a.id) return false;
+            const idStr = String(a.id).trim();
+            const bIdStr = String(a.booking_id || '').trim();
+            const qrStr = String(a.qr_identifier || '').trim();
+            if (tombstoneSet.has(idStr) || tombstoneSet.has(idStr.toLowerCase()) ||
+                (bIdStr && (tombstoneSet.has(bIdStr) || tombstoneSet.has(bIdStr.toLowerCase()))) ||
+                (qrStr && (tombstoneSet.has(qrStr) || tombstoneSet.has(qrStr.toLowerCase())))) {
+                return false;
+            }
+            return true;
+        });
+
         if (attendees.length > 0) {
             const attRows = attendees.map(a => ({
                 id: a.id,

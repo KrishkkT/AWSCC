@@ -141,24 +141,6 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
         }
     }, []);
 
-    // Expose imperative control handle to parent components
-    useImperativeHandle(ref, () => ({
-        resume: resumeScanner,
-        pause: pauseScanner,
-        stop: stopCamera,
-        restart: () => startCamera(selectedCam || null),
-        isPaused: () => scanLockRef.current || isPausedState
-    }), [resumeScanner, pauseScanner, stopCamera, startCamera, selectedCam, isPausedState]);
-
-    // React to external isPaused prop change
-    useEffect(() => {
-        if (isPaused) {
-            pauseScanner();
-        } else if (isOpen && scanning && isPausedState) {
-            resumeScanner();
-        }
-    }, [isPaused, pauseScanner, resumeScanner, isOpen, scanning, isPausedState]);
-
     // Initialize and start camera with single persistent instance
     const startCamera = useCallback(async (cameraParam = null) => {
         if (!isOpen) return;
@@ -285,6 +267,24 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
             setInitializing(false);
         }
     }, [isOpen, facingMode, continuous, onScan, stopCamera, resumeScanner]);
+
+    // Expose imperative control handle to parent components (declared AFTER functions to avoid TDZ)
+    useImperativeHandle(ref, () => ({
+        resume: resumeScanner,
+        pause: pauseScanner,
+        stop: stopCamera,
+        restart: () => startCamera(selectedCam || null),
+        isPaused: () => scanLockRef.current || isPausedState
+    }), [resumeScanner, pauseScanner, stopCamera, startCamera, selectedCam, isPausedState]);
+
+    // React to external isPaused prop change
+    useEffect(() => {
+        if (isPaused) {
+            pauseScanner();
+        } else if (isOpen && scanning && isPausedState) {
+            resumeScanner();
+        }
+    }, [isPaused, pauseScanner, resumeScanner, isOpen, scanning, isPausedState]);
 
     // Handle open/close lifecycle
     useEffect(() => {
