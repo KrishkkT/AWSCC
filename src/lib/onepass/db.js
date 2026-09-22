@@ -145,54 +145,58 @@ function sanitizeRecordForSupabase(tableName, record) {
     return record;
 }
 
-export async function deleteFromSupabaseDirect(tableName, filter) {
-    try {
-        const { supabase } = await import('@/lib/supabase');
-        if (!supabase) return;
-        if (typeof filter === 'string') {
-            const { error: err1 } = await supabase.from(tableName).delete().eq('id', filter);
-            if (tableName === 'onepass_attendees') {
+export function deleteFromSupabaseDirect(tableName, filter) {
+    (async () => {
+        try {
+            const { supabase } = await import('@/lib/supabase');
+            if (!supabase) return;
+            if (typeof filter === 'string') {
                 registerDeletedAttendeeIds(filter);
-                await supabase.from(tableName).delete().eq('booking_id', filter);
-                await supabase.from(tableName).delete().eq('qr_identifier', filter);
-            }
-            if (err1) console.warn(`[Supabase Delete] Error on ${tableName}:`, err1.message);
-        } else if (Array.isArray(filter)) {
-            if (tableName === 'onepass_attendees') {
-                registerDeletedAttendeeIds(filter);
-            }
-            for (let i = 0; i < filter.length; i += 50) {
-                const chunk = filter.slice(i, i + 50);
-                const { error: err1 } = await supabase.from(tableName).delete().in('id', chunk);
+                const { error: err1 } = await supabase.from(tableName).delete().eq('id', filter);
                 if (tableName === 'onepass_attendees') {
-                    await supabase.from(tableName).delete().in('booking_id', chunk);
-                    await supabase.from(tableName).delete().in('qr_identifier', chunk);
+                    await supabase.from(tableName).delete().eq('booking_id', filter);
+                    await supabase.from(tableName).delete().eq('qr_identifier', filter);
                 }
-                if (err1) console.warn(`[Supabase Delete Batch] Error on ${tableName}:`, err1.message);
+                if (err1) console.warn(`[Supabase Delete] Error on ${tableName}:`, err1.message);
+            } else if (Array.isArray(filter)) {
+                if (tableName === 'onepass_attendees') {
+                    registerDeletedAttendeeIds(filter);
+                }
+                for (let i = 0; i < filter.length; i += 50) {
+                    const chunk = filter.slice(i, i + 50);
+                    const { error: err1 } = await supabase.from(tableName).delete().in('id', chunk);
+                    if (tableName === 'onepass_attendees') {
+                        await supabase.from(tableName).delete().in('booking_id', chunk);
+                        await supabase.from(tableName).delete().in('qr_identifier', chunk);
+                    }
+                    if (err1) console.warn(`[Supabase Delete Batch] Error on ${tableName}:`, err1.message);
+                }
+            } else if (typeof filter === 'object' && filter !== null) {
+                const { error } = await supabase.from(tableName).delete().match(filter);
+                if (error) console.warn(`[Supabase Delete Match] Error on ${tableName}:`, error.message);
             }
-        } else if (typeof filter === 'object' && filter !== null) {
-            const { error } = await supabase.from(tableName).delete().match(filter);
-            if (error) console.warn(`[Supabase Delete Match] Error on ${tableName}:`, error.message);
+        } catch (e) {
+            console.warn(`[Supabase Delete] Notice for ${tableName}:`, e.message);
         }
-    } catch (e) {
-        console.warn(`[Supabase Delete] Notice for ${tableName}:`, e.message);
-    }
+    })();
 }
 
-export async function upsertToSupabaseDirect(tableName, recordOrRecords) {
-    try {
-        const { supabase } = await import('@/lib/supabase');
-        if (!supabase) return;
-        const rows = Array.isArray(recordOrRecords) ? recordOrRecords : [recordOrRecords];
-        if (rows.length === 0) return;
-        const sanitizedRows = rows.map(r => sanitizeRecordForSupabase(tableName, r));
-        for (let i = 0; i < sanitizedRows.length; i += 50) {
-            const chunk = sanitizedRows.slice(i, i + 50);
-            await supabase.from(tableName).upsert(chunk, { onConflict: 'id' });
+export function upsertToSupabaseDirect(tableName, recordOrRecords) {
+    (async () => {
+        try {
+            const { supabase } = await import('@/lib/supabase');
+            if (!supabase) return;
+            const rows = Array.isArray(recordOrRecords) ? recordOrRecords : [recordOrRecords];
+            if (rows.length === 0) return;
+            const sanitizedRows = rows.map(r => sanitizeRecordForSupabase(tableName, r));
+            for (let i = 0; i < sanitizedRows.length; i += 50) {
+                const chunk = sanitizedRows.slice(i, i + 50);
+                await supabase.from(tableName).upsert(chunk, { onConflict: 'id' });
+            }
+        } catch (e) {
+            console.warn(`[Supabase Upsert] Notice for ${tableName}:`, e.message);
         }
-    } catch (e) {
-        console.warn(`[Supabase Upsert] Notice for ${tableName}:`, e.message);
-    }
+    })();
 }
 
 /**
