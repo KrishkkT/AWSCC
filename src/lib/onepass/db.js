@@ -364,7 +364,8 @@ async function hydrateFromSupabase(force = false) {
                 return true;
             });
 
-            // Merge local status overrides & ensure checked-in states and counter assignments are preserved
+            // Merge local status overrides using Last-Write-Wins timestamp comparison
+            // This guarantees that both Check-Ins AND Uncheck-Ins are accurately preserved without state resurrection
             finalAttendees = finalAttendees.map(a => {
                 const localOverride = globalThis.__onepass_locally_updated_attendees__.get(a.id) ||
                                        globalThis.__onepass_locally_updated_attendees__.get(a.booking_id) ||
@@ -373,25 +374,21 @@ async function hydrateFromSupabase(force = false) {
 
                 let merged = { ...a };
 
-                // If local memory or disk recorded a check-in, ensure check-in is never reverted by older cloud reads
-                if (localRecord && localRecord.check_in_status === 'CHECKED_IN') {
-                    merged.check_in_status = 'CHECKED_IN';
-                    merged.check_in_time = localRecord.check_in_time || merged.check_in_time || new Date().toISOString();
-                    merged.assigned_track_id = localRecord.assigned_track_id || merged.assigned_track_id;
-                    merged.assigned_workshop_id = localRecord.assigned_workshop_id || merged.assigned_workshop_id;
-                    merged.checked_in_by_id = localRecord.checked_in_by_id || merged.checked_in_by_id;
-                    merged.checked_in_by_name = localRecord.checked_in_by_name || merged.checked_in_by_name;
-                    merged.checked_in_by_role = localRecord.checked_in_by_role || merged.checked_in_by_role;
-                }
+                const cloudTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+                const overrideTime = localOverride?.updated_at ? new Date(localOverride.updated_at).getTime() : 0;
+                const baselineTime = localRecord?.updated_at ? new Date(localRecord.updated_at).getTime() : 0;
 
-                if (localRecord && localRecord.counter && !merged.counter) {
-                    merged.counter = localRecord.counter;
-                    merged.counter_number = localRecord.counter_number;
-                    merged.counter_category = localRecord.counter_category;
-                }
-
-                if (localOverride) {
+                if (localOverride && overrideTime >= cloudTime) {
                     merged = { ...merged, ...localOverride };
+                } else if (localRecord && baselineTime > cloudTime) {
+                    merged = { ...merged, ...localRecord };
+                }
+
+                // Preserve counter fields if missing in cloud payload
+                if (!merged.counter && (localRecord?.counter || localOverride?.counter)) {
+                    merged.counter = localRecord?.counter || localOverride?.counter;
+                    merged.counter_number = localRecord?.counter_number || localOverride?.counter_number;
+                    merged.counter_category = localRecord?.counter_category || localOverride?.counter_category;
                 }
 
                 return merged;

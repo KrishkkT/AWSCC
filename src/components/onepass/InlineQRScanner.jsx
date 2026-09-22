@@ -1,24 +1,27 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, X, RefreshCw, Upload, AlertCircle, CameraOff, SwitchCamera, CheckCircle } from 'lucide-react';
+import { Camera, X, RefreshCw, Upload, AlertCircle, CameraOff, SwitchCamera, CheckCircle, Pause } from 'lucide-react';
 import { parseScannedQR } from '@/lib/onepass/qr';
 
 /**
  * InlineQRScanner — Cross-platform, mobile-optimized inline QR scanner.
- * Solves:
- * 1. Black screens on 2nd scan / reopen (complete MediaStream track cleanup).
- * 2. iOS Safari & Android Chrome device constraint issues (facingMode fallback chain).
- * 3. Rapid back-to-back scanning with auto-resume.
+ * 
+ * Key guarantees:
+ * 1. Single Html5Qrcode instance lifecycle — NEVER recreate/stop on each scan.
+ * 2. Instant synchronous pause(true) + scanLockRef on first decode to eliminate
+ *    repeated scans, duplicate beeps, and browser video track crashes.
+ * 3. Camera stays safely paused until explicitly resumed via resume() / Scan Next trigger.
  */
-export default function InlineQRScanner({
+const InlineQRScanner = forwardRef(function InlineQRScanner({
     isOpen,
     onClose,
     onScan,
     title = 'Scan QR Code',
-    continuous = false
-}) {
+    continuous = false,
+    isPaused = false
+}, ref) {
     const scannerRef = useRef(null);
     const scanLockRef = useRef(false);
     const isStoppingRef = useRef(false);
@@ -30,13 +33,14 @@ export default function InlineQRScanner({
     const [selectedCam, setSelectedCam] = useState('');
     const [facingMode, setFacingMode] = useState('environment'); // 'environment' | 'user'
     const [scanning, setScanning] = useState(false);
+    const [isPausedState, setIsPausedState] = useState(false);
     const [initializing, setInitializing] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [manualCode, setManualCode] = useState('');
     const [fileProcessing, setFileProcessing] = useState(false);
     const [lastScanSuccess, setLastScanSuccess] = useState(null);
 
-    // Completely release camera hardware and kill all active MediaStream tracks
+    // Completely release camera hardware only on explicit close or unmount
     const stopCamera = useCallback(async () => {
         if (isStoppingRef.current) return;
         isStoppingRef.current = true;
@@ -46,7 +50,8 @@ export default function InlineQRScanner({
                 const s = scannerRef.current;
                 scannerRef.current = null;
                 try {
-                    if (s.isScanning) {
+                    const state = s.getState ? s.getState() : 0;
+                    if (state === 2 || state === 3 || s.isScanning) { // SCANNING or PAUSED
                         await s.stop();
                     }
                 } catch (_) {}
@@ -73,6 +78,7 @@ export default function InlineQRScanner({
             console.warn('[InlineQRScanner] stopCamera warning:', e);
         } finally {
             setScanning(false);
+            setIsPausedState(false);
             setInitializing(false);
             isStoppingRef.current = false;
         }
@@ -100,12 +106,66 @@ export default function InlineQRScanner({
         } catch (_) {}
     };
 
-    // Initialize and start camera with cross-platform fallback strategy
+    // Safely pause scanner hardware stream
+    const pauseScanner = useCallback(() => {
+        scanLockRef.current = true;
+        setIsPausedState(true);
+        try {
+            if (scannerRef.current) {
+                const state = scannerRef.current.getState ? scannerRef.current.getState() : null;
+                // 2 is SCANNING in Html5QrcodeScannerState
+                if (state === 2 || typeof scannerRef.current.pause === 'function') {
+                    scannerRef.current.pause(true);
+                }
+            }
+        } catch (e) {
+            console.warn('[InlineQRScanner] pause error:', e);
+        }
+    }, []);
+
+    // Safely resume scanner hardware stream without restarting camera
+    const resumeScanner = useCallback(() => {
+        scanLockRef.current = false;
+        setIsPausedState(false);
+        setLastScanSuccess(null);
+        try {
+            if (scannerRef.current) {
+                const state = scannerRef.current.getState ? scannerRef.current.getState() : null;
+                // 3 is PAUSED in Html5QrcodeScannerState
+                if (state === 3 || typeof scannerRef.current.resume === 'function') {
+                    scannerRef.current.resume();
+                }
+            }
+        } catch (e) {
+            console.warn('[InlineQRScanner] resume error:', e);
+        }
+    }, []);
+
+    // Expose imperative control handle to parent components
+    useImperativeHandle(ref, () => ({
+        resume: resumeScanner,
+        pause: pauseScanner,
+        stop: stopCamera,
+        restart: () => startCamera(selectedCam || null),
+        isPaused: () => scanLockRef.current || isPausedState
+    }), [resumeScanner, pauseScanner, stopCamera, startCamera, selectedCam, isPausedState]);
+
+    // React to external isPaused prop change
+    useEffect(() => {
+        if (isPaused) {
+            pauseScanner();
+        } else if (isOpen && scanning && isPausedState) {
+            resumeScanner();
+        }
+    }, [isPaused, pauseScanner, resumeScanner, isOpen, scanning, isPausedState]);
+
+    // Initialize and start camera with single persistent instance
     const startCamera = useCallback(async (cameraParam = null) => {
         if (!isOpen) return;
         setErrorMsg('');
         setInitializing(true);
         scanLockRef.current = false;
+        setIsPausedState(false);
 
         // Clean up any existing instances first
         await stopCamera();
@@ -136,35 +196,44 @@ export default function InlineQRScanner({
                 aspectRatio: 1.0
             };
 
+            // SYNCHRONOUS DECODE HANDLER
             const onScanSuccess = (decodedText) => {
-                const now = Date.now();
+                // Synchronously drop any subsequent frames if already locked/paused
+                if (scanLockRef.current) return;
+
                 const clean = parseScannedQR(decodedText);
                 if (!clean) return;
 
-                // Debounce duplicate scans within 2.5s
-                if (scanLockRef.current || (lastScannedTextRef.current === clean && now - lastScanTimeRef.current < 2500)) {
-                    return;
+                // 1. SYNCHRONOUS LOCK & HARDWARE PAUSE IMMEDIATELY
+                // Must execute before any state updates, async calls, or re-renders
+                scanLockRef.current = true;
+                setIsPausedState(true);
+                try {
+                    if (scannerRef.current) {
+                        scannerRef.current.pause(true);
+                    }
+                } catch (pauseErr) {
+                    console.warn('[InlineQRScanner] Immediate pause warning:', pauseErr);
                 }
 
-                scanLockRef.current = true;
-                lastScanTimeRef.current = now;
+                // 2. Audible feedback and state notification
+                lastScanTimeRef.current = Date.now();
                 lastScannedTextRef.current = clean;
                 playBeep();
                 setLastScanSuccess(clean);
 
-                if (!continuous) {
+                // 3. Invoke parent callback
+                if (onScan) {
                     onScan(clean);
-                    setTimeout(() => {
-                        scanLockRef.current = false;
-                        setLastScanSuccess(null);
-                    }, 2000);
-                } else {
-                    onScan(clean);
-                    setTimeout(() => {
-                        scanLockRef.current = false;
-                        setLastScanSuccess(null);
-                    }, 1800);
                 }
+
+                // 4. Auto-resume ONLY if continuous mode is explicitly set to true
+                if (continuous) {
+                    setTimeout(() => {
+                        resumeScanner();
+                    }, 2000);
+                }
+                // If continuous is false, the scanner STAYS PAUSED until resume() is called!
             };
 
             const onScanError = () => {};
@@ -215,12 +284,11 @@ export default function InlineQRScanner({
             setScanning(false);
             setInitializing(false);
         }
-    }, [isOpen, facingMode, continuous, onScan, stopCamera]);
+    }, [isOpen, facingMode, continuous, onScan, stopCamera, resumeScanner]);
 
     // Handle open/close lifecycle
     useEffect(() => {
         if (isOpen) {
-            // Slight delay to ensure DOM element is mounted
             const timer = setTimeout(() => {
                 startCamera(selectedCam || null);
             }, 80);
@@ -259,11 +327,15 @@ export default function InlineQRScanner({
         e.preventDefault();
         const clean = parseScannedQR(manualCode);
         if (clean) {
+            scanLockRef.current = true;
+            setIsPausedState(true);
+            try {
+                if (scannerRef.current) scannerRef.current.pause(true);
+            } catch (_) {}
             playBeep();
             setLastScanSuccess(clean);
-            onScan(clean);
+            if (onScan) onScan(clean);
             setManualCode('');
-            setTimeout(() => setLastScanSuccess(null), 2000);
         } else {
             setErrorMsg('Please enter a valid ticket booking ID or QR code.');
         }
@@ -278,12 +350,16 @@ export default function InlineQRScanner({
         try {
             const tempScanner = new Html5Qrcode(`temp-${containerIdRef.current}`);
             const text = await tempScanner.scanFile(file, true);
-            playBeep();
             const clean = parseScannedQR(text);
             if (clean) {
+                scanLockRef.current = true;
+                setIsPausedState(true);
+                try {
+                    if (scannerRef.current) scannerRef.current.pause(true);
+                } catch (_) {}
+                playBeep();
                 setLastScanSuccess(clean);
-                onScan(clean);
-                setTimeout(() => setLastScanSuccess(null), 2000);
+                if (onScan) onScan(clean);
             } else {
                 setErrorMsg('QR code in image not recognized as a valid token.');
             }
@@ -307,12 +383,24 @@ export default function InlineQRScanner({
                     <div>
                         <span className="font-bold text-white text-sm block leading-tight">{title}</span>
                         <span className="text-[10px] text-slate-400 font-mono">
-                            {scanning ? '● Camera Live' : initializing ? 'Starting camera...' : 'Ready'}
+                            {isPausedState ? '⏸️ Paused (Awaiting next scan)' : scanning ? '● Camera Live' : initializing ? 'Starting camera...' : 'Ready'}
                         </span>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* Resume Button if Paused */}
+                    {isPausedState && (
+                        <button
+                            type="button"
+                            onClick={resumeScanner}
+                            title="Resume Camera Stream"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-xl text-xs font-bold transition border border-emerald-500/40 animate-pulse"
+                        >
+                            <span>Resume</span>
+                        </button>
+                    )}
+
                     {/* Camera Flip */}
                     <button
                         type="button"
@@ -405,14 +493,36 @@ export default function InlineQRScanner({
                                 <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-[#4F8EF7] rounded-bl" />
                                 <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-[#4F8EF7] rounded-br" />
                                 
-                                {scanning && (
+                                {scanning && !isPausedState && (
                                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#4F8EF7] to-transparent animate-bounce opacity-80" />
                                 )}
                             </div>
                         </div>
 
+                        {/* Paused State Overlay */}
+                        {isPausedState && (
+                            <div className="absolute inset-0 bg-[#0C111D]/85 backdrop-blur-sm flex flex-col items-center justify-center gap-3 p-4 text-center animate-fade-in">
+                                <div className="w-12 h-12 rounded-full bg-[#0073BB]/20 border border-[#0073BB]/40 flex items-center justify-center text-[#4F8EF7]">
+                                    <Pause className="w-6 h-6" />
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-sm font-bold text-white block">Scanner Paused</span>
+                                    <span className="text-xs text-slate-300 font-mono block">
+                                        Review attendee details below.
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={resumeScanner}
+                                    className="px-4 py-2 bg-[#0073BB] hover:bg-[#0073BB]/80 text-white rounded-xl text-xs font-bold transition shadow-lg"
+                                >
+                                    Resume Scanner
+                                </button>
+                            </div>
+                        )}
+
                         {/* Success Badge Popover */}
-                        {lastScanSuccess && (
+                        {lastScanSuccess && !isPausedState && (
                             <div className="absolute inset-x-4 bottom-4 py-2 px-3 bg-emerald-950/90 border border-emerald-500 rounded-xl flex items-center gap-2 text-emerald-200 text-xs font-bold animate-fade-in shadow-xl backdrop-blur-md">
                                 <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                                 <span className="truncate">Scanned: {lastScanSuccess}</span>
@@ -487,4 +597,6 @@ export default function InlineQRScanner({
             </div>
         </div>
     );
-}
+});
+
+export default InlineQRScanner;
