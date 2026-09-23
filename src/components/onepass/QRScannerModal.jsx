@@ -92,6 +92,21 @@ function QRScannerModal({
         } catch (_) {}
     };
 
+    // Thorough MediaTrack & Hardware Release for iOS/Android
+    const releaseAllMediaTracks = useCallback(() => {
+        try {
+            const videos = document.querySelectorAll('video');
+            videos.forEach(v => {
+                if (v.srcObject && typeof v.srcObject.getTracks === 'function') {
+                    v.srcObject.getTracks().forEach(t => {
+                        try { t.stop(); } catch (_) {}
+                    });
+                    v.srcObject = null;
+                }
+            });
+        } catch (_) {}
+    }, []);
+
     // Full Camera Hardware Teardown
     const stopCamera = useCallback(async () => {
         if (isStoppingRef.current) return;
@@ -112,17 +127,10 @@ function QRScannerModal({
                 } catch (_) {}
             }
 
+            releaseAllMediaTracks();
+
             const container = document.getElementById(containerIdRef.current);
             if (container) {
-                const videos = container.querySelectorAll('video');
-                videos.forEach(v => {
-                    if (v.srcObject && v.srcObject.getTracks) {
-                        v.srcObject.getTracks().forEach(track => {
-                            try { track.stop(); } catch (_) {}
-                        });
-                        v.srcObject = null;
-                    }
-                });
                 container.innerHTML = '';
             }
         } catch (e) {
@@ -132,9 +140,9 @@ function QRScannerModal({
             setInitializing(false);
             isStoppingRef.current = false;
         }
-    }, []);
+    }, [releaseAllMediaTracks]);
 
-    // Instant/Fast Start Camera Stream with Robust Multi-Tier Fallbacks
+    // Instant/Fast Start Camera Stream with Robust Multi-Tier Fallbacks for iOS & Android
     const startCamera = useCallback(async (cameraParam = null, targetFacingMode = null) => {
         if (!isMountedRef.current) return;
         setErrorMsg('');
@@ -145,10 +153,8 @@ function QRScannerModal({
         facingModeRef.current = activeMode;
         setFacingMode(activeMode);
 
-        if (scannerRef.current) {
-            await stopCamera();
-            await new Promise(r => setTimeout(r, 60));
-        }
+        await stopCamera();
+        await new Promise(r => setTimeout(r, 80));
 
         if (!isMountedRef.current) {
             setInitializing(false);
@@ -162,77 +168,88 @@ function QRScannerModal({
         }
         containerEl.innerHTML = '';
 
-        try {
-            const scanner = new Html5Qrcode(containerIdRef.current, {
-                verbose: false,
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true
+        // Clean QR config without unsupported iOS constraints (prevents OverconstrainedError)
+        const qrConfig = {
+            fps: 12,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        };
+
+        const onScanSuccess = async (decodedText) => {
+            if (scanLockRef.current) return;
+            scanLockRef.current = true;
+
+            const clean = parseScannedQR(decodedText);
+            if (!clean) {
+                scanLockRef.current = false;
+                return;
+            }
+
+            playBeep();
+            setLastScanSuccess(clean);
+
+            try {
+                if (scannerRef.current) {
+                    scannerRef.current.pause(true);
                 }
-            });
-            scannerRef.current = scanner;
+            } catch (_) {}
 
-            const qrConfig = {
-                fps: 12,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-                videoConstraints: {
-                    facingMode: activeMode,
-                    focusMode: 'continuous',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            };
+            await stopCamera();
 
-            const onScanSuccess = async (decodedText) => {
-                if (scanLockRef.current) return;
-                scanLockRef.current = true;
+            if (onScan) onScan(clean);
+            if (onClose) onClose();
+        };
 
-                const clean = parseScannedQR(decodedText);
-                if (!clean) {
-                    scanLockRef.current = false;
-                    return;
-                }
+        const onScanError = () => {};
 
-                playBeep();
-                setLastScanSuccess(clean);
-
+        // Helper to attempt starting with a fresh Html5Qrcode instance
+        const tryStart = async (cameraConfig) => {
+            try {
+                containerEl.innerHTML = '';
+                const scanner = new Html5Qrcode(containerIdRef.current, {
+                    verbose: false,
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true
+                    }
+                });
+                scannerRef.current = scanner;
+                await scanner.start(cameraConfig, qrConfig, onScanSuccess, onScanError);
+                return true;
+            } catch (err) {
                 try {
                     if (scannerRef.current) {
-                        scannerRef.current.pause(true);
+                        scannerRef.current.clear();
                     }
                 } catch (_) {}
+                scannerRef.current = null;
+                releaseAllMediaTracks();
+                return false;
+            }
+        };
 
-                await stopCamera();
-
-                if (onScan) onScan(clean);
-                if (onClose) onClose();
-            };
-
-            const onScanError = () => {};
-
+        try {
             let started = false;
-            const targetCamId = cameraParam || selectedCamRef.current || (activeMode === 'environment' ? cachedLastCameraId : '');
 
-            // Fast-path: Launch directly with specified or cached back camera ID
-            if (targetCamId && typeof targetCamId === 'string') {
-                try {
-                    await scanner.start(targetCamId, qrConfig, onScanSuccess, onScanError);
-                    started = true;
-                    selectedCamRef.current = targetCamId;
-                    setSelectedCam(targetCamId);
-                    if (activeMode === 'environment') cachedLastCameraId = targetCamId;
-                } catch (_) {}
+            // Strategy 1: If user explicitly selected a camera ID, try that first
+            if (cameraParam && typeof cameraParam === 'string') {
+                started = await tryStart(cameraParam);
+                if (started) {
+                    selectedCamRef.current = cameraParam;
+                    setSelectedCam(cameraParam);
+                }
             }
 
-            // Fast-path 2: Direct facingMode constraint (instant start without waiting for device enumeration)
+            // Strategy 2: Direct facingMode constraint (standard on iOS Safari and Android Chrome)
             if (!started) {
-                try {
-                    await scanner.start({ facingMode: activeMode }, qrConfig, onScanSuccess, onScanError);
-                    started = true;
-                } catch (_) {}
+                started = await tryStart({ facingMode: activeMode });
             }
 
-            // Fallback 3: Query devices and select best match
+            // Strategy 3: Ideal facingMode constraint (flexible constraint solver)
+            if (!started) {
+                started = await tryStart({ facingMode: { ideal: activeMode } });
+            }
+
+            // Strategy 4: Query available devices, pick best match, and start
             if (!started) {
                 try {
                     const devices = await Html5Qrcode.getCameras();
@@ -240,28 +257,24 @@ function QRScannerModal({
                         setCameras(devices);
                         const bestId = findBestCamera(devices, activeMode);
                         if (bestId) {
-                            await scanner.start(bestId, qrConfig, onScanSuccess, onScanError);
-                            started = true;
-                            selectedCamRef.current = bestId;
-                            setSelectedCam(bestId);
-                            if (activeMode === 'environment') cachedLastCameraId = bestId;
+                            started = await tryStart(bestId);
+                            if (started) {
+                                selectedCamRef.current = bestId;
+                                setSelectedCam(bestId);
+                                if (activeMode === 'environment') cachedLastCameraId = bestId;
+                            }
                         }
                     }
                 } catch (_) {}
             }
 
-            // Fallback 4: Ideal facingMode constraint
+            // Strategy 5: Fallback to user camera or any available camera
             if (!started) {
-                try {
-                    await scanner.start({ facingMode: { ideal: activeMode } }, qrConfig, onScanSuccess, onScanError);
-                    started = true;
-                } catch (_) {}
+                started = await tryStart({ facingMode: 'user' });
             }
 
-            // Fallback 5: User camera
             if (!started) {
-                await scanner.start({ facingMode: 'user' }, qrConfig, onScanSuccess, onScanError);
-                started = true;
+                throw new Error('Could not start any camera stream');
             }
 
             // Update camera devices list in background without delaying camera launch
@@ -275,7 +288,7 @@ function QRScannerModal({
                 }
             }).catch(() => {});
 
-            // Ensure iOS Safari attributes
+            // Ensure iOS Safari playsinline & muted attributes on video element
             const container = document.getElementById(containerIdRef.current);
             if (container) {
                 const video = container.querySelector('video');
@@ -283,13 +296,14 @@ function QRScannerModal({
                     video.setAttribute('playsinline', 'true');
                     video.setAttribute('webkit-playsinline', 'true');
                     video.muted = true;
+                    video.play().catch(() => {});
                 }
             }
 
             setScanning(true);
             setInitializing(false);
         } catch (err) {
-            console.error('[QRScannerModal] Fast start error:', err);
+            console.error('[QRScannerModal] Camera start error:', err);
             const errStr = (err?.message || err?.name || '').toLowerCase();
             if (errStr.includes('permission') || errStr.includes('denied') || errStr.includes('notallowed')) {
                 setErrorMsg('CAMERA_DENIED');
@@ -301,19 +315,19 @@ function QRScannerModal({
             setScanning(false);
             setInitializing(false);
         }
-    }, [stopCamera, onScan, onClose]);
+    }, [stopCamera, releaseAllMediaTracks, onScan, onClose]);
 
-    // Modal Mount: Start camera immediately
+    // Modal Mount: Start camera immediately when modal opens
     useEffect(() => {
         if (isOpen) {
             isMountedRef.current = true;
             scanLockRef.current = false;
-            // Near-instant mount tick (20ms) to ensure container is in DOM
+            // Short mount delay (40ms) to ensure container is fully painted in DOM
             const timer = setTimeout(() => {
                 if (isMountedRef.current) {
                     startCamera(selectedCamRef.current || null, facingModeRef.current);
                 }
-            }, 20);
+            }, 40);
 
             return () => {
                 isMountedRef.current = false;

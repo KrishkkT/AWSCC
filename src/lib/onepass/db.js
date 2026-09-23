@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import os from 'os';
+import { supabase } from '../supabase.js';
 
 // Paths for OnePass JSON database storage (local backup only)
 const LOCAL_DATA_DIR = path.join(process.cwd(), 'data');
@@ -114,8 +115,16 @@ export function registerDeletedAttendeeIds(ids) {
 export function registerUpdatedAttendee(attendee) {
     if (!attendee || !attendee.id) return;
     const id = attendee.id.toString().trim();
-    if (globalThis.__onepass_deleted_ids__.has(id) || globalThis.__onepass_deleted_ids__.has(id.toLowerCase())) {
-        return; // Never update or resurrect deleted attendee
+    // Clear from active tombstones if this attendee was imported/created/updated
+    globalThis.__onepass_deleted_ids__.delete(id);
+    globalThis.__onepass_deleted_ids__.delete(id.toLowerCase());
+    if (attendee.booking_id) {
+        globalThis.__onepass_deleted_ids__.delete(attendee.booking_id.toString().trim());
+        globalThis.__onepass_deleted_ids__.delete(attendee.booking_id.toString().trim().toLowerCase());
+    }
+    if (attendee.qr_identifier) {
+        globalThis.__onepass_deleted_ids__.delete(attendee.qr_identifier.toString().trim());
+        globalThis.__onepass_deleted_ids__.delete(attendee.qr_identifier.toString().trim().toLowerCase());
     }
     globalThis.__onepass_locally_updated_attendees__.set(attendee.id, attendee);
     if (attendee.booking_id) globalThis.__onepass_locally_updated_attendees__.set(attendee.booking_id, attendee);
@@ -154,7 +163,6 @@ function sanitizeRecordForSupabase(tableName, record) {
 
 export async function deleteFromSupabaseDirect(tableName, filter, colName = 'id') {
     try {
-        const { supabase } = await import('@/lib/supabase');
         if (!supabase) return { success: false, error: 'No Supabase client' };
         if (typeof filter === 'string') {
             if (tableName === 'onepass_attendees') {
@@ -192,7 +200,6 @@ export async function deleteFromSupabaseDirect(tableName, filter, colName = 'id'
 
 export async function upsertToSupabaseDirect(tableName, recordOrRecords) {
     try {
-        const { supabase } = await import('@/lib/supabase');
         if (!supabase) return { success: false, error: 'No Supabase client' };
         const rows = Array.isArray(recordOrRecords) ? recordOrRecords : [recordOrRecords];
         if (rows.length === 0) return { success: true };
@@ -287,7 +294,6 @@ async function hydrateFromSupabase(force = false) {
                 }
             }
 
-            const { supabase } = await import('@/lib/supabase');
             if (!supabase) {
                 console.warn('[OnePass DB] Supabase client unavailable');
                 return;
@@ -342,24 +348,6 @@ async function hydrateFromSupabase(force = false) {
             const cloudAudit = extract(auditRes);
 
             const localBaseline = loadDbFromFile();
-
-            // Extract all tombstones from cloud audit logs & local baseline
-            if (Array.isArray(cloudAudit)) {
-                for (const log of cloudAudit) {
-                    if (log.action === 'DELETE_ATTENDEE') {
-                        if (log.entity_id) registerDeletedAttendeeIds(log.entity_id);
-                        if (log.metadata?.deleted_booking_id) registerDeletedAttendeeIds(log.metadata.deleted_booking_id);
-                        if (log.metadata?.deleted_qr_identifier) registerDeletedAttendeeIds(log.metadata.deleted_qr_identifier);
-                        if (Array.isArray(log.metadata?.deleted_ids)) registerDeletedAttendeeIds(log.metadata.deleted_ids);
-                    }
-                    if (log.action === 'BATCH_DELETE_ATTENDEES' && Array.isArray(log.metadata?.deleted_ids)) {
-                        registerDeletedAttendeeIds(log.metadata.deleted_ids);
-                    }
-                }
-            }
-            if (Array.isArray(localBaseline.deleted_attendee_ids)) {
-                registerDeletedAttendeeIds(localBaseline.deleted_attendee_ids);
-            }
 
             // Safe fallback: if cloud returned empty or null for attendees/events but local file has data,
             // fallback to local baseline to prevent wiping data on transient cloud errors
@@ -443,9 +431,11 @@ async function hydrateFromSupabase(force = false) {
                 return true;
             });
 
-            // Asynchronously ensure any unsynced local attendees are pushed to Supabase immediately
-            if (localNewAttendees.length > 0) {
-                upsertToSupabaseDirect('onepass_attendees', localNewAttendees).catch(e => {
+            // Asynchronously ensure any unsynced local attendees for valid events are pushed to Supabase immediately
+            const validEventIds = new Set(finalEvents.map(e => e.id));
+            const syncableNewAttendees = localNewAttendees.filter(a => validEventIds.has(a.event_id));
+            if (syncableNewAttendees.length > 0) {
+                upsertToSupabaseDirect('onepass_attendees', syncableNewAttendees).catch(e => {
                     console.warn('[OnePass DB] Background sync of local attendees to Supabase failed:', e.message);
                 });
             }
@@ -2362,11 +2352,11 @@ export const OnePassDB = {
                 return { success: false, code: 'INVALID_QR', message: 'QR code not recognized in this event.' };
             }
 
-            if (attendee.check_in_status !== 'CHECKED_IN') {
+            if (attendee.check_in_status !== 'CHECKED_IN' || (!attendee.assigned_track_id && !attendee.assigned_workshop_id)) {
                 return {
                     success: false,
-                    code: 'NOT_CHECKED_IN',
-                    message: 'Attendee has not checked in to the event.',
+                    code: 'NOT_CHECKED_IN_TO_TRACK_OR_WORKSHOP',
+                    message: `Attendee "${attendee.name}" must first be checked in to a Track or Workshop session before claiming ${resource.name || 'food/swag'}.`,
                     attendee
                 };
             }
