@@ -323,12 +323,223 @@ export default function ReportsExportPage() {
                     doc.text(String(c.pending || 0), 165, y + 4);
                     y += 6;
                 });
+                y += 6;
+            }
+
+            // Section 7: Complete Attendee Check-In Master Roster (All Rows, Columns & Timestamps)
+            if (liveData.attendees && liveData.attendees.length > 0) {
+                checkPageBreak(40);
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(15, 23, 42);
+                doc.text(`7. Complete Attendee Directory & Check-In Roster (${liveData.attendees.length} Attendees)`, 14, y);
+                y += 6;
+
+                const drawAttendeeHeader = () => {
+                    doc.setFillColor(15, 23, 42);
+                    doc.rect(14, y, 182, 6.5, 'F');
+                    doc.setFontSize(7.5);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(255, 255, 255);
+                    doc.text('#', 16, y + 4.5);
+                    doc.text('Attendee Name', 24, y + 4.5);
+                    doc.text('Booking ID', 68, y + 4.5);
+                    doc.text('Ticket / Counter', 100, y + 4.5);
+                    doc.text('Status', 135, y + 4.5);
+                    doc.text('Check-In Time', 158, y + 4.5);
+                    y += 7.5;
+                };
+
+                drawAttendeeHeader();
+
+                liveData.attendees.forEach((a, idx) => {
+                    if (y + 7 > pageHeight - 16) {
+                        doc.addPage();
+                        y = 16;
+                        drawAttendeeHeader();
+                    }
+
+                    const isChecked = a.check_in_status === 'CHECKED_IN';
+                    const timeStr = a.check_in_time ? new Date(a.check_in_time).toLocaleString() : '—';
+                    const counterStr = a.counter_number ? `Box #${a.counter_number}` : (a.counter || 'Unassigned');
+                    const sessionStr = a.workshop_name ? `Lab: ${a.workshop_name}` : (a.track_name || a.ticket_type || 'General');
+
+                    // Alternating background
+                    if (idx % 2 === 1) {
+                        doc.setFillColor(248, 250, 252);
+                        doc.rect(14, y, 182, 6, 'F');
+                    }
+
+                    doc.setFontSize(7);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(51, 65, 85);
+
+                    doc.text(String(idx + 1), 16, y + 4);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(15, 23, 42);
+                    doc.text((a.name || 'Attendee').substring(0, 26), 24, y + 4);
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(100, 116, 139);
+                    doc.text((a.booking_id || a.id || '').substring(0, 18), 68, y + 4);
+
+                    doc.setTextColor(51, 65, 85);
+                    doc.text(`${(a.ticket_type || 'Attendee').substring(0, 12)} (${counterStr})`.substring(0, 20), 100, y + 4);
+
+                    if (isChecked) {
+                        doc.setTextColor(16, 185, 129); // emerald
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('✓ ADMITTED', 135, y + 4);
+                    } else {
+                        doc.setTextColor(148, 163, 184); // slate-400
+                        doc.setFont('helvetica', 'normal');
+                        doc.text('Pending', 135, y + 4);
+                    }
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(71, 85, 105);
+                    doc.text(timeStr.substring(0, 20), 158, y + 4);
+
+                    y += 6;
+                });
+            }
+
+            // Page Numbering Footer
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(148, 163, 184);
+                doc.text(`OnePass Event Report • Page ${i} of ${totalPages}`, 14, pageHeight - 8);
+                doc.text('CONFIDENTIAL & OFFICIAL EVENT RECORD', 140, pageHeight - 8);
             }
 
             doc.save(`OnePass_Event_Report_${Date.now()}.pdf`);
         } catch (err) {
             console.error(err);
             alert('Failed to export PDF');
+        } finally {
+            setExportingPdf(false);
+        }
+    };
+
+    // Dedicated Full Attendee Check-In Roster PDF (Landscape High-Density Format)
+    const handleExportAttendeeRosterPDF = () => {
+        if (!liveData || !liveData.attendees || liveData.attendees.length === 0) {
+            alert('No attendee data available to export.');
+            return;
+        }
+        setExportingPdf(true);
+        try {
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const pageHeight = doc.internal.pageSize.height;
+            const pageWidth = doc.internal.pageSize.width;
+            let y = 14;
+
+            const drawRosterHeader = () => {
+                doc.setFillColor(15, 23, 42); // slate-900
+                doc.rect(10, y, pageWidth - 20, 7.5, 'F');
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(255, 255, 255);
+                doc.text('#', 13, y + 5);
+                doc.text('Attendee Name', 22, y + 5);
+                doc.text('Email / Phone', 75, y + 5);
+                doc.text('Booking ID', 135, y + 5);
+                doc.text('Ticket Type', 165, y + 5);
+                doc.text('Counter Box', 200, y + 5);
+                doc.text('Check-In Status', 228, y + 5);
+                doc.text('Check-In Timestamp', 255, y + 5);
+                y += 8.5;
+            };
+
+            // Main Banner on First Page
+            doc.setFillColor(15, 23, 42);
+            doc.rect(0, 0, pageWidth, 22, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(15);
+            doc.setFont('helvetica', 'bold');
+            doc.text('AWS Community Day — Official Attendee Check-In Master Roster', 12, 10);
+            doc.setFontSize(8.5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(148, 163, 184);
+            doc.text(`Generated: ${new Date().toLocaleString()} • Total Registered: ${liveData.attendees.length} • Admitted: ${liveData.checkedIn.length}`, 12, 17);
+            y = 28;
+
+            drawRosterHeader();
+
+            liveData.attendees.forEach((a, idx) => {
+                if (y + 6.5 > pageHeight - 14) {
+                    doc.addPage();
+                    y = 12;
+                    drawRosterHeader();
+                }
+
+                const isChecked = a.check_in_status === 'CHECKED_IN';
+                const timeStr = a.check_in_time ? new Date(a.check_in_time).toLocaleString() : 'Not Checked In';
+                const counterStr = a.counter_number ? `Box #${a.counter_number}` : (a.counter || 'Unassigned');
+                const contactStr = `${a.email || ''}${a.phone ? ` • ${a.phone}` : ''}`;
+
+                if (idx % 2 === 1) {
+                    doc.setFillColor(248, 250, 252);
+                    doc.rect(10, y, pageWidth - 20, 6, 'F');
+                }
+
+                doc.setFontSize(7.5);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(71, 85, 105);
+                doc.text(String(idx + 1), 13, y + 4.2);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(15, 23, 42);
+                doc.text((a.name || 'Attendee').substring(0, 28), 22, y + 4.2);
+
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(71, 85, 105);
+                doc.text(contactStr.substring(0, 34), 75, y + 4.2);
+
+                doc.setTextColor(100, 116, 139);
+                doc.text((a.booking_id || a.id || '').substring(0, 16), 135, y + 4.2);
+
+                doc.setTextColor(51, 65, 85);
+                doc.text((a.ticket_type || 'Attendee').substring(0, 18), 165, y + 4.2);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(0, 115, 187); // #0073BB
+                doc.text(counterStr.substring(0, 16), 200, y + 4.2);
+
+                if (isChecked) {
+                    doc.setTextColor(16, 185, 129); // emerald
+                    doc.text('✓ ADMITTED', 228, y + 4.2);
+                } else {
+                    doc.setTextColor(148, 163, 184); // slate
+                    doc.setFont('helvetica', 'normal');
+                    doc.text('Pending', 228, y + 4.2);
+                }
+
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(71, 85, 105);
+                doc.text(timeStr.substring(0, 22), 255, y + 4.2);
+
+                y += 6;
+            });
+
+            // Footers
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(148, 163, 184);
+                doc.text(`AWS Community Day Check-In Roster • Page ${i} of ${totalPages}`, 12, pageHeight - 6);
+                doc.text(`Official Cloud Record (${Date.now()})`, pageWidth - 60, pageHeight - 6);
+            }
+
+            doc.save(`OnePass_Attendee_Roster_${Date.now()}.pdf`);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to generate Attendee Roster PDF');
         } finally {
             setExportingPdf(false);
         }
@@ -497,19 +708,28 @@ function createAutoSyncTrigger() {
                     <button
                         onClick={handleDownloadMasterExcel}
                         disabled={exportingExcel}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition shadow-lg"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition shadow-lg cursor-pointer"
                     >
                         <FileSpreadsheet className="w-4 h-4" />
-                        <span>{exportingExcel ? 'Building Excel...' : 'Download Master Excel (.xlsx)'}</span>
+                        <span>{exportingExcel ? 'Building Excel...' : 'Master Excel (.xlsx)'}</span>
+                    </button>
+
+                    <button
+                        onClick={handleExportAttendeeRosterPDF}
+                        disabled={exportingPdf || !liveData}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition shadow-lg cursor-pointer"
+                    >
+                        <Users className="w-4 h-4" />
+                        <span>{exportingPdf ? 'Exporting...' : 'Attendee Roster (PDF)'}</span>
                     </button>
 
                     <button
                         onClick={handleExportPDF}
                         disabled={exportingPdf || !liveData}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-[#0073BB] hover:bg-[#0073BB]/90 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition shadow-lg"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-[#0073BB] hover:bg-[#0073BB]/90 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition shadow-lg cursor-pointer"
                     >
                         <Printer className="w-4 h-4" />
-                        <span>{exportingPdf ? 'Exporting PDF...' : 'Export / Print PDF Report'}</span>
+                        <span>{exportingPdf ? 'Exporting PDF...' : 'Full Event PDF Report'}</span>
                     </button>
                 </div>
             </div>

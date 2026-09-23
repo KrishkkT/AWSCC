@@ -6,8 +6,9 @@ import {
     Search, Plus, Filter, QrCode, CheckCircle2, XCircle, Clock,
     MoreHorizontal, ShieldCheck, RefreshCw, Edit, AlertCircle,
     User, Mail, Phone, Ticket, Layers, Coffee, Award, Sparkles, X, Trash2,
-    Download, CheckSquare, Square, MinusSquare, RotateCcw, ChevronDown
+    Download, CheckSquare, Square, MinusSquare, RotateCcw, ChevronDown, Printer
 } from 'lucide-react';
+import jsPDF from 'jspdf';
 import { useOnePass } from '@/components/onepass/OnePassContext';
 
 export default function AttendeesDirectoryPage() {
@@ -434,6 +435,127 @@ export default function AttendeesDirectoryPage() {
         document.body.removeChild(link);
     };
 
+    // Export Attendees Roster to PDF (Landscape Format with all fields & timestamps)
+    const handleExportPDF = (listToExport = null) => {
+        const list = listToExport || (selectedIds.length > 0 ? attendees.filter(a => selectedIds.includes(a.id)) : attendees);
+        if (!list || list.length === 0) {
+            alert('No attendees to export.');
+            return;
+        }
+
+        try {
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const pageHeight = doc.internal.pageSize.height;
+            const pageWidth = doc.internal.pageSize.width;
+            let y = 14;
+
+            const drawHeader = () => {
+                doc.setFillColor(15, 23, 42); // slate-900
+                doc.rect(10, y, pageWidth - 20, 7.5, 'F');
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(255, 255, 255);
+                doc.text('#', 13, y + 5);
+                doc.text('Attendee Name', 22, y + 5);
+                doc.text('Email / Phone', 75, y + 5);
+                doc.text('Booking ID', 135, y + 5);
+                doc.text('Ticket Type', 165, y + 5);
+                doc.text('Counter Box', 200, y + 5);
+                doc.text('Status', 228, y + 5);
+                doc.text('Check-In Timestamp', 255, y + 5);
+                y += 8.5;
+            };
+
+            // Main Banner on First Page
+            doc.setFillColor(15, 23, 42);
+            doc.rect(0, 0, pageWidth, 22, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(15);
+            doc.setFont('helvetica', 'bold');
+            doc.text('AWS Community Day — Attendees Check-In Roster', 12, 10);
+            doc.setFontSize(8.5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(148, 163, 184);
+            const checkedCount = list.filter(a => a.check_in_status === 'CHECKED_IN').length;
+            doc.text(`Generated: ${new Date().toLocaleString()} • Exported: ${list.length} Attendees • Checked-In: ${checkedCount}`, 12, 17);
+            y = 28;
+
+            drawHeader();
+
+            list.forEach((a, idx) => {
+                if (y + 6.5 > pageHeight - 14) {
+                    doc.addPage();
+                    y = 12;
+                    drawHeader();
+                }
+
+                const isChecked = a.check_in_status === 'CHECKED_IN';
+                const timeStr = a.check_in_time ? new Date(a.check_in_time).toLocaleString() : 'Not Checked In';
+                const counterStr = a.counter_number ? `Box #${a.counter_number}` : (a.counter || 'Unassigned');
+                const contactStr = `${a.email || ''}${a.phone ? ` • ${a.phone}` : ''}`;
+
+                if (idx % 2 === 1) {
+                    doc.setFillColor(248, 250, 252);
+                    doc.rect(10, y, pageWidth - 20, 6, 'F');
+                }
+
+                doc.setFontSize(7.5);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(71, 85, 105);
+                doc.text(String(idx + 1), 13, y + 4.2);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(15, 23, 42);
+                doc.text((a.name || 'Attendee').substring(0, 28), 22, y + 4.2);
+
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(71, 85, 105);
+                doc.text(contactStr.substring(0, 34), 75, y + 4.2);
+
+                doc.setTextColor(100, 116, 139);
+                doc.text((a.booking_id || a.id || '').substring(0, 16), 135, y + 4.2);
+
+                doc.setTextColor(51, 65, 85);
+                doc.text((a.ticket_type || 'Attendee').substring(0, 18), 165, y + 4.2);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(0, 115, 187); // #0073BB
+                doc.text(counterStr.substring(0, 16), 200, y + 4.2);
+
+                if (isChecked) {
+                    doc.setTextColor(16, 185, 129); // emerald
+                    doc.text('✓ ADMITTED', 228, y + 4.2);
+                } else {
+                    doc.setTextColor(148, 163, 184); // slate
+                    doc.setFont('helvetica', 'normal');
+                    doc.text('Pending', 228, y + 4.2);
+                }
+
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(71, 85, 105);
+                doc.text(timeStr.substring(0, 22), 255, y + 4.2);
+
+                y += 6;
+            });
+
+            // Footers
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(148, 163, 184);
+                doc.text(`AWS Community Day Attendee Manifest • Page ${i} of ${totalPages}`, 12, pageHeight - 6);
+                doc.text(`Official Cloud Record (${Date.now()})`, pageWidth - 60, pageHeight - 6);
+            }
+
+            doc.save(`OnePass_Attendees_${Date.now()}.pdf`);
+        } catch (e) {
+            console.error('PDF export failed:', e);
+            alert('Failed to generate Attendees PDF');
+        }
+    };
+
     const handleDeleteAttendee = async (attendeeId, attendeeName) => {
         if (!confirm(`Are you sure you want to permanently delete attendee "${attendeeName}"?`)) return;
         try {
@@ -506,10 +628,19 @@ export default function AttendeesDirectoryPage() {
                     </p>
                 </div>
 
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 flex-wrap gap-2">
+                    <button
+                        onClick={() => handleExportPDF()}
+                        className="flex items-center space-x-1.5 px-3.5 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 font-bold text-xs rounded-xl transition shadow-md cursor-pointer"
+                        title="Export current attendees as a PDF manifest"
+                    >
+                        <Printer className="w-4 h-4 text-purple-400" />
+                        <span>Export PDF</span>
+                    </button>
+
                     <button
                         onClick={() => setCounterModalOpen(true)}
-                        className="flex items-center space-x-2 px-3.5 py-2 bg-[#151c2e] hover:bg-[#1a2540] text-[#4F8EF7] border border-[#0073BB]/40 font-bold text-xs rounded-xl transition shadow-md"
+                        className="flex items-center space-x-2 px-3.5 py-2 bg-[#151c2e] hover:bg-[#1a2540] text-[#4F8EF7] border border-[#0073BB]/40 font-bold text-xs rounded-xl transition shadow-md cursor-pointer"
                         title="Configure and assign attendee registration desks"
                     >
                         <Sparkles className="w-4 h-4 text-[#0073BB]" />
@@ -523,7 +654,7 @@ export default function AttendeesDirectoryPage() {
 
                     <button
                         onClick={() => setCreateModalOpen(true)}
-                        className="flex items-center space-x-2 px-4 py-2 bg-[#0073BB] hover:bg-[#0073BB]/90 text-white font-bold text-xs rounded-xl transition shadow-md"
+                        className="flex items-center space-x-2 px-4 py-2 bg-[#0073BB] hover:bg-[#0073BB]/90 text-white font-bold text-xs rounded-xl transition shadow-md cursor-pointer"
                     >
                         <Plus className="w-4 h-4" />
                         <span>Add Attendee</span>

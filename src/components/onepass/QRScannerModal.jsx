@@ -5,9 +5,10 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, X, RefreshCw, AlertCircle, CameraOff, SwitchCamera, CheckCircle } from 'lucide-react';
 import { parseScannedQR } from '@/lib/onepass/qr';
 
+let cachedLastCameraId = '';
+
 /**
  * Helper to identify back/rear camera labels across various mobile vendors
- * (Android Chrome, iOS Safari, Samsung Internet, Huawei, Xiaomi, etc.)
  */
 function findBestCamera(devices, targetMode) {
     if (!devices || devices.length === 0) return null;
@@ -45,14 +46,7 @@ function findBestCamera(devices, targetMode) {
 }
 
 /**
- * QRScannerModal — High-performance, rock-solid modal popup scanner.
- * 
- * Stability & Performance Guarantees:
- * 1. Conservative 10 FPS + fixed 250x250 qrbox to eliminate frame drops and lag.
- * 2. Continuous autofocus where supported across Android/iOS devices.
- * 3. iOS Safari optimized (playsInline, muted, and mounted DOM delayed start).
- * 4. Full async teardown on single decode / dismiss to prevent NotReadableError and background CPU drain.
- * 5. Automatic popup close on scan with immediate callback.
+ * QRScannerModal — High-performance, fast-opening popup scanner.
  */
 function QRScannerModal({
     isOpen,
@@ -140,7 +134,7 @@ function QRScannerModal({
         }
     }, []);
 
-    // Start Camera Stream with Robust Fallbacks
+    // Instant/Fast Start Camera Stream with Robust Multi-Tier Fallbacks
     const startCamera = useCallback(async (cameraParam = null, targetFacingMode = null) => {
         if (!isMountedRef.current) return;
         setErrorMsg('');
@@ -151,9 +145,10 @@ function QRScannerModal({
         facingModeRef.current = activeMode;
         setFacingMode(activeMode);
 
-        // Await clean teardown and yield 100ms hardware release
-        await stopCamera();
-        await new Promise(r => setTimeout(r, 100));
+        if (scannerRef.current) {
+            await stopCamera();
+            await new Promise(r => setTimeout(r, 60));
+        }
 
         if (!isMountedRef.current) {
             setInitializing(false);
@@ -176,9 +171,8 @@ function QRScannerModal({
             });
             scannerRef.current = scanner;
 
-            // Stable 10 FPS and Fixed 250x250 Box (Eliminates lag & flicker)
             const qrConfig = {
-                fps: 10,
+                fps: 12,
                 qrbox: { width: 250, height: 250 },
                 aspectRatio: 1.0,
                 videoConstraints: {
@@ -189,7 +183,6 @@ function QRScannerModal({
                 }
             };
 
-            // SYNCHRONOUS DECODE HANDLER
             const onScanSuccess = async (decodedText) => {
                 if (scanLockRef.current) return;
                 scanLockRef.current = true;
@@ -203,92 +196,86 @@ function QRScannerModal({
                 playBeep();
                 setLastScanSuccess(clean);
 
-                // Pause stream immediately
                 try {
                     if (scannerRef.current) {
                         scannerRef.current.pause(true);
                     }
                 } catch (_) {}
 
-                // Teardown camera cleanly
                 await stopCamera();
 
-                // Fire parent callback and close modal popup
-                if (onScan) {
-                    onScan(clean);
-                }
-                if (onClose) {
-                    onClose();
-                }
+                if (onScan) onScan(clean);
+                if (onClose) onClose();
             };
 
             const onScanError = () => {};
 
-            // Enumerate hardware devices
-            let devices = [];
-            try {
-                devices = await Html5Qrcode.getCameras();
-                if (devices && devices.length > 0) {
-                    setCameras(devices);
-                }
-            } catch (_) {}
-
             let started = false;
+            const targetCamId = cameraParam || selectedCamRef.current || (activeMode === 'environment' ? cachedLastCameraId : '');
 
-            // 1. Explicit cameraParam if chosen
-            if (cameraParam && typeof cameraParam === 'string') {
+            // Fast-path: Launch directly with specified or cached back camera ID
+            if (targetCamId && typeof targetCamId === 'string') {
                 try {
-                    await scanner.start(cameraParam, qrConfig, onScanSuccess, onScanError);
+                    await scanner.start(targetCamId, qrConfig, onScanSuccess, onScanError);
                     started = true;
-                    selectedCamRef.current = cameraParam;
-                    setSelectedCam(cameraParam);
-                } catch (e) {
-                    console.warn('[QRScannerModal] Specific camera start failed:', e);
-                }
+                    selectedCamRef.current = targetCamId;
+                    setSelectedCam(targetCamId);
+                    if (activeMode === 'environment') cachedLastCameraId = targetCamId;
+                } catch (_) {}
             }
 
-            // 2. Best physical back camera from hardware enumeration
-            if (!started && devices && devices.length > 0) {
-                const bestId = findBestCamera(devices, activeMode);
-                if (bestId) {
-                    try {
-                        await scanner.start(bestId, qrConfig, onScanSuccess, onScanError);
-                        started = true;
-                        selectedCamRef.current = bestId;
-                        setSelectedCam(bestId);
-                    } catch (e) {
-                        console.warn('[QRScannerModal] Best camera start failed:', e);
-                    }
-                }
-            }
-
-            // 3. FacingMode constraint
+            // Fast-path 2: Direct facingMode constraint (instant start without waiting for device enumeration)
             if (!started) {
                 try {
                     await scanner.start({ facingMode: activeMode }, qrConfig, onScanSuccess, onScanError);
                     started = true;
-                } catch (e) {
-                    console.warn('[QRScannerModal] facingMode start failed:', e);
-                }
+                } catch (_) {}
             }
 
-            // 4. Ideal facingMode fallback
+            // Fallback 3: Query devices and select best match
+            if (!started) {
+                try {
+                    const devices = await Html5Qrcode.getCameras();
+                    if (devices && devices.length > 0) {
+                        setCameras(devices);
+                        const bestId = findBestCamera(devices, activeMode);
+                        if (bestId) {
+                            await scanner.start(bestId, qrConfig, onScanSuccess, onScanError);
+                            started = true;
+                            selectedCamRef.current = bestId;
+                            setSelectedCam(bestId);
+                            if (activeMode === 'environment') cachedLastCameraId = bestId;
+                        }
+                    }
+                } catch (_) {}
+            }
+
+            // Fallback 4: Ideal facingMode constraint
             if (!started) {
                 try {
                     await scanner.start({ facingMode: { ideal: activeMode } }, qrConfig, onScanSuccess, onScanError);
                     started = true;
-                } catch (e) {
-                    console.warn('[QRScannerModal] ideal facingMode failed:', e);
-                }
+                } catch (_) {}
             }
 
-            // 5. User camera fallback
+            // Fallback 5: User camera
             if (!started) {
                 await scanner.start({ facingMode: 'user' }, qrConfig, onScanSuccess, onScanError);
                 started = true;
             }
 
-            // Ensure iOS Safari playsInline and muted attributes on video elements
+            // Update camera devices list in background without delaying camera launch
+            Html5Qrcode.getCameras().then(devs => {
+                if (devs && devs.length > 0) {
+                    setCameras(devs);
+                    const best = findBestCamera(devs, activeMode);
+                    if (best && activeMode === 'environment') {
+                        cachedLastCameraId = best;
+                    }
+                }
+            }).catch(() => {});
+
+            // Ensure iOS Safari attributes
             const container = document.getElementById(containerIdRef.current);
             if (container) {
                 const video = container.querySelector('video');
@@ -302,7 +289,7 @@ function QRScannerModal({
             setScanning(true);
             setInitializing(false);
         } catch (err) {
-            console.error('[QRScannerModal] Start error:', err);
+            console.error('[QRScannerModal] Fast start error:', err);
             const errStr = (err?.message || err?.name || '').toLowerCase();
             if (errStr.includes('permission') || errStr.includes('denied') || errStr.includes('notallowed')) {
                 setErrorMsg('CAMERA_DENIED');
@@ -316,17 +303,17 @@ function QRScannerModal({
         }
     }, [stopCamera, onScan, onClose]);
 
-    // Modal Mount & Lifecycle Management
+    // Modal Mount: Start camera immediately
     useEffect(() => {
         if (isOpen) {
             isMountedRef.current = true;
             scanLockRef.current = false;
-            // Delay start slightly to guarantee modal DOM element is rendered
+            // Near-instant mount tick (20ms) to ensure container is in DOM
             const timer = setTimeout(() => {
                 if (isMountedRef.current) {
                     startCamera(selectedCamRef.current || null, facingModeRef.current);
                 }
-            }, 120);
+            }, 20);
 
             return () => {
                 isMountedRef.current = false;
@@ -339,7 +326,7 @@ function QRScannerModal({
         }
     }, [isOpen, startCamera, stopCamera]);
 
-    // Flip Camera (Front / Back)
+    // Flip Camera
     const handleFlipCamera = async () => {
         const nextMode = facingModeRef.current === 'environment' ? 'user' : 'environment';
         facingModeRef.current = nextMode;
@@ -353,6 +340,7 @@ function QRScannerModal({
     const handleSelectCamera = async (cameraId) => {
         selectedCamRef.current = cameraId;
         setSelectedCam(cameraId);
+        if (facingModeRef.current === 'environment') cachedLastCameraId = cameraId;
         await startCamera(cameraId, facingModeRef.current);
     };
 
@@ -370,13 +358,12 @@ function QRScannerModal({
                         <div>
                             <span className="font-bold text-white text-sm block leading-tight">{title}</span>
                             <span className="text-[10px] text-slate-400 font-mono">
-                                {scanning ? `● ${facingMode === 'environment' ? 'Rear' : 'Front'} Camera Live` : initializing ? 'Starting camera...' : 'Ready'}
+                                {scanning ? `● ${facingMode === 'environment' ? 'Rear' : 'Front'} Camera Live` : initializing ? 'Opening camera...' : 'Ready'}
                             </span>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {/* Camera Flip Button */}
                         <button
                             type="button"
                             onClick={handleFlipCamera}
@@ -387,7 +374,6 @@ function QRScannerModal({
                             <span className="text-[11px] font-mono">{facingMode === 'environment' ? 'Front' : 'Back'}</span>
                         </button>
 
-                        {/* Restart Button */}
                         <button
                             type="button"
                             onClick={() => startCamera(selectedCamRef.current || null, facingModeRef.current)}
@@ -397,7 +383,6 @@ function QRScannerModal({
                             <RefreshCw className={`w-4 h-4 ${initializing ? 'animate-spin text-[#4F8EF7]' : ''}`} />
                         </button>
 
-                        {/* Close Modal Button */}
                         <button
                             type="button"
                             onClick={() => {
@@ -412,7 +397,6 @@ function QRScannerModal({
                 </div>
 
                 <div className="p-5 space-y-4">
-                    {/* Error Alerts */}
                     {errorMsg === 'CAMERA_DENIED' && (
                         <div className="p-4 bg-amber-950/40 border border-amber-500/50 rounded-2xl space-y-2">
                             <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
@@ -457,12 +441,10 @@ function QRScannerModal({
                         </div>
                     )}
 
-                    {/* Dedicated Live Camera Viewport */}
                     {errorMsg !== 'NO_CAMERA' && (
                         <div className="relative w-full aspect-square bg-black rounded-2xl overflow-hidden border border-[#1a2540] shadow-inner flex items-center justify-center">
                             <div id={containerIdRef.current} className="w-full h-full" />
 
-                            {/* Reticle Overlay */}
                             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                                 <div className="w-56 h-56 border-2 border-[#0073BB]/60 rounded-2xl relative shadow-2xl">
                                     <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#4F8EF7] rounded-tl" />
@@ -476,7 +458,6 @@ function QRScannerModal({
                                 </div>
                             </div>
 
-                            {/* Loading Indicator */}
                             {initializing && (
                                 <div className="absolute inset-0 bg-[#0C111D]/80 flex flex-col items-center justify-center gap-2">
                                     <RefreshCw className="w-7 h-7 text-[#0073BB] animate-spin" />
@@ -484,7 +465,6 @@ function QRScannerModal({
                                 </div>
                             )}
 
-                            {/* Scanned Success Badge */}
                             {lastScanSuccess && (
                                 <div className="absolute inset-x-4 bottom-4 py-2 px-3 bg-emerald-950/90 border border-emerald-500 rounded-xl flex items-center gap-2 text-emerald-200 text-xs font-bold animate-fade-in shadow-xl backdrop-blur-md">
                                     <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
@@ -494,7 +474,6 @@ function QRScannerModal({
                         </div>
                     )}
 
-                    {/* Lens Selector Dropdown */}
                     {cameras.length > 1 && (
                         <div className="flex items-center justify-between text-xs px-1">
                             <span className="text-slate-400 font-medium">Lens:</span>
