@@ -258,7 +258,7 @@ export async function POST(req) {
         }
 
         // Execute batch insert
-        const created = OnePassDB.batchCreateAttendees(eventId, validRecords);
+        const created = await OnePassDB.batchCreateAttendees(eventId, validRecords);
 
         // Audit log
         OnePassDB.addAuditLog({

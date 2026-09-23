@@ -44,7 +44,7 @@ export async function PATCH(req, { params }) {
         }
 
         const updates = await req.json();
-        const updated = OnePassDB.updateAttendee(id, updates);
+        const updated = await OnePassDB.updateAttendee(id, updates);
         if (!updated) {
             return NextResponse.json({ error: 'Attendee not found' }, { status: 404 });
         }

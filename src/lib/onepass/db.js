@@ -367,7 +367,7 @@ async function hydrateFromSupabase(force = false) {
             const finalEvents = cloudEvents !== null && cloudEvents.length > 0 ? cloudEvents : (localBaseline.events || []);
             const finalVolunteers = cloudEventVolunteers !== null ? cloudEventVolunteers : (localBaseline.event_volunteers || []);
             
-            // For attendees: Build local map from active in-memory cache and local overrides for Last-Write-Wins
+            // For attendees: Build local map from active in-memory cache and local baseline
             const localAttendeeMap = new Map();
             const activeCache = globalThis.__onepass_db_cache__ || {};
             const candidates = [
@@ -381,9 +381,52 @@ async function hydrateFromSupabase(force = false) {
                 if (la.qr_identifier) localAttendeeMap.set(la.qr_identifier, la);
             }
 
-            // Single source of truth: If cloud returned attendee list, use it directly.
-            // Only fallback to localBaseline if cloud connection failed (cloudAttendees === null).
-            let rawAttendees = cloudAttendees !== null ? cloudAttendees : (localBaseline.attendees || []);
+            const cloudAttendeesList = Array.isArray(cloudAttendees) ? cloudAttendees : [];
+            const cloudIdSet = new Set();
+            for (const ca of cloudAttendeesList) {
+                if (ca.id) {
+                    cloudIdSet.add(ca.id);
+                    cloudIdSet.add(String(ca.id).toLowerCase());
+                }
+                if (ca.booking_id) {
+                    cloudIdSet.add(ca.booking_id);
+                    cloudIdSet.add(String(ca.booking_id).toLowerCase());
+                }
+                if (ca.qr_identifier) {
+                    cloudIdSet.add(ca.qr_identifier);
+                    cloudIdSet.add(String(ca.qr_identifier).toLowerCase());
+                }
+            }
+
+            // Find non-deleted local attendees that are not in cloud yet (e.g. freshly imported or created before cloud sync)
+            const localNewAttendees = [];
+            const seenNewIds = new Set();
+            for (const la of candidates) {
+                if (!la || !la.id) continue;
+                const idStr = (la.id || '').toString().trim();
+                const bIdStr = (la.booking_id || '').toString().trim();
+                const qrStr = (la.qr_identifier || '').toString().trim();
+
+                // Skip if deleted
+                if (globalThis.__onepass_deleted_ids__.has(idStr) ||
+                    globalThis.__onepass_deleted_ids__.has(idStr.toLowerCase()) ||
+                    (bIdStr && (globalThis.__onepass_deleted_ids__.has(bIdStr) || globalThis.__onepass_deleted_ids__.has(bIdStr.toLowerCase()))) ||
+                    (qrStr && (globalThis.__onepass_deleted_ids__.has(qrStr) || globalThis.__onepass_deleted_ids__.has(qrStr.toLowerCase())))) {
+                    continue;
+                }
+
+                // If not in cloud and not seen in this pass
+                if (!cloudIdSet.has(la.id) && !seenNewIds.has(la.id)) {
+                    seenNewIds.add(la.id);
+                    localNewAttendees.push(la);
+                }
+            }
+
+            // Merge cloud list with local attendees that are not yet in cloud
+            let rawAttendees = cloudAttendees !== null
+                ? [...cloudAttendeesList, ...localNewAttendees]
+                : (localBaseline.attendees || []);
+
             let finalAttendees = rawAttendees.filter(a => {
                 if (!a) return false;
                 const idStr = (a.id || '').toString().trim();
@@ -399,6 +442,13 @@ async function hydrateFromSupabase(force = false) {
                 }
                 return true;
             });
+
+            // Asynchronously ensure any unsynced local attendees are pushed to Supabase immediately
+            if (localNewAttendees.length > 0) {
+                upsertToSupabaseDirect('onepass_attendees', localNewAttendees).catch(e => {
+                    console.warn('[OnePass DB] Background sync of local attendees to Supabase failed:', e.message);
+                });
+            }
 
             // Merge local status overrides using Last-Write-Wins timestamp comparison for existing attendees
             finalAttendees = finalAttendees.map(a => {
@@ -1299,6 +1349,7 @@ export const OnePassDB = {
             updated_at: new Date().toISOString()
         };
         db.attendees.push(attendee);
+        registerUpdatedAttendee(attendee);
         saveDb(db);
         await upsertToSupabaseDirect('onepass_attendees', attendee);
         return attendee;
@@ -1335,6 +1386,7 @@ export const OnePassDB = {
                 updated_at: new Date().toISOString()
             };
             db.attendees.push(attendee);
+            registerUpdatedAttendee(attendee);
             created.push(attendee);
         }
         saveDb(db);
@@ -1407,6 +1459,7 @@ export const OnePassDB = {
                     counterStats[assignedCounterName].pending++;
                 }
 
+                registerUpdatedAttendee(attendee);
                 updated.push(attendee);
                 ruleMaxCounter = Math.max(ruleMaxCounter, assignedCounterNum);
             }
@@ -1460,6 +1513,7 @@ export const OnePassDB = {
             a.counter_number = null;
             a.counter_category = null;
             a.updated_at = new Date().toISOString();
+            registerUpdatedAttendee(a);
             updated.push(a);
         }
         saveDb(db);
@@ -1476,6 +1530,7 @@ export const OnePassDB = {
             ...updates,
             updated_at: new Date().toISOString()
         };
+        registerUpdatedAttendee(db.attendees[index]);
         saveDb(db);
         await upsertToSupabaseDirect('onepass_attendees', db.attendees[index]);
         return db.attendees[index];

@@ -92,7 +92,7 @@ export async function POST(req) {
             attendeeData.qr_token = tokenObj.qr_token;
         }
 
-        const attendee = OnePassDB.createAttendee({
+        const attendee = await OnePassDB.createAttendee({
             ...attendeeData,
             event_id: eventId
         });

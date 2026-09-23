@@ -43,7 +43,7 @@ export async function POST(req) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const result = OnePassDB.allocateCounters(eventId, rules);
+        const result = await OnePassDB.allocateCounters(eventId, rules);
 
         OnePassDB.addAuditLog({
             event_id: eventId,
@@ -86,7 +86,7 @@ export async function DELETE(req) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const result = OnePassDB.clearCounters(eventId);
+        const result = await OnePassDB.clearCounters(eventId);
 
         OnePassDB.addAuditLog({
             event_id: eventId,
