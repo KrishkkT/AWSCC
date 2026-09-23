@@ -6,13 +6,60 @@ import { Camera, X, RefreshCw, Upload, AlertCircle, CameraOff, SwitchCamera, Che
 import { parseScannedQR } from '@/lib/onepass/qr';
 
 /**
+ * Helper to identify back/rear camera labels across various mobile vendors
+ * (Android Chrome, iOS Safari, Samsung Internet, Huawei, Xiaomi, etc.)
+ */
+function findBestCamera(devices, targetMode) {
+    if (!devices || devices.length === 0) return null;
+
+    if (targetMode === 'user') {
+        // Look for front/user/selfie camera
+        const front = devices.find(d => 
+            /front|user|selfie|face|camera2\s*1|1,\s*facing\s*front/i.test(d.label || '')
+        );
+        if (front) return front.id;
+        // If not found by label, check if secondary device exists
+        if (devices.length > 1) return devices[1].id;
+        return devices[0].id;
+    }
+
+    // targetMode === 'environment' (Back/Rear Camera)
+    // 1. Explicit back camera label matching (avoiding front)
+    const backMatches = devices.filter(d => {
+        const label = (d.label || '').toLowerCase();
+        const isFront = /front|user|selfie|face|camera2\s*1|1,\s*facing\s*front/.test(label);
+        if (isFront) return false;
+        return /back|rear|environment|facing\s*back|0,\s*facing\s*back|camera2\s*0|camera\s*0|wide|main/.test(label);
+    });
+
+    if (backMatches.length > 0) {
+        // Return primary back camera (prefer 0 or main/wide if multiple)
+        const primary = backMatches.find(d => /0|main|wide|primary/i.test(d.label || '')) || backMatches[0];
+        return primary.id;
+    }
+
+    // 2. Filter out any device explicitly identified as front camera
+    const nonFront = devices.filter(d => 
+        !/front|user|selfie|face|camera2\s*1|1,\s*facing\s*front/i.test(d.label || '')
+    );
+    if (nonFront.length > 0) {
+        return nonFront[0].id;
+    }
+
+    // 3. Default to first camera device
+    return devices[0].id;
+}
+
+/**
  * InlineQRScanner — Cross-platform, mobile-optimized inline QR scanner.
  * 
  * Key guarantees:
  * 1. Single Html5Qrcode instance lifecycle — NEVER recreate/stop on each scan.
  * 2. Instant synchronous pause(true) + scanLockRef on first decode to eliminate
  *    repeated scans, duplicate beeps, and browser video track crashes.
- * 3. Camera stays safely paused until explicitly resumed via resume() / Scan Next trigger.
+ * 3. Mobile Back Camera priority: Deterministic physical back camera resolution
+ *    with multi-tier fallbacks across Android Chrome and iOS Safari.
+ * 4. Camera stays safely paused until explicitly resumed via resume() / Scan Next trigger.
  */
 const InlineQRScanner = forwardRef(function InlineQRScanner({
     isOpen,
@@ -25,6 +72,8 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
     const scannerRef = useRef(null);
     const scanLockRef = useRef(false);
     const isStoppingRef = useRef(false);
+    const facingModeRef = useRef('environment'); // Keep sync with current mode
+    const selectedCamRef = useRef('');
     const lastScanTimeRef = useRef(0);
     const lastScannedTextRef = useRef('');
     const containerIdRef = useRef(`qr-vp-${Math.random().toString(36).substring(2, 9)}`);
@@ -141,16 +190,21 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
         }
     }, []);
 
-    // Initialize and start camera with single persistent instance
-    const startCamera = useCallback(async (cameraParam = null) => {
+    // Initialize and start camera with single persistent instance & multi-stage back camera resolution
+    const startCamera = useCallback(async (cameraParam = null, targetFacingMode = null) => {
         if (!isOpen) return;
         setErrorMsg('');
         setInitializing(true);
         scanLockRef.current = false;
         setIsPausedState(false);
 
-        // Clean up any existing instances first
+        const activeMode = targetFacingMode || facingModeRef.current || 'environment';
+        facingModeRef.current = activeMode;
+        setFacingMode(activeMode);
+
+        // Clean up any existing instances and yield hardware track release (100ms)
         await stopCamera();
+        await new Promise(r => setTimeout(r, 100));
 
         const containerEl = document.getElementById(containerIdRef.current);
         if (!containerEl) {
@@ -187,7 +241,6 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                 if (!clean) return;
 
                 // 1. SYNCHRONOUS LOCK & HARDWARE PAUSE IMMEDIATELY
-                // Must execute before any state updates, async calls, or re-renders
                 scanLockRef.current = true;
                 setIsPausedState(true);
                 try {
@@ -215,36 +268,92 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                         resumeScanner();
                     }, 2000);
                 }
-                // If continuous is false, the scanner STAYS PAUSED until resume() is called!
             };
 
             const onScanError = () => {};
 
-            // 1. Try specified deviceId if provided
+            // Query devices to determine best physical camera ID
+            let devices = [];
+            try {
+                devices = await Html5Qrcode.getCameras();
+                if (devices && devices.length > 0) {
+                    setCameras(devices);
+                }
+            } catch (_) {}
+
+            let started = false;
+
+            // Strategy 1: Explicit cameraParam ID if provided
             if (cameraParam && typeof cameraParam === 'string') {
-                await scanner.start(cameraParam, qrConfig, onScanSuccess, onScanError);
-            } else {
-                // 2. Try facingMode (Mobile Back Camera default)
-                const currentFacing = facingMode || 'environment';
                 try {
-                    await scanner.start({ facingMode: currentFacing }, qrConfig, onScanSuccess, onScanError);
-                } catch (facingErr) {
-                    console.warn('[InlineQRScanner] facingMode start failed, trying fallback camera:', facingErr);
-                    // 3. Fallback to enumerated cameras
-                    const devices = await Html5Qrcode.getCameras().catch(() => []);
-                    if (devices && devices.length > 0) {
-                        setCameras(devices);
-                        const back = devices.find(d => /back|environment|rear|0/i.test(d.label)) || devices[0];
-                        setSelectedCam(back.id);
-                        await scanner.start(back.id, qrConfig, onScanSuccess, onScanError);
-                    } else {
-                        // 4. Ultimate fallback: user camera
-                        await scanner.start({ facingMode: 'user' }, qrConfig, onScanSuccess, onScanError);
+                    await scanner.start(cameraParam, qrConfig, onScanSuccess, onScanError);
+                    started = true;
+                    selectedCamRef.current = cameraParam;
+                    setSelectedCam(cameraParam);
+                } catch (camErr) {
+                    console.warn('[InlineQRScanner] Specific cameraParam start failed:', camErr);
+                }
+            }
+
+            // Strategy 2: Best physical camera ID matched from enumeration
+            if (!started && devices && devices.length > 0) {
+                const bestId = findBestCamera(devices, activeMode);
+                if (bestId) {
+                    try {
+                        await scanner.start(bestId, qrConfig, onScanSuccess, onScanError);
+                        started = true;
+                        selectedCamRef.current = bestId;
+                        setSelectedCam(bestId);
+                    } catch (enumErr) {
+                        console.warn('[InlineQRScanner] Enumerated best camera start failed:', enumErr);
                     }
                 }
             }
 
-            // Populate camera list in background without blocking
+            // Strategy 3: Standard facingMode constraint
+            if (!started) {
+                try {
+                    await scanner.start({ facingMode: activeMode }, qrConfig, onScanSuccess, onScanError);
+                    started = true;
+                } catch (facingErr) {
+                    console.warn('[InlineQRScanner] facingMode exact constraint failed:', facingErr);
+                }
+            }
+
+            // Strategy 4: Ideal facingMode constraint fallback
+            if (!started) {
+                try {
+                    await scanner.start({ facingMode: { ideal: activeMode } }, qrConfig, onScanSuccess, onScanError);
+                    started = true;
+                } catch (idealErr) {
+                    console.warn('[InlineQRScanner] facingMode ideal constraint failed:', idealErr);
+                }
+            }
+
+            // Strategy 5: Re-enumerate devices post-permission prompt and pick any valid device
+            if (!started) {
+                try {
+                    const freshDevices = await Html5Qrcode.getCameras();
+                    if (freshDevices && freshDevices.length > 0) {
+                        setCameras(freshDevices);
+                        const fallbackCamId = findBestCamera(freshDevices, activeMode) || freshDevices[0].id;
+                        await scanner.start(fallbackCamId, qrConfig, onScanSuccess, onScanError);
+                        started = true;
+                        selectedCamRef.current = fallbackCamId;
+                        setSelectedCam(fallbackCamId);
+                    }
+                } catch (freshErr) {
+                    console.warn('[InlineQRScanner] Fresh devices fallback failed:', freshErr);
+                }
+            }
+
+            // Strategy 6: Ultimate user facing mode fallback
+            if (!started) {
+                await scanner.start({ facingMode: 'user' }, qrConfig, onScanSuccess, onScanError);
+                started = true;
+            }
+
+            // Populate updated camera list in background without blocking
             Html5Qrcode.getCameras().then(devs => {
                 if (devs && devs.length > 0) {
                     setCameras(devs);
@@ -266,16 +375,16 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
             setScanning(false);
             setInitializing(false);
         }
-    }, [isOpen, facingMode, continuous, onScan, stopCamera, resumeScanner]);
+    }, [isOpen, continuous, onScan, stopCamera, resumeScanner]);
 
-    // Expose imperative control handle to parent components (declared AFTER functions to avoid TDZ)
+    // Expose imperative control handle to parent components
     useImperativeHandle(ref, () => ({
         resume: resumeScanner,
         pause: pauseScanner,
         stop: stopCamera,
-        restart: () => startCamera(selectedCam || null),
+        restart: () => startCamera(selectedCamRef.current || null, facingModeRef.current),
         isPaused: () => scanLockRef.current || isPausedState
-    }), [resumeScanner, pauseScanner, stopCamera, startCamera, selectedCam, isPausedState]);
+    }), [resumeScanner, pauseScanner, stopCamera, startCamera, isPausedState]);
 
     // React to external isPaused prop change
     useEffect(() => {
@@ -290,7 +399,7 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
     useEffect(() => {
         if (isOpen) {
             const timer = setTimeout(() => {
-                startCamera(selectedCam || null);
+                startCamera(selectedCamRef.current || null, facingModeRef.current);
             }, 80);
             return () => {
                 clearTimeout(timer);
@@ -299,27 +408,34 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
         } else {
             stopCamera();
         }
-    }, [isOpen, selectedCam, startCamera, stopCamera]);
+    }, [isOpen, startCamera, stopCamera]);
 
     // Recover camera stream on mobile tab focus / visibilitychange
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible' && isOpen && !scanning && !initializing) {
-                startCamera(selectedCam || null);
+                startCamera(selectedCamRef.current || null, facingModeRef.current);
             }
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [isOpen, scanning, initializing, selectedCam, startCamera]);
+    }, [isOpen, scanning, initializing, startCamera]);
 
-    // Toggle camera flip (Front / Back)
-    const handleFlipCamera = () => {
-        const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    // Toggle camera flip (Front / Back) with synchronous parameter passing
+    const handleFlipCamera = async () => {
+        const nextMode = facingModeRef.current === 'environment' ? 'user' : 'environment';
+        facingModeRef.current = nextMode;
         setFacingMode(nextMode);
+        selectedCamRef.current = '';
         setSelectedCam('');
-        setTimeout(() => {
-            startCamera(null);
-        }, 50);
+        await startCamera(null, nextMode);
+    };
+
+    // Camera selector change handler
+    const handleSelectCamera = async (cameraId) => {
+        selectedCamRef.current = cameraId;
+        setSelectedCam(cameraId);
+        await startCamera(cameraId, facingModeRef.current);
     };
 
     // Manual Submit
@@ -383,7 +499,7 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                     <div>
                         <span className="font-bold text-white text-sm block leading-tight">{title}</span>
                         <span className="text-[10px] text-slate-400 font-mono">
-                            {isPausedState ? '⏸️ Paused (Awaiting next scan)' : scanning ? '● Camera Live' : initializing ? 'Starting camera...' : 'Ready'}
+                            {isPausedState ? '⏸️ Paused (Awaiting next scan)' : scanning ? `● ${facingMode === 'environment' ? 'Back' : 'Front'} Camera Live` : initializing ? 'Starting camera...' : 'Ready'}
                         </span>
                     </div>
                 </div>
@@ -405,17 +521,17 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                     <button
                         type="button"
                         onClick={handleFlipCamera}
-                        title="Flip Camera (Front / Back)"
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-[#1a2540] hover:bg-[#253252] text-slate-200 rounded-xl text-xs font-medium transition border border-[#2a385c]"
+                        title={`Switch to ${facingMode === 'environment' ? 'Front' : 'Back'} Camera`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a2540] hover:bg-[#253252] text-slate-200 rounded-xl text-xs font-semibold transition border border-[#2a385c] active:scale-95"
                     >
                         <SwitchCamera className="w-3.5 h-3.5 text-[#4F8EF7]" />
-                        <span className="hidden sm:inline text-[11px]">{facingMode === 'environment' ? 'Back' : 'Front'}</span>
+                        <span className="text-[11px] font-mono">{facingMode === 'environment' ? 'Flip to Front' : 'Flip to Back'}</span>
                     </button>
 
                     {/* Restart Camera */}
                     <button
                         type="button"
-                        onClick={() => startCamera(selectedCam || null)}
+                        onClick={() => startCamera(selectedCamRef.current || null, facingModeRef.current)}
                         title="Restart Camera Stream"
                         className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-[#1a2540] transition border border-transparent hover:border-[#1a2540]"
                     >
@@ -447,7 +563,7 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                         <div className="flex justify-end pt-1">
                             <button
                                 type="button"
-                                onClick={() => startCamera(selectedCam || null)}
+                                onClick={() => startCamera(selectedCamRef.current || null, facingModeRef.current)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-semibold rounded-xl transition"
                             >
                                 <RefreshCw className="w-3 h-3" /> Retry Camera
@@ -464,10 +580,10 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                         </div>
                         <button
                             type="button"
-                            onClick={() => startCamera(null)}
+                            onClick={() => startCamera(null, 'environment')}
                             className="px-2.5 py-1 bg-red-800/40 hover:bg-red-800/60 rounded-lg text-[11px] font-bold text-white transition"
                         >
-                            Restart
+                            Restart (Back Lens)
                         </button>
                     </div>
                 )}
@@ -539,24 +655,24 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                     </div>
                 )}
 
-                {/* Multiple Camera Selection (if available) */}
+                {/* Multiple Camera Selection Dropdown */}
                 {cameras.length > 1 && (
                     <div className="flex items-center justify-between text-xs px-1">
-                        <span className="text-slate-400">Select Lens:</span>
+                        <span className="text-slate-400 font-medium">Select Lens:</span>
                         <select
                             value={selectedCam}
-                            onChange={(e) => {
-                                setSelectedCam(e.target.value);
-                                startCamera(e.target.value);
-                            }}
-                            className="bg-[#151c2e] border border-[#1a2540] rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-[#0073BB]"
+                            onChange={(e) => handleSelectCamera(e.target.value)}
+                            className="bg-[#151c2e] border border-[#1a2540] rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-[#0073BB] max-w-[220px] truncate"
                         >
-                            <option value="">Auto (Default Back Lens)</option>
-                            {cameras.map(c => (
-                                <option key={c.id} value={c.id}>
-                                    {c.label || `Camera ${c.id.slice(0, 6)}`}
-                                </option>
-                            ))}
+                            <option value="">Auto ({facingMode === 'environment' ? 'Back Lens' : 'Front Lens'})</option>
+                            {cameras.map(c => {
+                                const isBack = /back|rear|environment|0/i.test(c.label || '');
+                                return (
+                                    <option key={c.id} value={c.id}>
+                                        {c.label ? `${isBack ? '📷 Rear: ' : '🤳 Front: '}${c.label}` : `Camera ${c.id.slice(0, 6)}`}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
                 )}
