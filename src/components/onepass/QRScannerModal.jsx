@@ -1,304 +1,524 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, X, RefreshCw, Upload, Search, Zap, AlertCircle } from 'lucide-react';
+import { Camera, X, RefreshCw, AlertCircle, CameraOff, SwitchCamera, CheckCircle } from 'lucide-react';
 import { parseScannedQR } from '@/lib/onepass/qr';
 
-export default function QRScannerModal({ isOpen, onClose, onScan, title = 'Scan QR Code' }) {
+/**
+ * Helper to identify back/rear camera labels across various mobile vendors
+ * (Android Chrome, iOS Safari, Samsung Internet, Huawei, Xiaomi, etc.)
+ */
+function findBestCamera(devices, targetMode) {
+    if (!devices || devices.length === 0) return null;
+
+    if (targetMode === 'user') {
+        const front = devices.find(d => 
+            /front|user|selfie|face|camera2\s*1|1,\s*facing\s*front/i.test(d.label || '')
+        );
+        if (front) return front.id;
+        if (devices.length > 1) return devices[1].id;
+        return devices[0].id;
+    }
+
+    // targetMode === 'environment' (Back/Rear Camera)
+    const backMatches = devices.filter(d => {
+        const label = (d.label || '').toLowerCase();
+        const isFront = /front|user|selfie|face|camera2\s*1|1,\s*facing\s*front/.test(label);
+        if (isFront) return false;
+        return /back|rear|environment|facing\s*back|0,\s*facing\s*back|camera2\s*0|camera\s*0|wide|main/.test(label);
+    });
+
+    if (backMatches.length > 0) {
+        const primary = backMatches.find(d => /0|main|wide|primary/i.test(d.label || '')) || backMatches[0];
+        return primary.id;
+    }
+
+    const nonFront = devices.filter(d => 
+        !/front|user|selfie|face|camera2\s*1|1,\s*facing\s*front/i.test(d.label || '')
+    );
+    if (nonFront.length > 0) {
+        return nonFront[0].id;
+    }
+
+    return devices[0].id;
+}
+
+/**
+ * QRScannerModal — High-performance, rock-solid modal popup scanner.
+ * 
+ * Stability & Performance Guarantees:
+ * 1. Conservative 10 FPS + fixed 250x250 qrbox to eliminate frame drops and lag.
+ * 2. Continuous autofocus where supported across Android/iOS devices.
+ * 3. iOS Safari optimized (playsInline, muted, and mounted DOM delayed start).
+ * 4. Full async teardown on single decode / dismiss to prevent NotReadableError and background CPU drain.
+ * 5. Automatic popup close on scan with immediate callback.
+ */
+function QRScannerModal({
+    isOpen,
+    onClose,
+    onScan,
+    title = 'Scan QR Code'
+}) {
     const scannerRef = useRef(null);
-    const html5QrCodeRef = useRef(null);
     const scanLockRef = useRef(false);
-    const lastBeepTimeRef = useRef(0);
+    const isStoppingRef = useRef(false);
+    const isMountedRef = useRef(false);
+    const facingModeRef = useRef('environment');
+    const selectedCamRef = useRef('');
+    const containerIdRef = useRef(`qr-modal-vp-${Math.random().toString(36).substring(2, 9)}`);
 
     const [cameras, setCameras] = useState([]);
-    const [selectedCameraId, setSelectedCameraId] = useState('');
-    const [isScanning, setIsScanning] = useState(false);
+    const [selectedCam, setSelectedCam] = useState('');
+    const [facingMode, setFacingMode] = useState('environment');
+    const [scanning, setScanning] = useState(false);
+    const [initializing, setInitializing] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
-    const [manualCode, setManualCode] = useState('');
-    const [fileProcessing, setFileProcessing] = useState(false);
+    const [lastScanSuccess, setLastScanSuccess] = useState(null);
 
-    useEffect(() => {
-        if (isOpen) {
-            scanLockRef.current = false;
-            Html5Qrcode.getCameras().then((devices) => {
-                if (devices && devices.length) {
-                    setCameras(devices);
-                    const backCamera = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment'));
-                    setSelectedCameraId(backCamera ? backCamera.id : devices[0].id);
-                }
-            }).catch(err => {
-                console.error("No camera found", err);
-                setErrorMsg("No camera devices detected. You can use manual entry or file upload.");
-            });
-        } else {
-            scanLockRef.current = false;
-            stopCamera();
-        }
-
-        return () => {
-            scanLockRef.current = false;
-            stopCamera();
-        };
-    }, [isOpen]);
-
-    useEffect(() => {
-        if (isOpen && selectedCameraId && !isScanning) {
-            startCamera(selectedCameraId);
-        }
-    }, [isOpen, selectedCameraId]);
-
-    const startCamera = async (cameraId) => {
-        try {
-            setErrorMsg('');
-            scanLockRef.current = false;
-            if (html5QrCodeRef.current) {
-                await stopCamera();
-            }
-
-            const qrCodeScanner = new Html5Qrcode('qr-reader-viewport');
-            html5QrCodeRef.current = qrCodeScanner;
-
-            const config = {
-                fps: 15,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0
-            };
-
-            await qrCodeScanner.start(
-                cameraId,
-                config,
-                async (decodedText) => {
-                    if (scanLockRef.current) return;
-                    scanLockRef.current = true;
-
-                    const clean = parseScannedQR(decodedText);
-                    if (clean) {
-                        playBeep();
-                        try {
-                            if (html5QrCodeRef.current) {
-                                html5QrCodeRef.current.pause(true);
-                            }
-                        } catch (e) {}
-                        stopCamera();
-                        onScan(clean);
-                    } else {
-                        setTimeout(() => {
-                            scanLockRef.current = false;
-                        }, 1000);
-                    }
-                },
-                (errorMessage) => {
-                    // Suppress scan frame noise
-                }
-            );
-
-            setIsScanning(true);
-        } catch (err) {
-            console.error("Camera start error:", err);
-            const msg = (err?.message || '').toLowerCase();
-            if (msg.includes('permission') || msg.includes('denied') || msg.includes('not allowed') || msg.includes('notallowed')) {
-                setErrorMsg('CAMERA_PERMISSION_DENIED');
-            } else {
-                setErrorMsg("Could not start camera. Use manual entry or image upload below.");
-            }
-            setIsScanning(false);
-        }
-    };
-
-    const stopCamera = async () => {
-        if (html5QrCodeRef.current && isScanning) {
-            try {
-                await html5QrCodeRef.current.stop();
-                html5QrCodeRef.current.clear();
-            } catch (err) {
-                console.error("Camera stop error:", err);
-            } finally {
-                setIsScanning(false);
-            }
-        }
-    };
-
-    const handleFileUpload = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        setFileProcessing(true);
-        setErrorMsg('');
-
-        try {
-            const qrScanner = new Html5Qrcode('qr-reader-file-temp');
-            const decodedText = await qrScanner.scanFile(file, true);
-            playBeep();
-            const clean = parseScannedQR(decodedText);
-            if (clean) {
-                onScan(clean);
-            } else {
-                setErrorMsg("No valid OnePass QR token recognized in the image.");
-            }
-        } catch (err) {
-            setErrorMsg("Could not decode QR code from the uploaded image.");
-        } finally {
-            setFileProcessing(false);
-        }
-    };
-
+    // Audio Beep Confirmation
     const playBeep = () => {
-        const now = Date.now();
-        if (now - lastBeepTimeRef.current < 1000) return; // Debounce beep to max 1 per second
-        lastBeepTimeRef.current = now;
-
         try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            if (ctx.state === 'suspended') ctx.resume();
+
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, ctx.currentTime); // 880Hz A5 beep
-            gain.gain.setValueAtTime(0.2, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.25, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start();
             osc.stop(ctx.currentTime + 0.15);
-        } catch (e) {
-            // Audio context not allowed without interaction
-        }
+        } catch (_) {}
     };
 
-    const handleManualSubmit = (e) => {
-        e.preventDefault();
-        const clean = parseScannedQR(manualCode);
-        if (clean) {
-            playBeep();
-            onScan(clean);
-            setManualCode('');
-        } else {
-            setErrorMsg('Please enter a valid QR token or booking code.');
+    // Full Camera Hardware Teardown
+    const stopCamera = useCallback(async () => {
+        if (isStoppingRef.current) return;
+        isStoppingRef.current = true;
+
+        try {
+            if (scannerRef.current) {
+                const s = scannerRef.current;
+                scannerRef.current = null;
+                try {
+                    const state = s.getState ? s.getState() : 0;
+                    if (state === 2 || state === 3 || s.isScanning) {
+                        await s.stop();
+                    }
+                } catch (_) {}
+                try {
+                    s.clear();
+                } catch (_) {}
+            }
+
+            const container = document.getElementById(containerIdRef.current);
+            if (container) {
+                const videos = container.querySelectorAll('video');
+                videos.forEach(v => {
+                    if (v.srcObject && v.srcObject.getTracks) {
+                        v.srcObject.getTracks().forEach(track => {
+                            try { track.stop(); } catch (_) {}
+                        });
+                        v.srcObject = null;
+                    }
+                });
+                container.innerHTML = '';
+            }
+        } catch (e) {
+            console.warn('[QRScannerModal] stopCamera warning:', e);
+        } finally {
+            setScanning(false);
+            setInitializing(false);
+            isStoppingRef.current = false;
         }
+    }, []);
+
+    // Start Camera Stream with Robust Fallbacks
+    const startCamera = useCallback(async (cameraParam = null, targetFacingMode = null) => {
+        if (!isMountedRef.current) return;
+        setErrorMsg('');
+        setInitializing(true);
+        scanLockRef.current = false;
+
+        const activeMode = targetFacingMode || facingModeRef.current || 'environment';
+        facingModeRef.current = activeMode;
+        setFacingMode(activeMode);
+
+        // Await clean teardown and yield 100ms hardware release
+        await stopCamera();
+        await new Promise(r => setTimeout(r, 100));
+
+        if (!isMountedRef.current) {
+            setInitializing(false);
+            return;
+        }
+
+        const containerEl = document.getElementById(containerIdRef.current);
+        if (!containerEl) {
+            setInitializing(false);
+            return;
+        }
+        containerEl.innerHTML = '';
+
+        try {
+            const scanner = new Html5Qrcode(containerIdRef.current, {
+                verbose: false,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
+            });
+            scannerRef.current = scanner;
+
+            // Stable 10 FPS and Fixed 250x250 Box (Eliminates lag & flicker)
+            const qrConfig = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0,
+                videoConstraints: {
+                    facingMode: activeMode,
+                    focusMode: 'continuous',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+
+            // SYNCHRONOUS DECODE HANDLER
+            const onScanSuccess = async (decodedText) => {
+                if (scanLockRef.current) return;
+                scanLockRef.current = true;
+
+                const clean = parseScannedQR(decodedText);
+                if (!clean) {
+                    scanLockRef.current = false;
+                    return;
+                }
+
+                playBeep();
+                setLastScanSuccess(clean);
+
+                // Pause stream immediately
+                try {
+                    if (scannerRef.current) {
+                        scannerRef.current.pause(true);
+                    }
+                } catch (_) {}
+
+                // Teardown camera cleanly
+                await stopCamera();
+
+                // Fire parent callback and close modal popup
+                if (onScan) {
+                    onScan(clean);
+                }
+                if (onClose) {
+                    onClose();
+                }
+            };
+
+            const onScanError = () => {};
+
+            // Enumerate hardware devices
+            let devices = [];
+            try {
+                devices = await Html5Qrcode.getCameras();
+                if (devices && devices.length > 0) {
+                    setCameras(devices);
+                }
+            } catch (_) {}
+
+            let started = false;
+
+            // 1. Explicit cameraParam if chosen
+            if (cameraParam && typeof cameraParam === 'string') {
+                try {
+                    await scanner.start(cameraParam, qrConfig, onScanSuccess, onScanError);
+                    started = true;
+                    selectedCamRef.current = cameraParam;
+                    setSelectedCam(cameraParam);
+                } catch (e) {
+                    console.warn('[QRScannerModal] Specific camera start failed:', e);
+                }
+            }
+
+            // 2. Best physical back camera from hardware enumeration
+            if (!started && devices && devices.length > 0) {
+                const bestId = findBestCamera(devices, activeMode);
+                if (bestId) {
+                    try {
+                        await scanner.start(bestId, qrConfig, onScanSuccess, onScanError);
+                        started = true;
+                        selectedCamRef.current = bestId;
+                        setSelectedCam(bestId);
+                    } catch (e) {
+                        console.warn('[QRScannerModal] Best camera start failed:', e);
+                    }
+                }
+            }
+
+            // 3. FacingMode constraint
+            if (!started) {
+                try {
+                    await scanner.start({ facingMode: activeMode }, qrConfig, onScanSuccess, onScanError);
+                    started = true;
+                } catch (e) {
+                    console.warn('[QRScannerModal] facingMode start failed:', e);
+                }
+            }
+
+            // 4. Ideal facingMode fallback
+            if (!started) {
+                try {
+                    await scanner.start({ facingMode: { ideal: activeMode } }, qrConfig, onScanSuccess, onScanError);
+                    started = true;
+                } catch (e) {
+                    console.warn('[QRScannerModal] ideal facingMode failed:', e);
+                }
+            }
+
+            // 5. User camera fallback
+            if (!started) {
+                await scanner.start({ facingMode: 'user' }, qrConfig, onScanSuccess, onScanError);
+                started = true;
+            }
+
+            // Ensure iOS Safari playsInline and muted attributes on video elements
+            const container = document.getElementById(containerIdRef.current);
+            if (container) {
+                const video = container.querySelector('video');
+                if (video) {
+                    video.setAttribute('playsinline', 'true');
+                    video.setAttribute('webkit-playsinline', 'true');
+                    video.muted = true;
+                }
+            }
+
+            setScanning(true);
+            setInitializing(false);
+        } catch (err) {
+            console.error('[QRScannerModal] Start error:', err);
+            const errStr = (err?.message || err?.name || '').toLowerCase();
+            if (errStr.includes('permission') || errStr.includes('denied') || errStr.includes('notallowed')) {
+                setErrorMsg('CAMERA_DENIED');
+            } else if (errStr.includes('notfound') || errStr.includes('devicesnotfound')) {
+                setErrorMsg('NO_CAMERA');
+            } else {
+                setErrorMsg('CAMERA_ERROR');
+            }
+            setScanning(false);
+            setInitializing(false);
+        }
+    }, [stopCamera, onScan, onClose]);
+
+    // Modal Mount & Lifecycle Management
+    useEffect(() => {
+        if (isOpen) {
+            isMountedRef.current = true;
+            scanLockRef.current = false;
+            // Delay start slightly to guarantee modal DOM element is rendered
+            const timer = setTimeout(() => {
+                if (isMountedRef.current) {
+                    startCamera(selectedCamRef.current || null, facingModeRef.current);
+                }
+            }, 120);
+
+            return () => {
+                isMountedRef.current = false;
+                clearTimeout(timer);
+                stopCamera();
+            };
+        } else {
+            isMountedRef.current = false;
+            stopCamera();
+        }
+    }, [isOpen, startCamera, stopCamera]);
+
+    // Flip Camera (Front / Back)
+    const handleFlipCamera = async () => {
+        const nextMode = facingModeRef.current === 'environment' ? 'user' : 'environment';
+        facingModeRef.current = nextMode;
+        setFacingMode(nextMode);
+        selectedCamRef.current = '';
+        setSelectedCam('');
+        await startCamera(null, nextMode);
+    };
+
+    // Camera Selector
+    const handleSelectCamera = async (cameraId) => {
+        selectedCamRef.current = cameraId;
+        setSelectedCam(cameraId);
+        await startCamera(cameraId, facingModeRef.current);
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="relative w-full max-w-lg bg-[#151c2e] border border-[#1a2540] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                {/* Modal Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-[#1a2540] bg-[#0C111D]/80">
-                    <div className="flex items-center space-x-2">
-                        <Camera className="w-5 h-5 text-[#0073BB]" />
-                        <h2 className="font-bold text-white text-base">{title}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+            <div className="relative w-full max-w-md bg-[#0C111D] border-2 border-[#0073BB] rounded-3xl overflow-hidden shadow-2xl shadow-[#0073BB]/20">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-3.5 bg-[#151c2e] border-b border-[#1a2540]">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-[#0073BB]/20 flex items-center justify-center border border-[#0073BB]/30">
+                            <Camera className="w-4 h-4 text-[#4F8EF7]" />
+                        </div>
+                        <div>
+                            <span className="font-bold text-white text-sm block leading-tight">{title}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                                {scanning ? `● ${facingMode === 'environment' ? 'Rear' : 'Front'} Camera Live` : initializing ? 'Starting camera...' : 'Ready'}
+                            </span>
+                        </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-[#151c2e] transition"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                        {/* Camera Flip Button */}
+                        <button
+                            type="button"
+                            onClick={handleFlipCamera}
+                            title={`Switch to ${facingMode === 'environment' ? 'Front' : 'Back'} Camera`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a2540] hover:bg-[#253252] text-slate-200 rounded-xl text-xs font-semibold transition border border-[#2a385c] active:scale-95"
+                        >
+                            <SwitchCamera className="w-3.5 h-3.5 text-[#4F8EF7]" />
+                            <span className="text-[11px] font-mono">{facingMode === 'environment' ? 'Front' : 'Back'}</span>
+                        </button>
+
+                        {/* Restart Button */}
+                        <button
+                            type="button"
+                            onClick={() => startCamera(selectedCamRef.current || null, facingModeRef.current)}
+                            title="Restart Camera Stream"
+                            className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-[#1a2540] transition border border-transparent hover:border-[#1a2540]"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${initializing ? 'animate-spin text-[#4F8EF7]' : ''}`} />
+                        </button>
+
+                        {/* Close Modal Button */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                stopCamera();
+                                onClose();
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-red-500/20 hover:text-red-300 transition"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
-                {/* Modal Body */}
-                <div className="p-6 space-y-6 overflow-y-auto">
-                    {errorMsg === 'CAMERA_PERMISSION_DENIED' ? (
-                        <div className="p-4 bg-amber-950/50 border border-amber-600/60 rounded-2xl space-y-3">
-                            <div className="flex items-center space-x-2 text-amber-400">
-                                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                                <span className="font-bold text-sm">Camera Permission Blocked</span>
+                <div className="p-5 space-y-4">
+                    {/* Error Alerts */}
+                    {errorMsg === 'CAMERA_DENIED' && (
+                        <div className="p-4 bg-amber-950/40 border border-amber-500/50 rounded-2xl space-y-2">
+                            <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                                <AlertCircle className="w-4 h-4" />
+                                <span>Camera Permission Blocked</span>
                             </div>
-                            <p className="text-xs text-amber-200 leading-relaxed">
-                                Your browser is blocking camera access. Follow these steps to allow it:
+                            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                                Tap the <strong>🔒 lock icon</strong> in your browser address bar and choose <strong>Camera → Allow</strong>.
                             </p>
-                            <ol className="text-xs text-slate-300 space-y-1.5 list-decimal list-inside font-mono">
-                                <li><strong className="text-white">Chrome / Edge:</strong> Click the 🔒 lock icon in the address bar → Camera → Allow → Reload</li>
-                                <li><strong className="text-white">Firefox:</strong> Click the camera icon in address bar → Remove Block → Reload</li>
-                                <li><strong className="text-white">Safari (iPhone/iPad):</strong> Settings → Safari → Camera → Allow</li>
-                                <li><strong className="text-white">Android Chrome:</strong> Tap ⋮ menu → Settings → Site Settings → Camera → Allow</li>
-                            </ol>
-                            <div className="pt-1 flex items-center justify-between">
-                                <p className="text-[10px] text-slate-400 font-mono">Or use manual entry / file upload below ↓</p>
+                            <div className="flex justify-end pt-1">
                                 <button
-                                    onClick={() => { setErrorMsg(''); if (selectedCameraId) startCamera(selectedCameraId); }}
-                                    className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-xl transition"
+                                    type="button"
+                                    onClick={() => startCamera(selectedCamRef.current || null, facingModeRef.current)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-semibold rounded-xl transition"
                                 >
-                                    <RefreshCw className="w-3.5 h-3.5" />
-                                    <span>Retry Camera</span>
+                                    <RefreshCw className="w-3 h-3" /> Retry Camera
                                 </button>
                             </div>
                         </div>
-                    ) : errorMsg ? (
-                        <div className="p-3 bg-red-950/40 border border-red-800 rounded-xl text-xs text-red-300 flex items-center space-x-2">
-                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                            <span>{errorMsg}</span>
-                        </div>
-                    ) : null}
+                    )}
 
-                    {/* Camera Stream Viewport */}
-                    <div className="relative w-full aspect-square max-w-[320px] mx-auto bg-black rounded-2xl overflow-hidden border border-[#1a2540] shadow-inner flex items-center justify-center">
-                        <div id="qr-reader-viewport" className="w-full h-full" />
-                        <div id="qr-reader-file-temp" className="hidden" />
-
-                        {/* Visual Scanning Reticle Frame */}
-                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                            <div className="w-48 h-48 border-2 border-[#0073BB] rounded-xl relative animate-pulse">
-                                <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-[#4F8EF7]" />
-                                <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-[#4F8EF7]" />
-                                <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-[#4F8EF7]" />
-                                <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-[#4F8EF7]" />
+                    {errorMsg === 'CAMERA_ERROR' && (
+                        <div className="p-3 bg-red-950/40 border border-red-800 rounded-xl flex items-center justify-between text-xs text-red-300">
+                            <div className="flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                <span>Camera stream interrupted or in use.</span>
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Camera Selector */}
-                    {cameras.length > 1 && (
-                        <div className="flex items-center justify-between text-xs">
-                            <span className="text-slate-400">Camera Source:</span>
-                            <select
-                                value={selectedCameraId}
-                                onChange={(e) => setSelectedCameraId(e.target.value)}
-                                className="bg-[#0C111D] border border-[#1a2540] rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-[#0073BB]"
+                            <button
+                                type="button"
+                                onClick={() => startCamera(null, 'environment')}
+                                className="px-2.5 py-1 bg-red-800/40 hover:bg-red-800/60 rounded-lg text-[11px] font-bold text-white transition"
                             >
-                                {cameras.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.label || `Camera ${c.id.slice(0, 5)}`}
-                                    </option>
-                                ))}
-                            </select>
+                                Restart
+                            </button>
                         </div>
                     )}
 
-                    {/* Fallback 1: Manual Code / Name / Email Entry */}
-                    <form onSubmit={handleManualSubmit} className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-slate-400">
-                            <span>Manual Entry / Search</span>
-                            <span className="font-mono text-[10px]">Name, Email, Booking ID, or QR</span>
+                    {errorMsg === 'NO_CAMERA' && (
+                        <div className="p-4 bg-[#151c2e] border border-[#1a2540] rounded-xl flex items-center gap-2 text-xs text-slate-300">
+                            <CameraOff className="w-4 h-4 flex-shrink-0 text-slate-400" />
+                            <span>No camera hardware detected on this device.</span>
                         </div>
-                        <div className="flex space-x-2">
-                            <input
-                                type="text"
-                                value={manualCode}
-                                onChange={(e) => setManualCode(e.target.value)}
-                                placeholder="Type attendee name, email, booking ID, or QR..."
-                                className="flex-1 bg-[#0C111D] border border-[#1a2540] rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 font-mono outline-none focus:border-[#0073BB]"
-                            />
-                            <button
-                                type="submit"
-                                className="px-4 py-2 bg-[#0073BB] hover:bg-[#0073BB]/90 text-white rounded-xl text-xs font-semibold"
-                            >
-                                Search
-                            </button>
-                        </div>
-                    </form>
+                    )}
 
-                    {/* Fallback 2: Image File Upload */}
-                    <div className="pt-2 border-t border-[#1a2540] flex items-center justify-between">
-                        <span className="text-xs text-slate-400">Or upload QR badge image</span>
-                        <label className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#0C111D] hover:bg-[#1a2540] border border-[#1a2540] text-slate-200 text-xs rounded-xl cursor-pointer transition">
-                            <Upload className="w-3.5 h-3.5" />
-                            <span>{fileProcessing ? 'Reading...' : 'Upload Image'}</span>
-                            <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-                        </label>
-                    </div>
+                    {/* Dedicated Live Camera Viewport */}
+                    {errorMsg !== 'NO_CAMERA' && (
+                        <div className="relative w-full aspect-square bg-black rounded-2xl overflow-hidden border border-[#1a2540] shadow-inner flex items-center justify-center">
+                            <div id={containerIdRef.current} className="w-full h-full" />
+
+                            {/* Reticle Overlay */}
+                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                                <div className="w-56 h-56 border-2 border-[#0073BB]/60 rounded-2xl relative shadow-2xl">
+                                    <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#4F8EF7] rounded-tl" />
+                                    <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#4F8EF7] rounded-tr" />
+                                    <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#4F8EF7] rounded-bl" />
+                                    <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#4F8EF7] rounded-br" />
+
+                                    {scanning && (
+                                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#4F8EF7] to-transparent animate-bounce opacity-80" />
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Loading Indicator */}
+                            {initializing && (
+                                <div className="absolute inset-0 bg-[#0C111D]/80 flex flex-col items-center justify-center gap-2">
+                                    <RefreshCw className="w-7 h-7 text-[#0073BB] animate-spin" />
+                                    <span className="text-xs text-slate-300 font-medium">Opening camera...</span>
+                                </div>
+                            )}
+
+                            {/* Scanned Success Badge */}
+                            {lastScanSuccess && (
+                                <div className="absolute inset-x-4 bottom-4 py-2 px-3 bg-emerald-950/90 border border-emerald-500 rounded-xl flex items-center gap-2 text-emerald-200 text-xs font-bold animate-fade-in shadow-xl backdrop-blur-md">
+                                    <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                                    <span className="truncate">Scanned: {lastScanSuccess}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Lens Selector Dropdown */}
+                    {cameras.length > 1 && (
+                        <div className="flex items-center justify-between text-xs px-1">
+                            <span className="text-slate-400 font-medium">Lens:</span>
+                            <select
+                                value={selectedCam}
+                                onChange={(e) => handleSelectCamera(e.target.value)}
+                                className="bg-[#151c2e] border border-[#1a2540] rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-[#0073BB] max-w-[240px] truncate"
+                            >
+                                <option value="">Auto ({facingMode === 'environment' ? 'Rear Lens' : 'Front Lens'})</option>
+                                {cameras.map(c => {
+                                    const isBack = /back|rear|environment|0/i.test(c.label || '');
+                                    return (
+                                        <option key={c.id} value={c.id}>
+                                            {c.label ? `${isBack ? '📷 Rear: ' : '🤳 Front: '}${c.label}` : `Camera ${c.id.slice(0, 6)}`}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
     );
 }
+
+export default React.memo(QRScannerModal);

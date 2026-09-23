@@ -6,7 +6,7 @@ import {
     BookOpen, Camera, CheckCircle2, XCircle, AlertTriangle, Plus, Search,
     RefreshCw, MapPin, Clock, User, Edit2, Trash2, X
 } from 'lucide-react';
-import InlineQRScanner from '@/components/onepass/InlineQRScanner';
+import QRScannerModal from '@/components/onepass/QRScannerModal';
 import { useOnePass } from '@/components/onepass/OnePassContext';
 import { parseScannedQR } from '@/lib/onepass/qr';
 
@@ -314,27 +314,22 @@ export default function WorkshopsPage() {
 
                 <div className="flex justify-center">
                     <button
-                        onClick={() => setScannerOpen(!scannerOpen)}
+                        onClick={() => setScannerOpen(true)}
                         disabled={!currentWk}
-                        className={`flex items-center space-x-2 px-8 py-4 ${scannerOpen ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-500 hover:bg-purple-400'} disabled:opacity-50 text-white font-extrabold text-sm rounded-2xl transition shadow-xl hover:scale-105`}
+                        className="flex items-center space-x-2 px-8 py-4 bg-purple-500 hover:bg-purple-400 disabled:opacity-50 text-white font-extrabold text-sm rounded-2xl transition shadow-xl hover:scale-105 cursor-pointer"
                     >
                         <Camera className="w-5 h-5 stroke-[2.5]" />
-                        <span>{scannerOpen ? 'Close Camera Scanner' : 'Open Workshop Camera Scanner'}</span>
+                        <span>Open Workshop Camera Scanner</span>
                     </button>
                 </div>
 
-                {/* Inline QR Scanner - expands right here (no popup modal) */}
-                {scannerOpen && (
-                    <div className="max-w-md mx-auto">
-                        <InlineQRScanner
-                            isOpen={scannerOpen}
-                            onClose={() => setScannerOpen(false)}
-                            onScan={(decoded) => handleWorkshopScan(decoded)}
-                            title={`Scan for ${currentWk?.name || 'Workshop Access'}`}
-                            continuous={true}
-                        />
-                    </div>
-                )}
+                {/* Modal QR Scanner Popup */}
+                <QRScannerModal
+                    isOpen={scannerOpen}
+                    onClose={() => setScannerOpen(false)}
+                    onScan={(decoded) => handleWorkshopScan(decoded)}
+                    title={`Scan for ${currentWk?.name || 'Workshop Access'}`}
+                />
 
                 {/* Manual Search & Verification */}
                 <form

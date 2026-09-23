@@ -8,7 +8,7 @@ import {
     User, Mail, Phone, Ticket, QrCode, Clock, ShieldCheck
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import InlineQRScanner from '@/components/onepass/InlineQRScanner';
+import QRScannerModal from '@/components/onepass/QRScannerModal';
 import { useOnePass } from '@/components/onepass/OnePassContext';
 import { parseScannedQR } from '@/lib/onepass/qr';
 
@@ -17,8 +17,7 @@ export default function AttendeeCheckInDesk() {
     const eventId = params?.eventId;
     const { user } = useOnePass();
 
-    // References for smooth scrolling and persistent scanner control
-    const scannerControlRef = useRef(null);
+    // References for smooth scrolling and details display
     const detailsRef = useRef(null);
     const scannerSectionRef = useRef(null);
     const lastScanRef = useRef({ code: '', time: 0 });
@@ -188,10 +187,12 @@ export default function AttendeeCheckInDesk() {
         return handleConfirmCheckInSession(workshopOrTrackId, type, attendee);
     };
 
-    // Handle Scanned QR Code — Lookup & Prompt (Keeps camera instance alive & paused)
+    // Handle Scanned QR Code — Lookup & Prompt (Popup closes automatically)
     const handleQRScan = async (rawQR) => {
         const cleanQR = parseScannedQR(rawQR);
         if (!rawQR) return;
+
+        setScannerOpen(false);
 
         const now = Date.now();
         const codeKey = cleanQR || rawQR;
@@ -218,16 +219,9 @@ export default function AttendeeCheckInDesk() {
             }
 
             alert(`QR Code "${cleanQR || rawQR}" not found for this event.`);
-            // If not found, resume scanner so volunteer can scan another
-            if (scannerControlRef.current) {
-                scannerControlRef.current.resume();
-            }
         } catch (err) {
             console.error(err);
             alert('Failed to lookup scanned attendee over network.');
-            if (scannerControlRef.current) {
-                scannerControlRef.current.resume();
-            }
         }
     };
 
@@ -307,25 +301,14 @@ export default function AttendeeCheckInDesk() {
         }
     };
 
-    // Sole trigger to reactivate camera, clear scan lock, and reset attendee card
+    // Re-opens clean popup scanner and resets current cards
     const handleScanNextAttendee = () => {
         setScannedAttendee(null);
         setCheckInSuccess(null);
         setAlreadyCheckedInWarning(null);
         setManualSearchQuery('');
         setSearchResults([]);
-
-        // Explicitly resume camera hardware and clear lock
-        if (scannerControlRef.current) {
-            scannerControlRef.current.resume();
-        }
-
-        // Scroll back smoothly to the scanner viewport
-        if (scannerSectionRef.current) {
-            scannerSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        setScannerOpen(true);
     };
 
     const isCardActive = Boolean(checkInSuccess || alreadyCheckedInWarning || scannedAttendee);
@@ -373,30 +356,24 @@ export default function AttendeeCheckInDesk() {
             <div ref={scannerSectionRef} className="p-6 bg-[#151c2e] border border-[#1a2540] rounded-3xl space-y-5 shadow-2xl">
                 <div className="text-center space-y-3">
                     <button
-                        onClick={() => setScannerOpen(!scannerOpen)}
-                        className={`flex items-center justify-center space-x-3 px-8 py-5 ${scannerOpen ? 'bg-red-600 hover:bg-red-700' : 'bg-[#0073BB] hover:bg-[#0073BB]/90'} text-white font-extrabold text-base rounded-2xl transition shadow-xl mx-auto hover:scale-105 active:scale-95`}
+                        onClick={() => setScannerOpen(true)}
+                        className="flex items-center justify-center space-x-3 px-8 py-5 bg-[#0073BB] hover:bg-[#0073BB]/90 text-white font-extrabold text-base rounded-2xl transition shadow-xl mx-auto hover:scale-105 active:scale-95 cursor-pointer"
                     >
                         <Camera className="w-6 h-6 stroke-[2.5]" />
-                        <span>{scannerOpen ? 'Close Camera Scanner' : 'Launch Camera QR Scanner'}</span>
+                        <span>Launch Camera QR Scanner</span>
                     </button>
                     <p className="text-xs text-slate-400 font-mono">
-                        Scan attendee ticket QR from KonfHub confirmation email / pass
+                        Opens live camera popup to scan attendee pass QR code
                     </p>
                 </div>
 
-                {/* Inline QR Scanner — stays mounted and controlled via ref */}
-                {scannerOpen && (
-                    <div className="max-w-md mx-auto">
-                        <InlineQRScanner
-                            ref={scannerControlRef}
-                            isOpen={scannerOpen}
-                            onClose={() => setScannerOpen(false)}
-                            onScan={handleQRScan}
-                            title="Scan Attendee Check-In QR"
-                            continuous={false}
-                        />
-                    </div>
-                )}
+                {/* Modal QR Scanner Popup */}
+                <QRScannerModal
+                    isOpen={scannerOpen}
+                    onClose={() => setScannerOpen(false)}
+                    onScan={handleQRScan}
+                    title="Scan Attendee Check-In QR"
+                />
 
                 <div className="relative flex items-center">
                     <div className="flex-grow border-t border-[#1a2540]"></div>
