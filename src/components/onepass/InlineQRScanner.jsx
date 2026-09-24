@@ -89,6 +89,9 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
     const [fileProcessing, setFileProcessing] = useState(false);
     const [lastScanSuccess, setLastScanSuccess] = useState(null);
 
+    const onScanRef = useRef(onScan);
+    onScanRef.current = onScan;
+
     // Completely release camera hardware only on explicit close or unmount
     const stopCamera = useCallback(async () => {
         if (isStoppingRef.current) return;
@@ -162,7 +165,6 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
         try {
             if (scannerRef.current) {
                 const state = scannerRef.current.getState ? scannerRef.current.getState() : null;
-                // 2 is SCANNING in Html5QrcodeScannerState
                 if (state === 2 || typeof scannerRef.current.pause === 'function') {
                     scannerRef.current.pause(true);
                 }
@@ -180,7 +182,6 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
         try {
             if (scannerRef.current) {
                 const state = scannerRef.current.getState ? scannerRef.current.getState() : null;
-                // 3 is PAUSED in Html5QrcodeScannerState
                 if (state === 3 || typeof scannerRef.current.resume === 'function') {
                     scannerRef.current.resume();
                 }
@@ -217,18 +218,13 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
             const scanner = new Html5Qrcode(containerIdRef.current, {
                 verbose: false,
                 experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true
+                    useBarCodeDetectorIfSupported: false
                 }
             });
             scannerRef.current = scanner;
 
             const qrConfig = {
-                fps: 15,
-                qrbox: (viewWidth, viewHeight) => {
-                    const minEdge = Math.min(viewWidth, viewHeight);
-                    const size = Math.floor(minEdge * 0.72);
-                    return { width: Math.max(160, Math.min(280, size)), height: Math.max(160, Math.min(280, size)) };
-                }
+                fps: 20
             };
 
             // SYNCHRONOUS DECODE HANDLER
@@ -257,8 +253,8 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                 setLastScanSuccess(clean);
 
                 // 3. Invoke parent callback
-                if (onScan) {
-                    onScan(clean);
+                if (onScanRef.current) {
+                    onScanRef.current(clean);
                 }
 
                 // 4. Auto-resume ONLY if continuous mode is explicitly set to true
@@ -357,7 +353,7 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
             setScanning(false);
             setInitializing(false);
         }
-    }, [isOpen, continuous, onScan, stopCamera, resumeScanner]);
+    }, [isOpen, continuous, stopCamera, resumeScanner]);
 
     // Expose imperative control handle to parent components
     useImperativeHandle(ref, () => ({
@@ -431,7 +427,7 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
             clearTimeout(timer);
             stopCamera();
         };
-    }, [isOpen, startCamera, stopCamera]);
+    }, [isOpen]);
 
     // Recover camera stream on mobile tab focus / visibilitychange
     useEffect(() => {

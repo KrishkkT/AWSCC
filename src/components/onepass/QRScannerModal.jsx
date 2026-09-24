@@ -80,6 +80,11 @@ function QRScannerModal({
     const [errorMsg, setErrorMsg] = useState('');
     const [lastScanSuccess, setLastScanSuccess] = useState(null);
 
+    const onScanRef = useRef(onScan);
+    onScanRef.current = onScan;
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
+
     // Audio Beep Confirmation
     const playBeep = () => {
         try {
@@ -186,17 +191,9 @@ function QRScannerModal({
             return;
         }
 
-        // Clean dynamic QR config for all mobile aspect ratios & iOS Safari (no strict aspectRatio constraint)
+        // Fast full-frame scanning config (no qrbox cropping so iOS camera decodes anywhere on screen)
         const qrConfig = {
-            fps: 15,
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                const qrSize = Math.floor(minEdge * 0.72);
-                return {
-                    width: Math.max(160, Math.min(280, qrSize)),
-                    height: Math.max(160, Math.min(280, qrSize))
-                };
-            }
+            fps: 20
         };
 
         const onScanSuccess = async (decodedText) => {
@@ -220,8 +217,8 @@ function QRScannerModal({
 
             await stopCamera();
 
-            if (onScan) onScan(clean);
-            if (onClose) onClose();
+            if (onScanRef.current) onScanRef.current(clean);
+            if (onCloseRef.current) onCloseRef.current();
         };
 
         const onScanError = () => {};
@@ -281,17 +278,12 @@ function QRScannerModal({
                 started = await tryStart({ facingMode: activeMode });
             }
 
-            // Strategy 3: Ideal facingMode constraint: { facingMode: { ideal: activeMode } }
-            if (!started) {
-                started = await tryStart({ facingMode: { ideal: activeMode } });
-            }
-
-            // Strategy 4: Exact facingMode constraint: { facingMode: { exact: activeMode } }
+            // Strategy 3: Exact facingMode constraint: { facingMode: { exact: activeMode } }
             if (!started) {
                 started = await tryStart({ facingMode: { exact: activeMode } });
             }
 
-            // Strategy 5: Query device enumeration as fallback
+            // Strategy 4: Query device enumeration as fallback
             if (!started) {
                 try {
                     const devices = await Html5Qrcode.getCameras();
@@ -309,12 +301,12 @@ function QRScannerModal({
                 } catch (_) {}
             }
 
-            // Strategy 6: Fallback to user/front camera if rear is blocked or unavailable
+            // Strategy 5: Fallback to user/front camera if rear is blocked or unavailable
             if (!started && activeMode === 'environment') {
                 started = await tryStart({ facingMode: 'user' });
             }
 
-            // Strategy 7: Generic video constraint
+            // Strategy 6: Generic video constraint
             if (!started) {
                 started = await tryStart(true);
             }
@@ -349,7 +341,7 @@ function QRScannerModal({
             setScanning(false);
             setInitializing(false);
         }
-    }, [stopCamera, releaseAllMediaTracks, onScan, onClose]);
+    }, [stopCamera, releaseAllMediaTracks]);
 
     // Modal Mount: Start camera immediately when modal opens & observe container for iOS video setup
     useEffect(() => {
@@ -402,12 +394,12 @@ function QRScannerModal({
             observer.observe(container, { childList: true, subtree: true });
         }
 
-        // Short mount delay (40ms) to ensure container is fully painted in DOM
+        // Short mount delay (60ms) to ensure container is fully painted in DOM
         const timer = setTimeout(() => {
             if (isMountedRef.current) {
                 startCamera(selectedCamRef.current || null, facingModeRef.current);
             }
-        }, 40);
+        }, 60);
 
         return () => {
             isMountedRef.current = false;
@@ -415,7 +407,7 @@ function QRScannerModal({
             clearTimeout(timer);
             stopCamera();
         };
-    }, [isOpen, startCamera, stopCamera]);
+    }, [isOpen]);
 
     // Flip Camera
     const handleFlipCamera = async () => {
