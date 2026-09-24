@@ -14,7 +14,7 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const metrics = OnePassDB.getLiveMetrics(id);
+        const metrics = await OnePassDB.getLiveMetrics(id);
         if (!metrics) {
             return NextResponse.json({ error: 'Event not found' }, { status: 404 });
         }

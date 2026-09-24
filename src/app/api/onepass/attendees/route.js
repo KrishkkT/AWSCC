@@ -38,7 +38,7 @@ export async function GET(req) {
             return NextResponse.json({ found: true, attendee: profile });
         }
 
-        const attendees = OnePassDB.getAttendees(eventId, {
+        const attendees = await OnePassDB.getAttendees(eventId, {
             search,
             check_in_status: checkInStatus || undefined,
             assigned_track_id: trackId || undefined,
@@ -48,8 +48,10 @@ export async function GET(req) {
         });
 
         // Enrich with track names for easy table display
-        const tracks = OnePassDB.getTracks(eventId);
-        const workshops = OnePassDB.getWorkshops(eventId);
+        const [tracks, workshops] = await Promise.all([
+            OnePassDB.getTracks(eventId),
+            OnePassDB.getWorkshops(eventId)
+        ]);
 
         const enriched = attendees.map(a => ({
             ...a,
@@ -57,7 +59,13 @@ export async function GET(req) {
             workshop_name: a.assigned_workshop_id ? workshops.find(w => w.id === a.assigned_workshop_id)?.name : null
         }));
 
-        return NextResponse.json({ attendees: enriched, total: enriched.length });
+        return NextResponse.json({ attendees: enriched, total: enriched.length }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
     } catch (e) {
         console.error('[OnePass Attendees GET]', e);
         return NextResponse.json({ error: 'Failed to fetch attendees' }, { status: 500 });
@@ -80,7 +88,7 @@ export async function POST(req) {
         }
 
         // Check for duplicate email in event
-        const existingAttendees = OnePassDB.getAttendees(eventId);
+        const existingAttendees = await OnePassDB.getAttendees(eventId);
         if (existingAttendees.some(a => a.email.toLowerCase() === attendeeData.email.toLowerCase())) {
             return NextResponse.json({ error: 'An attendee with this email already exists in this event.' }, { status: 409 });
         }

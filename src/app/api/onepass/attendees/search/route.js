@@ -29,7 +29,7 @@ export async function GET(req) {
         // 1. Combine direct QR lookup and multi-field search results
         const cleanQR = parseScannedQR(q);
         const directAttendee = OnePassDB.getAttendeeByQR(eventId, cleanQR) || OnePassDB.getAttendeeByQR(eventId, q);
-        const searchList = OnePassDB.getAttendees(eventId, { search: q });
+        const searchList = await OnePassDB.getAttendees(eventId, { search: q });
 
         const resultMap = new Map();
         if (directAttendee) {
@@ -42,8 +42,10 @@ export async function GET(req) {
         }
         const combined = Array.from(resultMap.values());
 
-        const tracks = OnePassDB.getTracks(eventId);
-        const workshops = OnePassDB.getWorkshops(eventId);
+        const [tracks, workshops] = await Promise.all([
+            OnePassDB.getTracks(eventId),
+            OnePassDB.getWorkshops(eventId)
+        ]);
 
         const enriched = combined.map(a => ({
             ...a,
@@ -51,7 +53,13 @@ export async function GET(req) {
             workshop_name: a.assigned_workshop_id ? workshops.find(w => w.id === a.assigned_workshop_id)?.name : null
         }));
 
-        return NextResponse.json({ attendees: enriched, total: enriched.length });
+        return NextResponse.json({ attendees: enriched, total: enriched.length }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
     } catch (e) {
         console.error('[OnePass Attendees Search GET]', e);
         return NextResponse.json({ error: 'Failed to search attendees' }, { status: 500 });

@@ -373,7 +373,14 @@ export default function WorkshopsPage() {
                             >
                                 <div>
                                     <div className="font-bold text-white">{att.name}</div>
-                                    <div className="text-[11px] text-slate-400 font-mono">{att.email} • {att.booking_id}</div>
+                                    <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 flex-wrap">
+                                        <span>{att.email} • {att.booking_id}</span>
+                                        {(att.counter || att.counter_number) && (
+                                            <span className="px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded border border-purple-500/30 text-[10px] font-bold">
+                                                🏷️ {att.counter || `Counter ${att.counter_number}`}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <span className="text-[10px] font-mono font-bold text-purple-400">{att.check_in_status}</span>
                             </button>
@@ -400,6 +407,22 @@ export default function WorkshopsPage() {
                                     {scanResult.attendee?.check_in_time && ` at ${new Date(scanResult.attendee.check_in_time).toLocaleTimeString()}`}
                                 </p>
                             </div>
+
+                            {/* Prominent Counter Desk & Box Badge */}
+                            {(scanResult.attendee?.counter || scanResult.attendee?.counter_number) && (
+                                <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500/15 border border-amber-500/40 rounded-2xl shadow-lg">
+                                    <span className="text-xs font-mono text-amber-300 font-bold uppercase tracking-wider">🏷️ Badge Counter / Box:</span>
+                                    <span className="text-lg font-black text-amber-200 font-mono">
+                                        {scanResult.attendee.counter || `Counter ${scanResult.attendee.counter_number}`}
+                                    </span>
+                                    {scanResult.attendee.counter_category && (
+                                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                            {scanResult.attendee.counter_category}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="text-xs text-slate-300 bg-[#0C111D] p-3 rounded-xl border border-amber-500/30 max-w-sm mx-auto font-mono">
                                 ✓ Re-verified: Access granted to Workshop Room.
                             </div>
@@ -408,8 +431,8 @@ export default function WorkshopsPage() {
                             </div>
                         </div>
                     ) : scanResult.granted ? (
-                        <div className="p-8 bg-emerald-950/40 border-2 border-emerald-500 rounded-3xl text-center space-y-4 shadow-2xl">
-                            <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+                        <div className="p-8 bg-emerald-950/40 border-2 border-emerald-500 rounded-3xl text-center space-y-4 shadow-2xl shadow-emerald-500/15">
+                            <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full flex items-center justify-center mx-auto">
                                 <CheckCircle2 className="w-12 h-12" />
                             </div>
                             <div className="space-y-1">
@@ -417,7 +440,28 @@ export default function WorkshopsPage() {
                                     ✓ FIRST-TIME WORKSHOP CHECK-IN &amp; ACCESS GRANTED
                                 </div>
                                 <h3 className="text-3xl font-extrabold text-white">{scanResult.attendee?.name}</h3>
-                                <p className="text-xs text-slate-300 font-mono">{scanResult.workshop?.name}</p>
+                                <p className="text-xs text-slate-300 font-mono">
+                                    Assigned Workshop: <strong>{scanResult.workshop?.name}</strong>
+                                </p>
+                            </div>
+
+                            {/* Prominent Counter Desk & Box Badge */}
+                            {(scanResult.attendee?.counter || scanResult.attendee?.counter_number) && (
+                                <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500/15 border border-emerald-500/40 rounded-2xl shadow-lg">
+                                    <span className="text-xs font-mono text-emerald-300 font-bold uppercase tracking-wider">🏷️ Badge Counter / Box:</span>
+                                    <span className="text-lg font-black text-emerald-200 font-mono">
+                                        {scanResult.attendee.counter || `Counter ${scanResult.attendee.counter_number}`}
+                                    </span>
+                                    {scanResult.attendee.counter_category && (
+                                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                            {scanResult.attendee.counter_category}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="text-[11px] text-slate-400 font-mono">
+                                Workshop scan logged at {scanResult.timestamp}
                             </div>
                         </div>
                     ) : (
@@ -431,6 +475,11 @@ export default function WorkshopsPage() {
                                 </div>
                                 <h3 className="text-2xl font-bold text-white">{scanResult.attendee?.name || 'Invalid QR'}</h3>
                                 <p className="text-sm text-red-300 font-semibold">{scanResult.message}</p>
+                                {(scanResult.attendee?.counter || scanResult.attendee?.counter_number) && (
+                                    <div className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-mono text-red-300">
+                                        <span>🏷️ Badge Counter: {scanResult.attendee.counter || `Counter ${scanResult.attendee.counter_number}`}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

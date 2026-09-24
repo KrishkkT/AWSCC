@@ -30,18 +30,28 @@ export async function GET(req) {
         }
 
         const db = OnePassDB.getSnapshot();
-        const attendees = OnePassDB.getAttendees(eventId) || [];
-        const tracks = OnePassDB.getTracks(eventId) || [];
-        const workshops = OnePassDB.getWorkshops(eventId) || [];
-        const foodResources = OnePassDB.getResources(eventId, 'FOOD') || [];
-        const swagResources = OnePassDB.getResources(eventId, 'SWAG') || [];
+        const [
+            attendees,
+            tracks,
+            workshops,
+            foodResources,
+            swagResources,
+            counterStats
+        ] = await Promise.all([
+            OnePassDB.getAttendees(eventId),
+            OnePassDB.getTracks(eventId),
+            OnePassDB.getWorkshops(eventId),
+            OnePassDB.getResources(eventId, 'FOOD'),
+            OnePassDB.getResources(eventId, 'SWAG'),
+            OnePassDB.getCounterStats(eventId)
+        ]);
+
         const allResources = db.resources ? db.resources.filter(r => r.event_id === eventId) : [];
         const resourceClaims = db.resource_claims ? db.resource_claims.filter(c => c.event_id === eventId) : [];
         const trackLogs = db.track_access_logs ? db.track_access_logs.filter(l => l.event_id === eventId) : [];
         const workshopLogs = db.workshop_access_logs ? db.workshop_access_logs.filter(l => l.event_id === eventId) : [];
         const auditLogs = db.audit_logs ? db.audit_logs.filter(l => l.event_id === eventId || l.event_id === 'GLOBAL') : [];
         const eventVolunteers = OnePassDB.getEventVolunteers(eventId) || [];
-        const counterStats = OnePassDB.getCounterStats(eventId) || [];
 
         const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
         const eventSafeName = (event.name || 'Event').replace(/\s+/g, '_');

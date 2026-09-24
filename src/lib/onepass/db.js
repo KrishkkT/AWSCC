@@ -266,6 +266,104 @@ async function fetchAllFromSupabase(supabaseClient, tableName, selectStr = '*', 
     return allRecords;
 }
 
+/**
+ * Live Supabase Attendee Fetcher
+ * Always queries Supabase directly to ensure 100% accuracy for counts and statuses.
+ * Merges in-flight local updates using Last-Write-Wins and removes tombstones.
+ */
+export async function fetchLiveAttendeesFromSupabase(eventId) {
+    const db = loadDb();
+    if (!supabase) {
+        return (db.attendees || []).filter(a => a.event_id === eventId);
+    }
+    try {
+        const PAGE_SIZE = 1000;
+        let allAttendees = [];
+        let from = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+            let to = from + PAGE_SIZE - 1;
+            let query = supabase
+                .from('onepass_attendees')
+                .select('id, event_id, name, email, phone, ticket_type, booking_id, qr_identifier, qr_token, check_in_status, check_in_time, assigned_track_id, assigned_workshop_id, checked_in_by_id, checked_in_by_name, checked_in_by_role, counter, counter_number, counter_category, created_at, updated_at')
+                .eq('event_id', eventId)
+                .range(from, to);
+
+            const { data, error } = await query;
+            if (error || !Array.isArray(data)) {
+                console.warn(`[OnePass DB] Warning fetching live attendees at [${from}-${to}]:`, error?.message);
+                break;
+            }
+            allAttendees.push(...data);
+            if (data.length < PAGE_SIZE) {
+                hasMore = false;
+            } else {
+                from += PAGE_SIZE;
+            }
+        }
+
+        // If cloud query returned empty or failed, fallback to in-memory/disk
+        if (allAttendees.length === 0) {
+            const localList = (db.attendees || []).filter(a => a.event_id === eventId);
+            if (localList.length > 0) return localList;
+        }
+
+        // 1. Exclude tombstones
+        let finalAttendees = allAttendees.filter(a => {
+            if (!a) return false;
+            const idStr = (a.id || '').toString().trim();
+            const bIdStr = (a.booking_id || '').toString().trim();
+            const qrStr = (a.qr_identifier || '').toString().trim();
+            if (globalThis.__onepass_deleted_ids__.has(idStr) ||
+                globalThis.__onepass_deleted_ids__.has(idStr.toLowerCase()) ||
+                globalThis.__onepass_deleted_ids__.has(bIdStr) ||
+                globalThis.__onepass_deleted_ids__.has(bIdStr.toLowerCase()) ||
+                globalThis.__onepass_deleted_ids__.has(qrStr) ||
+                globalThis.__onepass_deleted_ids__.has(qrStr.toLowerCase())) {
+                return false;
+            }
+            return true;
+        });
+
+        // 2. Merge local in-flight updates using Last-Write-Wins (prevents read-after-write replication lag)
+        finalAttendees = finalAttendees.map(a => {
+            const localOverride = globalThis.__onepass_locally_updated_attendees__.get(a.id) ||
+                                   globalThis.__onepass_locally_updated_attendees__.get(a.booking_id) ||
+                                   globalThis.__onepass_locally_updated_attendees__.get(a.qr_identifier);
+            if (!localOverride) return a;
+
+            const cloudTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+            const overrideTime = localOverride.updated_at ? new Date(localOverride.updated_at).getTime() : 0;
+
+            if (overrideTime >= cloudTime) {
+                return { ...a, ...localOverride };
+            }
+            return a;
+        });
+
+        // 3. Include any newly created attendees that may not yet be indexed in cloud
+        const cloudIdSet = new Set(finalAttendees.map(a => a.id));
+        for (const [id, localAtt] of globalThis.__onepass_locally_updated_attendees__.entries()) {
+            if (localAtt && localAtt.event_id === eventId && !cloudIdSet.has(localAtt.id)) {
+                finalAttendees.push(localAtt);
+                cloudIdSet.add(localAtt.id);
+            }
+        }
+
+        // Keep in-memory cache in sync with latest live attendees
+        if (db && Array.isArray(db.attendees)) {
+            const otherAttendees = db.attendees.filter(a => a.event_id !== eventId);
+            db.attendees = [...otherAttendees, ...finalAttendees];
+        }
+
+        return finalAttendees;
+    } catch (e) {
+        console.warn('[OnePass DB] fetchLiveAttendeesFromSupabase exception:', e.message);
+        return (db.attendees || []).filter(a => a.event_id === eventId);
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // SUPABASE HYDRATION: On cold start, pull ALL data from Supabase
 // so the local cache reflects the latest cloud state.
@@ -828,104 +926,59 @@ export const OnePassDB = {
         return true;
     },
 
-    // LIVE DASHBOARD METRICS
-    getLiveMetrics(eventId) {
-        const db = loadDb();
-        const event = db.events.find(e => e.id === eventId);
-        if (!event) return null;
+    // TRACKS (Dynamic Live Occupancy)
+    async getTracks(eventId) {
+        let tracks = [];
+        if (supabase) {
+            try {
+                const { data } = await supabase.from('onepass_tracks').select('*').eq('event_id', eventId);
+                if (Array.isArray(data)) tracks = data;
+            } catch (e) {
+                console.warn('[OnePass DB] Supabase getTracks warning:', e.message);
+            }
+        }
+        if (tracks.length === 0) {
+            const db = loadDb();
+            tracks = (db.tracks || []).filter(t => t.event_id === eventId);
+        }
 
-        const attendees = db.attendees.filter(a => a.event_id === eventId);
-        const total_attendees = attendees.length;
-        const checked_in = attendees.filter(a => a.check_in_status === 'CHECKED_IN').length;
-        const not_checked_in = total_attendees - checked_in;
-        const check_in_rate = total_attendees > 0 ? `${Math.round((checked_in / total_attendees) * 100)}%` : '0%';
-
-        const tracks = (db.tracks || [])
-            .filter(t => t.event_id === eventId)
-            .map(t => {
-                const occupancy = attendees.filter(a => a.assigned_track_id === t.id && a.check_in_status === 'CHECKED_IN').length;
-                return {
-                    ...t,
-                    occupancy
-                };
-            });
-
-        const workshops = (db.workshops || [])
-            .filter(w => w.event_id === eventId)
-            .map(w => {
-                const occupancy = attendees.filter(a => a.assigned_workshop_id === w.id && a.check_in_status === 'CHECKED_IN').length;
-                return {
-                    ...w,
-                    occupancy
-                };
-            });
-
-        const food = (db.resources || [])
-            .filter(r => r.event_id === eventId && r.type === 'FOOD')
-            .map(r => {
-                const claims_count = (db.resource_claims || []).filter(c => c.resource_id === r.id).length;
-                return {
-                    ...r,
-                    claims_count
-                };
-            });
-
-        const swag = (db.resources || [])
-            .filter(r => r.event_id === eventId && r.type === 'SWAG')
-            .map(r => {
-                const claims_count = (db.resource_claims || []).filter(c => c.resource_id === r.id).length;
-                return {
-                    ...r,
-                    claims_count
-                };
-            });
-
-        const recent_activity = (db.audit_logs || [])
-            .filter(l => l.event_id === eventId || l.event_id === 'GLOBAL')
-            .slice(0, 10);
-
-        return {
-            event,
-            summary: {
-                total_attendees,
-                checked_in,
-                not_checked_in,
-                check_in_rate
-            },
-            tracks,
-            workshops,
-            food,
-            swag,
-            recent_activity
-        };
-    },
-
-    // TRACKS
-    getTracks(eventId) {
-        const db = loadDb();
-        const tracks = db.tracks.filter(t => t.event_id === eventId);
-        // compute dynamic occupancy for checked-in attendees
+        const attendees = await fetchLiveAttendeesFromSupabase(eventId);
         return tracks.map(t => {
-            const occupancy = db.attendees.filter(a => a.event_id === eventId && a.assigned_track_id === t.id && a.check_in_status === 'CHECKED_IN').length;
+            const occupancy = attendees.filter(a => a.assigned_track_id === t.id && a.check_in_status === 'CHECKED_IN').length;
+            const cap = parseInt(t.capacity, 10) || 100;
             return {
                 ...t,
+                capacity: cap,
                 occupancy,
-                remaining: Math.max(0, t.capacity - occupancy),
-                is_full: occupancy >= t.capacity
+                remaining: Math.max(0, cap - occupancy),
+                is_full: occupancy >= cap
             };
         });
     },
 
-    getTrackById(id) {
+    async getTrackById(id) {
+        let track = null;
+        if (supabase) {
+            try {
+                const { data } = await supabase.from('onepass_tracks').select('*').eq('id', id).maybeSingle();
+                if (data) track = data;
+            } catch (e) {
+                console.warn('[OnePass DB] Supabase getTrackById warning:', e.message);
+            }
+        }
         const db = loadDb();
-        const track = db.tracks.find(t => t.id === id);
+        if (!track) track = (db.tracks || []).find(t => t.id === id);
         if (!track) return null;
-        const occupancy = db.attendees.filter(a => a.event_id === track.event_id && a.assigned_track_id === track.id && a.check_in_status === 'CHECKED_IN').length;
+
+        const attendees = await fetchLiveAttendeesFromSupabase(track.event_id);
+        const occupancy = attendees.filter(a => a.assigned_track_id === track.id && a.check_in_status === 'CHECKED_IN').length;
+        const cap = parseInt(track.capacity, 10) || 100;
         return {
             ...track,
+            capacity: cap,
             occupancy,
-            remaining: Math.max(0, track.capacity - occupancy),
-            is_full: occupancy >= track.capacity
+            remaining: Math.max(0, cap - occupancy),
+            is_full: occupancy >= cap
         };
     },
 
@@ -972,31 +1025,59 @@ export const OnePassDB = {
         return true;
     },
 
-    // WORKSHOPS
-    getWorkshops(eventId) {
-        const db = loadDb();
-        const workshops = db.workshops.filter(w => w.event_id === eventId);
+    // WORKSHOPS (Dynamic Live Occupancy)
+    async getWorkshops(eventId) {
+        let workshops = [];
+        if (supabase) {
+            try {
+                const { data } = await supabase.from('onepass_workshops').select('*').eq('event_id', eventId);
+                if (Array.isArray(data)) workshops = data;
+            } catch (e) {
+                console.warn('[OnePass DB] Supabase getWorkshops warning:', e.message);
+            }
+        }
+        if (workshops.length === 0) {
+            const db = loadDb();
+            workshops = (db.workshops || []).filter(w => w.event_id === eventId);
+        }
+
+        const attendees = await fetchLiveAttendeesFromSupabase(eventId);
         return workshops.map(w => {
-            const occupancy = db.attendees.filter(a => a.event_id === eventId && a.assigned_workshop_id === w.id && a.check_in_status === 'CHECKED_IN').length;
+            const occupancy = attendees.filter(a => a.assigned_workshop_id === w.id && a.check_in_status === 'CHECKED_IN').length;
+            const cap = parseInt(w.capacity, 10) || 50;
             return {
                 ...w,
+                capacity: cap,
                 occupancy,
-                remaining: Math.max(0, w.capacity - occupancy),
-                is_full: occupancy >= w.capacity
+                remaining: Math.max(0, cap - occupancy),
+                is_full: occupancy >= cap
             };
         });
     },
 
-    getWorkshopById(id) {
+    async getWorkshopById(id) {
+        let workshop = null;
+        if (supabase) {
+            try {
+                const { data } = await supabase.from('onepass_workshops').select('*').eq('id', id).maybeSingle();
+                if (data) workshop = data;
+            } catch (e) {
+                console.warn('[OnePass DB] Supabase getWorkshopById warning:', e.message);
+            }
+        }
         const db = loadDb();
-        const w = db.workshops.find(ws => ws.id === id);
-        if (!w) return null;
-        const occupancy = db.attendees.filter(a => a.event_id === w.event_id && a.assigned_workshop_id === w.id && a.check_in_status === 'CHECKED_IN').length;
+        if (!workshop) workshop = (db.workshops || []).find(ws => ws.id === id);
+        if (!workshop) return null;
+
+        const attendees = await fetchLiveAttendeesFromSupabase(workshop.event_id);
+        const occupancy = attendees.filter(a => a.assigned_workshop_id === workshop.id && a.check_in_status === 'CHECKED_IN').length;
+        const cap = parseInt(workshop.capacity, 10) || 50;
         return {
-            ...w,
+            ...workshop,
+            capacity: cap,
             occupancy,
-            remaining: Math.max(0, w.capacity - occupancy),
-            is_full: occupancy >= w.capacity
+            remaining: Math.max(0, cap - occupancy),
+            is_full: occupancy >= cap
         };
     },
 
@@ -1044,32 +1125,73 @@ export const OnePassDB = {
         return true;
     },
 
-    // RESOURCES (Food / Swag / Other items)
-    getResources(eventId, type = null) {
-        const db = loadDb();
-        let list = db.resources.filter(r => r.event_id === eventId);
-        if (type) {
-            list = list.filter(r => r.type === type);
+    // RESOURCES (Food / Swag / Other items with dynamic live claim counts)
+    async getResources(eventId, type = null) {
+        let resources = [];
+        let claims = [];
+        if (supabase) {
+            try {
+                let query = supabase.from('onepass_resources').select('*').eq('event_id', eventId);
+                if (type) query = query.eq('type', type);
+                const [rRes, cRes] = await Promise.allSettled([
+                    query,
+                    supabase.from('onepass_resource_claims').select('*').eq('event_id', eventId)
+                ]);
+                if (rRes.status === 'fulfilled' && Array.isArray(rRes.value.data)) resources = rRes.value.data;
+                if (cRes.status === 'fulfilled' && Array.isArray(cRes.value.data)) claims = cRes.value.data;
+            } catch (e) {
+                console.warn('[OnePass DB] Supabase getResources warning:', e.message);
+            }
         }
-        return list.map(r => {
-            const claimsCount = db.resource_claims.filter(c => c.resource_id === r.id).length;
+        const db = loadDb();
+        if (resources.length === 0) {
+            resources = (db.resources || []).filter(r => r.event_id === eventId && (!type || r.type === type));
+        }
+        if (claims.length === 0) {
+            claims = (db.resource_claims || []).filter(c => c.event_id === eventId);
+        }
+
+        return resources.map(r => {
+            const claimsCount = claims.filter(c => c.resource_id === r.id).length;
+            const cap = r.capacity ? parseInt(r.capacity, 10) : null;
             return {
                 ...r,
+                capacity: cap,
                 claims_count: claimsCount,
-                remaining: r.capacity ? Math.max(0, r.capacity - claimsCount) : null
+                remaining: cap ? Math.max(0, cap - claimsCount) : null
             };
         });
     },
 
-    getResourceById(id) {
+    async getResourceById(id) {
+        let resource = null;
+        let claims = [];
+        if (supabase) {
+            try {
+                const [rRes, cRes] = await Promise.allSettled([
+                    supabase.from('onepass_resources').select('*').eq('id', id).maybeSingle(),
+                    supabase.from('onepass_resource_claims').select('*').eq('resource_id', id)
+                ]);
+                if (rRes.status === 'fulfilled' && rRes.value.data) resource = rRes.value.data;
+                if (cRes.status === 'fulfilled' && Array.isArray(cRes.value.data)) claims = cRes.value.data;
+            } catch (e) {
+                console.warn('[OnePass DB] Supabase getResourceById warning:', e.message);
+            }
+        }
         const db = loadDb();
-        const r = db.resources.find(item => item.id === id);
-        if (!r) return null;
-        const claimsCount = db.resource_claims.filter(c => c.resource_id === r.id).length;
+        if (!resource) resource = (db.resources || []).find(item => item.id === id);
+        if (!resource) return null;
+        if (claims.length === 0) {
+            claims = (db.resource_claims || []).filter(c => c.resource_id === id);
+        }
+
+        const claimsCount = claims.length;
+        const cap = resource.capacity ? parseInt(resource.capacity, 10) : null;
         return {
-            ...r,
+            ...resource,
+            capacity: cap,
             claims_count: claimsCount,
-            remaining: r.capacity ? Math.max(0, r.capacity - claimsCount) : null
+            remaining: cap ? Math.max(0, cap - claimsCount) : null
         };
     },
 
@@ -1118,10 +1240,10 @@ export const OnePassDB = {
         return true;
     },
 
-    // ATTENDEES
-    getAttendees(eventId, options = {}) {
-        const db = loadDb();
-        let list = db.attendees.filter(a => a.event_id === eventId);
+    // ATTENDEES (Live Cloud Read with in-flight local overlay)
+    async getAttendees(eventId, options = {}) {
+        const attendees = await fetchLiveAttendeesFromSupabase(eventId);
+        let list = attendees;
         if (options.search) {
             const rawQ = options.search.trim();
             const q = rawQ.toLowerCase();
@@ -1412,9 +1534,8 @@ export const OnePassDB = {
         };
     },
 
-    getCounterStats(eventId) {
-        const db = loadDb();
-        const attendees = db.attendees.filter(a => a.event_id === eventId);
+    async getCounterStats(eventId) {
+        const attendees = await fetchLiveAttendeesFromSupabase(eventId);
         const stats = {};
         for (const a of attendees) {
             const cName = a.counter || 'Unassigned';
@@ -2238,12 +2359,19 @@ export const OnePassDB = {
         saveDb(db);
         await upsertToSupabaseDirect('onepass_track_access_logs', logEntry);
 
+        const enrichedAttendee = {
+            ...attendee,
+            counter: attendee.counter || (attendee.counter_number ? `Counter ${attendee.counter_number}` : null),
+            counter_number: attendee.counter_number || null,
+            counter_category: attendee.counter_category || null
+        };
+
         return {
             granted: true,
             already_checked_in: true,
             code: 'ALREADY_CHECKED_IN',
             message: `Attendee is already checked in to ${track.name}. Access re-verified & granted.`,
-            attendee,
+            attendee: enrichedAttendee,
             track
         };
     },
@@ -2344,12 +2472,19 @@ export const OnePassDB = {
         saveDb(db);
         await upsertToSupabaseDirect('onepass_workshop_access_logs', logEntry);
 
+        const enrichedAttendee = {
+            ...attendee,
+            counter: attendee.counter || (attendee.counter_number ? `Counter ${attendee.counter_number}` : null),
+            counter_number: attendee.counter_number || null,
+            counter_category: attendee.counter_category || null
+        };
+
         return {
             granted: true,
             already_checked_in: true,
             code: 'ALREADY_CHECKED_IN',
             message: `Attendee is already checked in to ${workshop.name}. Access re-verified & granted.`,
-            attendee,
+            attendee: enrichedAttendee,
             workshop
         };
     },
@@ -2552,31 +2687,120 @@ export const OnePassDB = {
         return list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     },
 
-    // LIVE DASHBOARD METRICS
-    getLiveMetrics(eventId) {
+    // LIVE DASHBOARD METRICS (Live Cloud Query)
+    async getLiveMetrics(eventId) {
+        // Fetch live attendees directly from Supabase
+        const attendees = await fetchLiveAttendeesFromSupabase(eventId);
+        
+        let event = null;
+        let tracks = [];
+        let workshops = [];
+        let resources = [];
+        let resourceClaims = [];
+        let trackAccessLogs = [];
+        let recentAudits = [];
+
+        if (supabase) {
+            try {
+                const [
+                    evtRes,
+                    trksRes,
+                    wksRes,
+                    resRes,
+                    claimsRes,
+                    trackLogsRes,
+                    auditsRes
+                ] = await Promise.allSettled([
+                    supabase.from('onepass_events').select('*').eq('id', eventId).single(),
+                    supabase.from('onepass_tracks').select('*').eq('event_id', eventId),
+                    supabase.from('onepass_workshops').select('*').eq('event_id', eventId),
+                    supabase.from('onepass_resources').select('*').eq('event_id', eventId),
+                    supabase.from('onepass_resource_claims').select('*').eq('event_id', eventId),
+                    supabase.from('onepass_track_access_logs').select('id, result').eq('event_id', eventId),
+                    supabase.from('onepass_audit_logs').select('*').or(`event_id.eq.${eventId},event_id.eq.GLOBAL`).order('timestamp', { ascending: false }).limit(15)
+                ]);
+
+                if (evtRes.status === 'fulfilled' && evtRes.value.data) event = evtRes.value.data;
+                if (trksRes.status === 'fulfilled' && Array.isArray(trksRes.value.data)) tracks = trksRes.value.data;
+                if (wksRes.status === 'fulfilled' && Array.isArray(wksRes.value.data)) workshops = wksRes.value.data;
+                if (resRes.status === 'fulfilled' && Array.isArray(resRes.value.data)) resources = resRes.value.data;
+                if (claimsRes.status === 'fulfilled' && Array.isArray(claimsRes.value.data)) resourceClaims = claimsRes.value.data;
+                if (trackLogsRes.status === 'fulfilled' && Array.isArray(trackLogsRes.value.data)) trackAccessLogs = trackLogsRes.value.data;
+                if (auditsRes.status === 'fulfilled' && Array.isArray(auditsRes.value.data)) recentAudits = auditsRes.value.data;
+            } catch (e) {
+                console.warn('[OnePass DB] Supabase getLiveMetrics partial query warning:', e.message);
+            }
+        }
+
         const db = loadDb();
-        const event = db.events.find(e => e.id === eventId);
+        if (!event) event = (db.events || []).find(e => e.id === eventId);
         if (!event) return null;
 
-        const attendees = db.attendees.filter(a => a.event_id === eventId);
+        if (tracks.length === 0) tracks = (db.tracks || []).filter(t => t.event_id === eventId);
+        if (workshops.length === 0) workshops = (db.workshops || []).filter(w => w.event_id === eventId);
+        if (resources.length === 0) resources = (db.resources || []).filter(r => r.event_id === eventId);
+        if (resourceClaims.length === 0) resourceClaims = (db.resource_claims || []).filter(c => c.event_id === eventId);
+        if (trackAccessLogs.length === 0) trackAccessLogs = (db.track_access_logs || []).filter(l => l.event_id === eventId);
+        if (recentAudits.length === 0) {
+            recentAudits = (Array.isArray(db.audit_logs) ? db.audit_logs : [])
+                .filter(l => l.event_id === eventId || l.event_id === 'GLOBAL')
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .slice(0, 15);
+        }
+
         const totalAttendees = attendees.length;
         const checkedIn = attendees.filter(a => a.check_in_status === 'CHECKED_IN').length;
         const notCheckedIn = totalAttendees - checkedIn;
         const checkInRate = totalAttendees > 0 ? ((checkedIn / totalAttendees) * 100).toFixed(1) : 0;
 
-        const tracks = this.getTracks(eventId);
-        const workshops = this.getWorkshops(eventId);
-        const foodResources = this.getResources(eventId, 'FOOD');
-        const swagResources = this.getResources(eventId, 'SWAG');
+        const enrichedTracks = tracks.map(t => {
+            const occupancy = attendees.filter(a => a.assigned_track_id === t.id && a.check_in_status === 'CHECKED_IN').length;
+            const cap = parseInt(t.capacity, 10) || 100;
+            return {
+                ...t,
+                capacity: cap,
+                occupancy,
+                remaining: Math.max(0, cap - occupancy),
+                is_full: occupancy >= cap
+            };
+        });
 
-        const trackAccessLogs = (db.track_access_logs || []).filter(l => l.event_id === eventId);
+        const enrichedWorkshops = workshops.map(w => {
+            const occupancy = attendees.filter(a => a.assigned_workshop_id === w.id && a.check_in_status === 'CHECKED_IN').length;
+            const cap = parseInt(w.capacity, 10) || 50;
+            return {
+                ...w,
+                capacity: cap,
+                occupancy,
+                remaining: Math.max(0, cap - occupancy),
+                is_full: occupancy >= cap
+            };
+        });
+
+        const enrichedFood = resources.filter(r => r.type === 'FOOD').map(r => {
+            const claimsCount = resourceClaims.filter(c => c.resource_id === r.id).length;
+            const cap = r.capacity ? parseInt(r.capacity, 10) : null;
+            return {
+                ...r,
+                capacity: cap,
+                claims_count: claimsCount,
+                remaining: cap ? Math.max(0, cap - claimsCount) : null
+            };
+        });
+
+        const enrichedSwag = resources.filter(r => r.type === 'SWAG').map(r => {
+            const claimsCount = resourceClaims.filter(c => c.resource_id === r.id).length;
+            const cap = r.capacity ? parseInt(r.capacity, 10) : null;
+            return {
+                ...r,
+                capacity: cap,
+                claims_count: claimsCount,
+                remaining: cap ? Math.max(0, cap - claimsCount) : null
+            };
+        });
+
         const totalAccessAttempts = trackAccessLogs.length;
         const deniedAccessAttempts = trackAccessLogs.filter(l => l.result === 'DENIED').length;
-
-        const recentAudits = (Array.isArray(db.audit_logs) ? db.audit_logs : [])
-            .filter(l => l.event_id === eventId || l.event_id === 'GLOBAL')
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-            .slice(0, 15);
 
         return {
             event,
@@ -2588,10 +2812,10 @@ export const OnePassDB = {
                 total_access_attempts: totalAccessAttempts,
                 denied_access_attempts: deniedAccessAttempts
             },
-            tracks,
-            workshops,
-            food: foodResources,
-            swag: swagResources,
+            tracks: enrichedTracks,
+            workshops: enrichedWorkshops,
+            food: enrichedFood,
+            swag: enrichedSwag,
             recent_activity: recentAudits
         };
     },

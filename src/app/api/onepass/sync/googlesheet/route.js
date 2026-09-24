@@ -39,14 +39,24 @@ export async function GET(req) {
         }
 
         const db = OnePassDB.getSnapshot();
-        const attendees = OnePassDB.getAttendees(targetEventId) || [];
-        const tracks = OnePassDB.getTracks(targetEventId) || [];
-        const workshops = OnePassDB.getWorkshops(targetEventId) || [];
-        const foodResources = OnePassDB.getResources(targetEventId, 'FOOD') || [];
-        const swagResources = OnePassDB.getResources(targetEventId, 'SWAG') || [];
+        const [
+            attendees,
+            tracks,
+            workshops,
+            foodResources,
+            swagResources,
+            counterStats
+        ] = await Promise.all([
+            OnePassDB.getAttendees(targetEventId),
+            OnePassDB.getTracks(targetEventId),
+            OnePassDB.getWorkshops(targetEventId),
+            OnePassDB.getResources(targetEventId, 'FOOD'),
+            OnePassDB.getResources(targetEventId, 'SWAG'),
+            OnePassDB.getCounterStats(targetEventId)
+        ]);
+
         const allResources = db.resources ? db.resources.filter(r => r.event_id === targetEventId) : [];
         const resourceClaims = db.resource_claims ? db.resource_claims.filter(c => c.event_id === targetEventId) : [];
-        const counterStats = OnePassDB.getCounterStats(targetEventId) || [];
         const checkedInList = attendees.filter(a => a.check_in_status === 'CHECKED_IN');
 
         // Tab 1: Executive Summary

@@ -19,8 +19,14 @@ export async function GET(req) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const workshops = OnePassDB.getWorkshops(eventId);
-        return NextResponse.json({ workshops });
+        const workshops = await OnePassDB.getWorkshops(eventId);
+        return NextResponse.json({ workshops }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
     } catch (e) {
         console.error('[OnePass Workshops GET]', e);
         return NextResponse.json({ error: 'Failed to fetch workshops' }, { status: 500 });

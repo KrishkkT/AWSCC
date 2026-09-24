@@ -19,8 +19,14 @@ export async function GET(req) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const tracks = OnePassDB.getTracks(eventId);
-        return NextResponse.json({ tracks });
+        const tracks = await OnePassDB.getTracks(eventId);
+        return NextResponse.json({ tracks }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
     } catch (e) {
         console.error('[OnePass Tracks GET]', e);
         return NextResponse.json({ error: 'Failed to fetch tracks' }, { status: 500 });

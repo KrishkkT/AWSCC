@@ -396,6 +396,14 @@ export default function TracksAndGateAccessPage() {
                                     {scanResult.attendee?.check_in_time && ` at ${new Date(scanResult.attendee.check_in_time).toLocaleTimeString()}`}
                                 </p>
                             </div>
+                            {(scanResult.attendee?.counter || scanResult.attendee?.counter_number) && (
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                                    <span className="text-[10px] font-mono text-amber-300 uppercase">🏷️ Counter:</span>
+                                    <span className="text-base font-black text-amber-200">
+                                        {scanResult.attendee.counter || `Counter ${scanResult.attendee.counter_number}`}
+                                    </span>
+                                </div>
+                            )}
                             <div className="text-xs text-slate-300 bg-[#0C111D] p-3 rounded-xl border border-amber-500/30 max-w-sm mx-auto font-mono">
                                 ✓ Re-verified: Access granted to Track Gate.
                             </div>

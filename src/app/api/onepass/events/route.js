@@ -26,19 +26,27 @@ export async function GET(req) {
         }
 
         // Attach quick summary stats to each event
-        const enriched = visibleEvents.map(e => {
-            const attendees = OnePassDB.getAttendees(e.id);
+        const enriched = await Promise.all(visibleEvents.map(async e => {
+            const [attendees, tracks] = await Promise.all([
+                OnePassDB.getAttendees(e.id),
+                OnePassDB.getTracks(e.id)
+            ]);
             const checkedIn = attendees.filter(a => a.check_in_status === 'CHECKED_IN').length;
-            const tracks = OnePassDB.getTracks(e.id);
             return {
                 ...e,
                 total_attendees: attendees.length,
                 checked_in: checkedIn,
                 tracks_count: tracks.length
             };
-        });
+        }));
 
-        return NextResponse.json({ events: enriched });
+        return NextResponse.json({ events: enriched }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
     } catch (e) {
         console.error('[OnePass Events GET]', e);
         return NextResponse.json({ error: 'Failed to fetch events' }, { status: 500 });
