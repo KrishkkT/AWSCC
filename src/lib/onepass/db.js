@@ -355,64 +355,10 @@ async function hydrateFromSupabase(force = false) {
             const finalEvents = cloudEvents !== null && cloudEvents.length > 0 ? cloudEvents : (localBaseline.events || []);
             const finalVolunteers = cloudEventVolunteers !== null ? cloudEventVolunteers : (localBaseline.event_volunteers || []);
             
-            // For attendees: Build local map from active in-memory cache and local baseline
-            const localAttendeeMap = new Map();
-            const activeCache = globalThis.__onepass_db_cache__ || {};
-            const candidates = [
-                ...(Array.isArray(localBaseline.attendees) ? localBaseline.attendees : []),
-                ...(Array.isArray(activeCache.attendees) ? activeCache.attendees : [])
-            ];
-            for (const la of candidates) {
-                if (!la) continue;
-                if (la.id) localAttendeeMap.set(la.id, la);
-                if (la.booking_id) localAttendeeMap.set(la.booking_id, la);
-                if (la.qr_identifier) localAttendeeMap.set(la.qr_identifier, la);
-            }
-
-            const cloudAttendeesList = Array.isArray(cloudAttendees) ? cloudAttendees : [];
-            const cloudIdSet = new Set();
-            for (const ca of cloudAttendeesList) {
-                if (ca.id) {
-                    cloudIdSet.add(ca.id);
-                    cloudIdSet.add(String(ca.id).toLowerCase());
-                }
-                if (ca.booking_id) {
-                    cloudIdSet.add(ca.booking_id);
-                    cloudIdSet.add(String(ca.booking_id).toLowerCase());
-                }
-                if (ca.qr_identifier) {
-                    cloudIdSet.add(ca.qr_identifier);
-                    cloudIdSet.add(String(ca.qr_identifier).toLowerCase());
-                }
-            }
-
-            // Find non-deleted local attendees that are not in cloud yet (e.g. freshly imported or created before cloud sync)
-            const localNewAttendees = [];
-            const seenNewIds = new Set();
-            for (const la of candidates) {
-                if (!la || !la.id) continue;
-                const idStr = (la.id || '').toString().trim();
-                const bIdStr = (la.booking_id || '').toString().trim();
-                const qrStr = (la.qr_identifier || '').toString().trim();
-
-                // Skip if deleted
-                if (globalThis.__onepass_deleted_ids__.has(idStr) ||
-                    globalThis.__onepass_deleted_ids__.has(idStr.toLowerCase()) ||
-                    (bIdStr && (globalThis.__onepass_deleted_ids__.has(bIdStr) || globalThis.__onepass_deleted_ids__.has(bIdStr.toLowerCase()))) ||
-                    (qrStr && (globalThis.__onepass_deleted_ids__.has(qrStr) || globalThis.__onepass_deleted_ids__.has(qrStr.toLowerCase())))) {
-                    continue;
-                }
-
-                // If not in cloud and not seen in this pass
-                if (!cloudIdSet.has(la.id) && !seenNewIds.has(la.id)) {
-                    seenNewIds.add(la.id);
-                    localNewAttendees.push(la);
-                }
-            }
-
-            // Merge cloud list with local attendees that are not yet in cloud
+            // Attendees: Supabase is the single source of truth when connected.
+            // Do NOT resurrect deleted records from stale local disk baseline.
             let rawAttendees = cloudAttendees !== null
-                ? [...cloudAttendeesList, ...localNewAttendees]
+                ? cloudAttendees
                 : (localBaseline.attendees || []);
 
             let finalAttendees = rawAttendees.filter(a => {
@@ -430,15 +376,6 @@ async function hydrateFromSupabase(force = false) {
                 }
                 return true;
             });
-
-            // Asynchronously ensure any unsynced local attendees for valid events are pushed to Supabase immediately
-            const validEventIds = new Set(finalEvents.map(e => e.id));
-            const syncableNewAttendees = localNewAttendees.filter(a => validEventIds.has(a.event_id));
-            if (syncableNewAttendees.length > 0) {
-                upsertToSupabaseDirect('onepass_attendees', syncableNewAttendees).catch(e => {
-                    console.warn('[OnePass DB] Background sync of local attendees to Supabase failed:', e.message);
-                });
-            }
 
             // Merge local status overrides using Last-Write-Wins timestamp comparison for existing attendees
             finalAttendees = finalAttendees.map(a => {
@@ -1666,6 +1603,77 @@ export const OnePassDB = {
         // ═══════════════════════════════════════════════════════════════════
         saveDb(db);
         return initialCount - db.attendees.length;
+    },
+
+    async clearAllEventAttendees(eventId, actorName = 'Admin', actorRole = 'ADMIN') {
+        const db = loadDb();
+        const eventAttendees = (db.attendees || []).filter(a => a.event_id === eventId);
+        const count = eventAttendees.length;
+        if (count === 0) {
+            // Also ensure Supabase is wiped clean for this event just in case
+            try {
+                await deleteFromSupabaseDirect('onepass_resource_claims', { event_id: eventId });
+                await deleteFromSupabaseDirect('onepass_track_access_logs', { event_id: eventId });
+                await deleteFromSupabaseDirect('onepass_workshop_access_logs', { event_id: eventId });
+                await deleteFromSupabaseDirect('onepass_attendees', { event_id: eventId });
+            } catch (err) {
+                console.warn('[OnePass DB] Clear attendees Supabase warning:', err.message);
+            }
+            return 0;
+        }
+
+        const allIdsArray = [];
+        for (const att of eventAttendees) {
+            if (att.id) allIdsArray.push(att.id);
+            if (att.booking_id) allIdsArray.push(att.booking_id);
+            if (att.qr_identifier) allIdsArray.push(att.qr_identifier);
+        }
+
+        const auditEntry = {
+            id: `aud_${crypto.randomBytes(6).toString('hex')}`,
+            event_id: eventId,
+            actor_name: actorName,
+            actor_role: actorRole,
+            action: 'CLEAR_ALL_EVENT_ATTENDEES',
+            entity_type: 'ATTENDEE',
+            entity_id: `all_${count}`,
+            metadata: {
+                deleted_count: count,
+                deleted_ids: allIdsArray
+            },
+            timestamp: new Date().toISOString(),
+            result: 'SUCCESS'
+        };
+
+        // 1. Supabase Delete by event_id & all individual IDs
+        try {
+            await deleteFromSupabaseDirect('onepass_resource_claims', { event_id: eventId });
+            await deleteFromSupabaseDirect('onepass_track_access_logs', { event_id: eventId });
+            await deleteFromSupabaseDirect('onepass_workshop_access_logs', { event_id: eventId });
+            await deleteFromSupabaseDirect('onepass_attendees', { event_id: eventId });
+            if (allIdsArray.length > 0) {
+                await deleteFromSupabaseDirect('onepass_attendees', allIdsArray, 'id');
+                await deleteFromSupabaseDirect('onepass_attendees', allIdsArray, 'booking_id');
+                await deleteFromSupabaseDirect('onepass_attendees', allIdsArray, 'qr_identifier');
+            }
+            await upsertToSupabaseDirect('onepass_audit_logs', auditEntry);
+        } catch (cloudErr) {
+            console.warn('[OnePass DB] Supabase clearAllEventAttendees warning:', cloudErr.message);
+        }
+
+        // 2. In-memory and disk delete
+        registerDeletedAttendeeIds(allIdsArray);
+        db.attendees = (db.attendees || []).filter(a => a.event_id !== eventId);
+        db.resource_claims = (db.resource_claims || []).filter(c => c.event_id !== eventId);
+        db.track_access_logs = (db.track_access_logs || []).filter(l => l.event_id !== eventId);
+        db.workshop_access_logs = (db.workshop_access_logs || []).filter(l => l.event_id !== eventId);
+        if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
+        db.audit_logs.unshift(auditEntry);
+        if (!Array.isArray(db.deleted_attendee_ids)) db.deleted_attendee_ids = [];
+        db.deleted_attendee_ids.push(...allIdsArray);
+
+        saveDb(db);
+        return count;
     },
 
     // ATOMIC CHECK-IN WITH 1-CHOICE MUTUALLY EXCLUSIVE SESSION ALLOCATION (TRACK OR WORKSHOP)

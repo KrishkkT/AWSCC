@@ -11,8 +11,26 @@ export async function POST(req) {
         const body = await req.json();
         const { eventId, action, attendeeIds, trackId, workshopId } = body;
 
-        if (!eventId || !action || !Array.isArray(attendeeIds) || attendeeIds.length === 0) {
-            return NextResponse.json({ error: 'eventId, action, and non-empty attendeeIds array are required' }, { status: 400 });
+        if (!eventId || !action) {
+            return NextResponse.json({ error: 'eventId and action are required' }, { status: 400 });
+        }
+
+        if (action === 'DELETE_ALL') {
+            const auth = await authorizeUser(req, 'ADMIN');
+            if (!auth.authorized) {
+                return NextResponse.json({ error: auth.error }, { status: auth.status });
+            }
+
+            const deletedCount = await OnePassDB.clearAllEventAttendees(eventId, auth.user?.name || 'Admin', auth.user?.role || 'ADMIN');
+            return NextResponse.json({
+                success: true,
+                message: `Successfully deleted all ${deletedCount} attendee(s) for this event.`,
+                count: deletedCount
+            });
+        }
+
+        if (!Array.isArray(attendeeIds) || attendeeIds.length === 0) {
+            return NextResponse.json({ error: 'non-empty attendeeIds array is required' }, { status: 400 });
         }
 
         if (action === 'DELETE') {

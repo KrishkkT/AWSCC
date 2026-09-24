@@ -374,7 +374,7 @@ export default function AttendeesDirectoryPage() {
     // Bulk Delete
     const handleBulkDelete = async () => {
         if (selectedIds.length === 0) return;
-        if (!confirm(`CRITICAL: Are you sure you want to permanently delete ${selectedIds.length} attendee(s)? This cannot be undone.`)) {
+        if (!confirm(`CRITICAL: Are you sure you want to permanently delete ${selectedIds.length} attendee(s)? This will delete them completely from Supabase and local cache and cannot be undone.`)) {
             return;
         }
 
@@ -395,6 +395,48 @@ export default function AttendeesDirectoryPage() {
                 fetchAttendees();
             } else {
                 alert(data.error || data.message || 'Failed to bulk delete attendees.');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Communication error with server.');
+        } finally {
+            setBulkOperating(false);
+        }
+    };
+
+    // Delete All Attendees / Reset Event Roster
+    const handleDeleteAllAttendees = async () => {
+        const count = attendees.length;
+        if (count === 0) {
+            alert('There are no attendees in this event roster to delete.');
+            return;
+        }
+
+        const confirmInput = prompt(`⚠️ CRITICAL ACTION: You are about to permanently delete all ${count} attendees in this event roster, along with their check-in records, seating allocations, and claim logs.\n\nType "DELETE" to confirm:`);
+        if (confirmInput !== 'DELETE') {
+            if (confirmInput !== null) {
+                alert('Action cancelled: Confirmation text did not match "DELETE".');
+            }
+            return;
+        }
+
+        setBulkOperating(true);
+        try {
+            const res = await fetch('/api/onepass/attendees/batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eventId,
+                    action: 'DELETE_ALL'
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                alert(`Successfully cleared ${data.count || count} attendee(s) from the database.`);
+                setSelectedIds([]);
+                fetchAttendees();
+            } else {
+                alert(data.error || data.message || 'Failed to delete all attendees.');
             }
         } catch (err) {
             console.error(err);
@@ -659,6 +701,18 @@ export default function AttendeesDirectoryPage() {
                         <Plus className="w-4 h-4" />
                         <span>Add Attendee</span>
                     </button>
+
+                    {attendees.length > 0 && (
+                        <button
+                            onClick={handleDeleteAllAttendees}
+                            disabled={bulkOperating}
+                            className="flex items-center space-x-1.5 px-3.5 py-2 bg-red-600/15 hover:bg-red-600/25 text-red-400 border border-red-500/30 font-bold text-xs rounded-xl transition shadow-md cursor-pointer disabled:opacity-50"
+                            title="Wipe and clear all attendees for this event"
+                        >
+                            <Trash2 className="w-4 h-4 text-red-400" />
+                            <span>Clear Roster ({attendees.length})</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -994,11 +1048,11 @@ export default function AttendeesDirectoryPage() {
                             type="button"
                             onClick={handleBulkDelete}
                             disabled={bulkOperating}
-                            className="flex items-center space-x-1.5 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs font-semibold transition disabled:opacity-50"
+                            className="flex items-center space-x-1.5 px-3 py-2 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold transition disabled:opacity-50"
                             title="Delete selected attendees"
                         >
                             <Trash2 className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Delete</span>
+                            <span>Delete ({selectedCount})</span>
                         </button>
 
                         <button

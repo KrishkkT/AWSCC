@@ -168,10 +168,25 @@ function QRScannerModal({
         }
         containerEl.innerHTML = '';
 
-        // Clean QR config without unsupported iOS constraints (prevents OverconstrainedError)
+        // Check for Secure Context on iOS/Mobile
+        if (typeof window !== 'undefined' && !window.isSecureContext && location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            setErrorMsg('INSECURE_CONTEXT');
+            setScanning(false);
+            setInitializing(false);
+            return;
+        }
+
+        // Clean dynamic QR config for all mobile aspect ratios & iOS Safari
         const qrConfig = {
-            fps: 12,
-            qrbox: { width: 250, height: 250 },
+            fps: 15,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const qrSize = Math.floor(minEdge * 0.72);
+                return {
+                    width: Math.max(160, Math.min(260, qrSize)),
+                    height: Math.max(160, Math.min(260, qrSize))
+                };
+            },
             aspectRatio: 1.0
         };
 
@@ -206,14 +221,26 @@ function QRScannerModal({
         const tryStart = async (cameraConfig) => {
             try {
                 containerEl.innerHTML = '';
+                const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent || '');
                 const scanner = new Html5Qrcode(containerIdRef.current, {
                     verbose: false,
                     experimentalFeatures: {
-                        useBarCodeDetectorIfSupported: true
+                        // Disable BarcodeDetector on iOS to prevent WebKit driver crashes
+                        useBarCodeDetectorIfSupported: !isIOS
                     }
                 });
                 scannerRef.current = scanner;
                 await scanner.start(cameraConfig, qrConfig, onScanSuccess, onScanError);
+                
+                // Immediately apply iOS WebKit inline playback attributes
+                const videoEl = containerEl.querySelector('video');
+                if (videoEl) {
+                    videoEl.setAttribute('playsinline', 'true');
+                    videoEl.setAttribute('webkit-playsinline', 'true');
+                    videoEl.setAttribute('autoplay', 'true');
+                    videoEl.muted = true;
+                    videoEl.play().catch(() => {});
+                }
                 return true;
             } catch (err) {
                 try {
@@ -230,7 +257,7 @@ function QRScannerModal({
         try {
             let started = false;
 
-            // Strategy 1: If user explicitly selected a camera ID, try that first
+            // Strategy 1: User explicitly selected camera ID
             if (cameraParam && typeof cameraParam === 'string') {
                 started = await tryStart(cameraParam);
                 if (started) {
@@ -239,12 +266,12 @@ function QRScannerModal({
                 }
             }
 
-            // Strategy 2: Direct facingMode constraint (standard on iOS Safari and Android Chrome)
+            // Strategy 2: Direct facingMode constraint (standard on iOS Safari & Android)
             if (!started) {
                 started = await tryStart({ facingMode: activeMode });
             }
 
-            // Strategy 3: Ideal facingMode constraint (flexible constraint solver)
+            // Strategy 3: Ideal facingMode constraint
             if (!started) {
                 started = await tryStart({ facingMode: { ideal: activeMode } });
             }
@@ -268,9 +295,14 @@ function QRScannerModal({
                 } catch (_) {}
             }
 
-            // Strategy 5: Fallback to user camera or any available camera
+            // Strategy 5: Front/User camera fallback
             if (!started) {
                 started = await tryStart({ facingMode: 'user' });
+            }
+
+            // Strategy 6: Basic video constraint
+            if (!started) {
+                started = await tryStart(true);
             }
 
             if (!started) {
@@ -287,18 +319,6 @@ function QRScannerModal({
                     }
                 }
             }).catch(() => {});
-
-            // Ensure iOS Safari playsinline & muted attributes on video element
-            const container = document.getElementById(containerIdRef.current);
-            if (container) {
-                const video = container.querySelector('video');
-                if (video) {
-                    video.setAttribute('playsinline', 'true');
-                    video.setAttribute('webkit-playsinline', 'true');
-                    video.muted = true;
-                    video.play().catch(() => {});
-                }
-            }
 
             setScanning(true);
             setInitializing(false);
@@ -411,6 +431,18 @@ function QRScannerModal({
                 </div>
 
                 <div className="p-5 space-y-4">
+                    {errorMsg === 'INSECURE_CONTEXT' && (
+                        <div className="p-4 bg-red-950/50 border border-red-500/60 rounded-2xl space-y-2">
+                            <div className="flex items-center gap-2 text-red-400 font-bold text-xs">
+                                <AlertCircle className="w-4 h-4" />
+                                <span>HTTPS Required on iOS / iPhone</span>
+                            </div>
+                            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                                Apple iOS Safari blocks camera access on unencrypted <code className="text-red-300">http://</code> connections. Please access via <strong>HTTPS</strong> (or on local dev, use an HTTPS tunnel or localhost).
+                            </p>
+                        </div>
+                    )}
+
                     {errorMsg === 'CAMERA_DENIED' && (
                         <div className="p-4 bg-amber-950/40 border border-amber-500/50 rounded-2xl space-y-2">
                             <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
@@ -418,7 +450,7 @@ function QRScannerModal({
                                 <span>Camera Permission Blocked</span>
                             </div>
                             <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                                Tap the <strong>🔒 lock icon</strong> in your browser address bar and choose <strong>Camera → Allow</strong>.
+                                Tap the <strong>🔒 lock / AA icon</strong> in Safari&apos;s address bar and enable <strong>Camera → Allow</strong>.
                             </p>
                             <div className="flex justify-end pt-1">
                                 <button
@@ -443,7 +475,7 @@ function QRScannerModal({
                                 onClick={() => startCamera(null, 'environment')}
                                 className="px-2.5 py-1 bg-red-800/40 hover:bg-red-800/60 rounded-lg text-[11px] font-bold text-white transition"
                             >
-                                Restart
+                                Tap to Retry
                             </button>
                         </div>
                     )}
@@ -455,7 +487,7 @@ function QRScannerModal({
                         </div>
                     )}
 
-                    {errorMsg !== 'NO_CAMERA' && (
+                    {errorMsg !== 'NO_CAMERA' && errorMsg !== 'INSECURE_CONTEXT' && (
                         <div className="relative w-full aspect-square bg-black rounded-2xl overflow-hidden border border-[#1a2540] shadow-inner flex items-center justify-center">
                             <div id={containerIdRef.current} className="w-full h-full" />
 
@@ -476,6 +508,20 @@ function QRScannerModal({
                                 <div className="absolute inset-0 bg-[#0C111D]/80 flex flex-col items-center justify-center gap-2">
                                     <RefreshCw className="w-7 h-7 text-[#0073BB] animate-spin" />
                                     <span className="text-xs text-slate-300 font-medium">Opening camera...</span>
+                                </div>
+                            )}
+
+                            {!scanning && !initializing && (
+                                <div className="absolute inset-0 bg-[#0C111D]/90 flex flex-col items-center justify-center gap-3 p-4 text-center">
+                                    <Camera className="w-8 h-8 text-[#4F8EF7] animate-pulse" />
+                                    <span className="text-xs text-slate-300">Camera ready. Tap to start scanner:</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => startCamera(selectedCamRef.current || null, facingModeRef.current)}
+                                        className="px-4 py-2 bg-[#0073BB] hover:bg-[#0073BB]/90 text-white font-bold text-xs rounded-xl shadow-lg transition active:scale-95"
+                                    >
+                                        Start Camera
+                                    </button>
                                 </div>
                             )}
 
