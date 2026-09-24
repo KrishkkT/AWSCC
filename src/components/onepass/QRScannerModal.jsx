@@ -8,7 +8,7 @@ import { parseScannedQR } from '@/lib/onepass/qr';
 let cachedLastCameraId = '';
 
 /**
- * Helper to identify back/rear camera labels across various mobile vendors
+ * Helper to identify back/rear camera labels across iOS, Android, and desktop browsers
  */
 function findBestCamera(devices, targetMode) {
     if (!devices || devices.length === 0) return null;
@@ -18,29 +18,39 @@ function findBestCamera(devices, targetMode) {
             /front|user|selfie|face|camera2\s*1|1,\s*facing\s*front/i.test(d.label || '')
         );
         if (front) return front.id;
-        if (devices.length > 1) return devices[1].id;
         return devices[0].id;
     }
 
     // targetMode === 'environment' (Back/Rear Camera)
-    const backMatches = devices.filter(d => {
-        const label = (d.label || '').toLowerCase();
-        const isFront = /front|user|selfie|face|camera2\s*1|1,\s*facing\s*front/.test(label);
-        if (isFront) return false;
-        return /back|rear|environment|facing\s*back|0,\s*facing\s*back|camera2\s*0|camera\s*0|wide|main/.test(label);
+    // Priority 1: Exact "Back Camera" or standard Wide (excluding Ultra-Wide, Telephoto, Depth, Macro)
+    const standardBack = devices.find(d => {
+        const l = (d.label || '').toLowerCase();
+        if (/front|user|selfie|face/.test(l)) return false;
+        if (/ultra|telephoto|depth|infrared|macro|virtual/.test(l)) return false;
+        return /back|rear|environment|0/.test(l);
     });
+    if (standardBack) return standardBack.id;
 
-    if (backMatches.length > 0) {
-        const primary = backMatches.find(d => /0|main|wide|primary/i.test(d.label || '')) || backMatches[0];
-        return primary.id;
-    }
+    // Priority 2: Any Back/Rear camera that is not front and not ultra-wide
+    const nonUltraBack = devices.find(d => {
+        const l = (d.label || '').toLowerCase();
+        if (/front|user|selfie|face/.test(l)) return false;
+        if (/ultra|macro/.test(l)) return false;
+        return /back|rear|environment|wide|main/.test(l);
+    });
+    if (nonUltraBack) return nonUltraBack.id;
 
-    const nonFront = devices.filter(d => 
-        !/front|user|selfie|face|camera2\s*1|1,\s*facing\s*front/i.test(d.label || '')
-    );
-    if (nonFront.length > 0) {
-        return nonFront[0].id;
-    }
+    // Priority 3: Any camera with back/rear in label
+    const anyBack = devices.find(d => {
+        const l = (d.label || '').toLowerCase();
+        if (/front|user|selfie|face/.test(l)) return false;
+        return /back|rear|environment/.test(l);
+    });
+    if (anyBack) return anyBack.id;
+
+    // Priority 4: Any camera that does not explicitly say front
+    const nonFront = devices.find(d => !/front|user|selfie|face/i.test(d.label || ''));
+    if (nonFront) return nonFront.id;
 
     return devices[0].id;
 }
@@ -154,7 +164,7 @@ function QRScannerModal({
         setFacingMode(activeMode);
 
         await stopCamera();
-        await new Promise(r => setTimeout(r, 80));
+        await new Promise(r => setTimeout(r, 60));
 
         if (!isMountedRef.current) {
             setInitializing(false);
@@ -221,12 +231,10 @@ function QRScannerModal({
         const tryStart = async (cameraConfig) => {
             try {
                 containerEl.innerHTML = '';
-                const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent || '');
                 const scanner = new Html5Qrcode(containerIdRef.current, {
                     verbose: false,
                     experimentalFeatures: {
-                        // Disable BarcodeDetector on iOS to prevent WebKit driver crashes
-                        useBarCodeDetectorIfSupported: !isIOS
+                        useBarCodeDetectorIfSupported: false // Standard JS detector for reliable WebKit decoding
                     }
                 });
                 scannerRef.current = scanner;
@@ -266,41 +274,45 @@ function QRScannerModal({
                 }
             }
 
-            // Strategy 2: Direct facingMode constraint (standard on iOS Safari & Android)
-            if (!started) {
-                started = await tryStart({ facingMode: activeMode });
-            }
-
-            // Strategy 3: Ideal facingMode constraint
-            if (!started) {
-                started = await tryStart({ facingMode: { ideal: activeMode } });
-            }
-
-            // Strategy 4: Query available devices, pick best match, and start
-            if (!started) {
+            // Strategy 2: If Back Camera requested, query devices first to target primary rear lens ID
+            if (!started && activeMode === 'environment') {
                 try {
                     const devices = await Html5Qrcode.getCameras();
                     if (devices && devices.length > 0) {
                         setCameras(devices);
-                        const bestId = findBestCamera(devices, activeMode);
+                        const bestId = findBestCamera(devices, 'environment');
                         if (bestId) {
                             started = await tryStart(bestId);
                             if (started) {
                                 selectedCamRef.current = bestId;
                                 setSelectedCam(bestId);
-                                if (activeMode === 'environment') cachedLastCameraId = bestId;
                             }
                         }
                     }
                 } catch (_) {}
             }
 
-            // Strategy 5: Front/User camera fallback
+            // Strategy 3: Direct facingMode constraint (standard on iOS Safari & Android)
             if (!started) {
+                started = await tryStart({ facingMode: activeMode });
+            }
+
+            // Strategy 4: Exact facingMode constraint: { facingMode: { exact: activeMode } }
+            if (!started) {
+                started = await tryStart({ facingMode: { exact: activeMode } });
+            }
+
+            // Strategy 5: Ideal facingMode constraint: { facingMode: { ideal: activeMode } }
+            if (!started) {
+                started = await tryStart({ facingMode: { ideal: activeMode } });
+            }
+
+            // Strategy 6: Fallback to user camera if rear is blocked or unavailable
+            if (!started && activeMode === 'environment') {
                 started = await tryStart({ facingMode: 'user' });
             }
 
-            // Strategy 6: Basic video constraint
+            // Strategy 7: Generic video constraint
             if (!started) {
                 started = await tryStart(true);
             }
