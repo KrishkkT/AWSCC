@@ -227,9 +227,8 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                 qrbox: (viewWidth, viewHeight) => {
                     const minEdge = Math.min(viewWidth, viewHeight);
                     const size = Math.floor(minEdge * 0.72);
-                    return { width: Math.max(180, size), height: Math.max(180, size) };
-                },
-                aspectRatio: 1.0
+                    return { width: Math.max(160, Math.min(280, size)), height: Math.max(160, Math.min(280, size)) };
+                }
             };
 
             // SYNCHRONOUS DECODE HANDLER
@@ -295,7 +294,17 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                 }
             }
 
-            // Strategy 2: Best physical camera ID matched from enumeration
+            // Strategy 2: Standard facingMode constraint (iOS Safari & Mobile optimized)
+            if (!started) {
+                try {
+                    await scanner.start({ facingMode: activeMode }, qrConfig, onScanSuccess, onScanError);
+                    started = true;
+                } catch (facingErr) {
+                    console.warn('[InlineQRScanner] facingMode constraint failed:', facingErr);
+                }
+            }
+
+            // Strategy 3: Best physical camera ID matched from enumeration
             if (!started && devices && devices.length > 0) {
                 const bestId = findBestCamera(devices, activeMode);
                 if (bestId) {
@@ -310,44 +319,17 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                 }
             }
 
-            // Strategy 3: Standard facingMode constraint
+            // Strategy 4: Exact facingMode constraint fallback
             if (!started) {
                 try {
-                    await scanner.start({ facingMode: activeMode }, qrConfig, onScanSuccess, onScanError);
+                    await scanner.start({ facingMode: { exact: activeMode } }, qrConfig, onScanSuccess, onScanError);
                     started = true;
-                } catch (facingErr) {
-                    console.warn('[InlineQRScanner] facingMode exact constraint failed:', facingErr);
+                } catch (exactErr) {
+                    console.warn('[InlineQRScanner] facingMode exact constraint failed:', exactErr);
                 }
             }
 
-            // Strategy 4: Ideal facingMode constraint fallback
-            if (!started) {
-                try {
-                    await scanner.start({ facingMode: { ideal: activeMode } }, qrConfig, onScanSuccess, onScanError);
-                    started = true;
-                } catch (idealErr) {
-                    console.warn('[InlineQRScanner] facingMode ideal constraint failed:', idealErr);
-                }
-            }
-
-            // Strategy 5: Re-enumerate devices post-permission prompt and pick any valid device
-            if (!started) {
-                try {
-                    const freshDevices = await Html5Qrcode.getCameras();
-                    if (freshDevices && freshDevices.length > 0) {
-                        setCameras(freshDevices);
-                        const fallbackCamId = findBestCamera(freshDevices, activeMode) || freshDevices[0].id;
-                        await scanner.start(fallbackCamId, qrConfig, onScanSuccess, onScanError);
-                        started = true;
-                        selectedCamRef.current = fallbackCamId;
-                        setSelectedCam(fallbackCamId);
-                    }
-                } catch (freshErr) {
-                    console.warn('[InlineQRScanner] Fresh devices fallback failed:', freshErr);
-                }
-            }
-
-            // Strategy 6: Ultimate user facing mode fallback
+            // Strategy 5: Ultimate user facing mode fallback
             if (!started) {
                 await scanner.start({ facingMode: 'user' }, qrConfig, onScanSuccess, onScanError);
                 started = true;
@@ -395,19 +377,60 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
         }
     }, [isPaused, pauseScanner, resumeScanner, isOpen, scanning, isPausedState]);
 
-    // Handle open/close lifecycle
+    // Handle open/close lifecycle and iOS video attribute observation
     useEffect(() => {
-        if (isOpen) {
-            const timer = setTimeout(() => {
-                startCamera(selectedCamRef.current || null, facingModeRef.current);
-            }, 80);
-            return () => {
-                clearTimeout(timer);
-                stopCamera();
-            };
-        } else {
+        if (!isOpen) {
             stopCamera();
+            return;
         }
+
+        const container = document.getElementById(containerIdRef.current);
+        let observer = null;
+        if (container) {
+            observer = new MutationObserver(() => {
+                const videos = container.querySelectorAll('video');
+                videos.forEach((v) => {
+                    v.setAttribute('playsinline', 'true');
+                    v.setAttribute('webkit-playsinline', 'true');
+                    v.setAttribute('autoplay', 'true');
+                    v.setAttribute('muted', 'true');
+                    v.muted = true;
+                    v.playsInline = true;
+                    v.style.setProperty('width', '100%', 'important');
+                    v.style.setProperty('height', '100%', 'important');
+                    v.style.setProperty('object-fit', 'cover', 'important');
+                    v.style.setProperty('position', 'absolute', 'important');
+                    v.style.setProperty('top', '0', 'important');
+                    v.style.setProperty('left', '0', 'important');
+                    v.style.setProperty('display', 'block', 'important');
+                    v.style.setProperty('border-radius', '1rem', 'important');
+                    if (v.paused) {
+                        v.play().catch(() => {});
+                    }
+                });
+
+                const shaded = container.querySelector('#qr-shaded-region');
+                if (shaded) {
+                    shaded.style.setProperty('display', 'none', 'important');
+                }
+                const canvases = container.querySelectorAll('canvas');
+                canvases.forEach((c) => {
+                    c.style.setProperty('display', 'none', 'important');
+                });
+            });
+
+            observer.observe(container, { childList: true, subtree: true });
+        }
+
+        const timer = setTimeout(() => {
+            startCamera(selectedCamRef.current || null, facingModeRef.current);
+        }, 80);
+
+        return () => {
+            if (observer) observer.disconnect();
+            clearTimeout(timer);
+            stopCamera();
+        };
     }, [isOpen, startCamera, stopCamera]);
 
     // Recover camera stream on mobile tab focus / visibilitychange
@@ -598,11 +621,38 @@ const InlineQRScanner = forwardRef(function InlineQRScanner({
                 {/* Live Camera Viewport */}
                 {errorMsg !== 'NO_CAMERA' && (
                     <div className="relative w-full max-w-sm mx-auto aspect-square bg-black rounded-2xl overflow-hidden border border-[#1a2540] shadow-inner flex items-center justify-center">
+                        <style>{`
+                            #${containerIdRef.current} {
+                                position: relative !important;
+                                width: 100% !important;
+                                height: 100% !important;
+                                overflow: hidden !important;
+                                border-radius: 1rem !important;
+                            }
+                            #${containerIdRef.current} video {
+                                position: absolute !important;
+                                top: 0 !important;
+                                left: 0 !important;
+                                width: 100% !important;
+                                height: 100% !important;
+                                object-fit: cover !important;
+                                border-radius: 1rem !important;
+                                display: block !important;
+                                z-index: 1 !important;
+                            }
+                            #${containerIdRef.current} #qr-shaded-region {
+                                display: none !important;
+                            }
+                            #${containerIdRef.current} canvas {
+                                display: none !important;
+                            }
+                        `}</style>
+
                         <div id={containerIdRef.current} className="w-full h-full" />
                         <div id={`temp-${containerIdRef.current}`} className="hidden" />
 
                         {/* Scanner Reticle Overlay */}
-                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
                             <div className="w-48 h-48 border-2 border-[#0073BB]/60 rounded-2xl relative shadow-2xl">
                                 <div className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-[#4F8EF7] rounded-tl" />
                                 <div className="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-[#4F8EF7] rounded-tr" />

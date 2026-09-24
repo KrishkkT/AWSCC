@@ -186,18 +186,17 @@ function QRScannerModal({
             return;
         }
 
-        // Clean dynamic QR config for all mobile aspect ratios & iOS Safari
+        // Clean dynamic QR config for all mobile aspect ratios & iOS Safari (no strict aspectRatio constraint)
         const qrConfig = {
             fps: 15,
             qrbox: (viewfinderWidth, viewfinderHeight) => {
                 const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
                 const qrSize = Math.floor(minEdge * 0.72);
                 return {
-                    width: Math.max(160, Math.min(260, qrSize)),
-                    height: Math.max(160, Math.min(260, qrSize))
+                    width: Math.max(160, Math.min(280, qrSize)),
+                    height: Math.max(160, Math.min(280, qrSize))
                 };
-            },
-            aspectRatio: 1.0
+            }
         };
 
         const onScanSuccess = async (decodedText) => {
@@ -240,13 +239,16 @@ function QRScannerModal({
                 scannerRef.current = scanner;
                 await scanner.start(cameraConfig, qrConfig, onScanSuccess, onScanError);
                 
-                // Immediately apply iOS WebKit inline playback attributes
+                // Immediately apply iOS WebKit inline playback attributes and full dimensions
                 const videoEl = containerEl.querySelector('video');
                 if (videoEl) {
                     videoEl.setAttribute('playsinline', 'true');
                     videoEl.setAttribute('webkit-playsinline', 'true');
                     videoEl.setAttribute('autoplay', 'true');
                     videoEl.muted = true;
+                    videoEl.style.width = '100%';
+                    videoEl.style.height = '100%';
+                    videoEl.style.objectFit = 'cover';
                     videoEl.play().catch(() => {});
                 }
                 return true;
@@ -265,7 +267,7 @@ function QRScannerModal({
         try {
             let started = false;
 
-            // Strategy 1: User explicitly selected camera ID
+            // Strategy 1: User explicitly selected a camera ID from the dropdown
             if (cameraParam && typeof cameraParam === 'string') {
                 started = await tryStart(cameraParam);
                 if (started) {
@@ -274,13 +276,28 @@ function QRScannerModal({
                 }
             }
 
-            // Strategy 2: If Back Camera requested, query devices first to target primary rear lens ID
-            if (!started && activeMode === 'environment') {
+            // Strategy 2: Native facingMode constraint (Optimal for iOS Safari & Mobile browsers)
+            if (!started) {
+                started = await tryStart({ facingMode: activeMode });
+            }
+
+            // Strategy 3: Ideal facingMode constraint: { facingMode: { ideal: activeMode } }
+            if (!started) {
+                started = await tryStart({ facingMode: { ideal: activeMode } });
+            }
+
+            // Strategy 4: Exact facingMode constraint: { facingMode: { exact: activeMode } }
+            if (!started) {
+                started = await tryStart({ facingMode: { exact: activeMode } });
+            }
+
+            // Strategy 5: Query device enumeration as fallback
+            if (!started) {
                 try {
                     const devices = await Html5Qrcode.getCameras();
                     if (devices && devices.length > 0) {
                         setCameras(devices);
-                        const bestId = findBestCamera(devices, 'environment');
+                        const bestId = findBestCamera(devices, activeMode);
                         if (bestId) {
                             started = await tryStart(bestId);
                             if (started) {
@@ -292,22 +309,7 @@ function QRScannerModal({
                 } catch (_) {}
             }
 
-            // Strategy 3: Direct facingMode constraint (standard on iOS Safari & Android)
-            if (!started) {
-                started = await tryStart({ facingMode: activeMode });
-            }
-
-            // Strategy 4: Exact facingMode constraint: { facingMode: { exact: activeMode } }
-            if (!started) {
-                started = await tryStart({ facingMode: { exact: activeMode } });
-            }
-
-            // Strategy 5: Ideal facingMode constraint: { facingMode: { ideal: activeMode } }
-            if (!started) {
-                started = await tryStart({ facingMode: { ideal: activeMode } });
-            }
-
-            // Strategy 6: Fallback to user camera if rear is blocked or unavailable
+            // Strategy 6: Fallback to user/front camera if rear is blocked or unavailable
             if (!started && activeMode === 'environment') {
                 started = await tryStart({ facingMode: 'user' });
             }
@@ -349,27 +351,70 @@ function QRScannerModal({
         }
     }, [stopCamera, releaseAllMediaTracks, onScan, onClose]);
 
-    // Modal Mount: Start camera immediately when modal opens
+    // Modal Mount: Start camera immediately when modal opens & observe container for iOS video setup
     useEffect(() => {
-        if (isOpen) {
-            isMountedRef.current = true;
-            scanLockRef.current = false;
-            // Short mount delay (40ms) to ensure container is fully painted in DOM
-            const timer = setTimeout(() => {
-                if (isMountedRef.current) {
-                    startCamera(selectedCamRef.current || null, facingModeRef.current);
-                }
-            }, 40);
-
-            return () => {
-                isMountedRef.current = false;
-                clearTimeout(timer);
-                stopCamera();
-            };
-        } else {
+        if (!isOpen) {
             isMountedRef.current = false;
             stopCamera();
+            return;
         }
+
+        isMountedRef.current = true;
+        scanLockRef.current = false;
+
+        // MutationObserver to immediately configure video element attributes for iOS Safari
+        const container = document.getElementById(containerIdRef.current);
+        let observer = null;
+        if (container) {
+            observer = new MutationObserver(() => {
+                const videos = container.querySelectorAll('video');
+                videos.forEach((v) => {
+                    v.setAttribute('playsinline', 'true');
+                    v.setAttribute('webkit-playsinline', 'true');
+                    v.setAttribute('autoplay', 'true');
+                    v.setAttribute('muted', 'true');
+                    v.muted = true;
+                    v.playsInline = true;
+                    v.style.setProperty('width', '100%', 'important');
+                    v.style.setProperty('height', '100%', 'important');
+                    v.style.setProperty('object-fit', 'cover', 'important');
+                    v.style.setProperty('position', 'absolute', 'important');
+                    v.style.setProperty('top', '0', 'important');
+                    v.style.setProperty('left', '0', 'important');
+                    v.style.setProperty('display', 'block', 'important');
+                    v.style.setProperty('border-radius', '1rem', 'important');
+                    if (v.paused) {
+                        v.play().catch(() => {});
+                    }
+                });
+
+                // Suppress html5-qrcode internal black shading & canvas overlays since we have our custom UI
+                const shaded = container.querySelector('#qr-shaded-region');
+                if (shaded) {
+                    shaded.style.setProperty('display', 'none', 'important');
+                }
+                const canvases = container.querySelectorAll('canvas');
+                canvases.forEach((c) => {
+                    c.style.setProperty('display', 'none', 'important');
+                });
+            });
+
+            observer.observe(container, { childList: true, subtree: true });
+        }
+
+        // Short mount delay (40ms) to ensure container is fully painted in DOM
+        const timer = setTimeout(() => {
+            if (isMountedRef.current) {
+                startCamera(selectedCamRef.current || null, facingModeRef.current);
+            }
+        }, 40);
+
+        return () => {
+            isMountedRef.current = false;
+            if (observer) observer.disconnect();
+            clearTimeout(timer);
+            stopCamera();
+        };
     }, [isOpen, startCamera, stopCamera]);
 
     // Flip Camera
@@ -501,9 +546,36 @@ function QRScannerModal({
 
                     {errorMsg !== 'NO_CAMERA' && errorMsg !== 'INSECURE_CONTEXT' && (
                         <div className="relative w-full aspect-square bg-black rounded-2xl overflow-hidden border border-[#1a2540] shadow-inner flex items-center justify-center">
+                            <style>{`
+                                #${containerIdRef.current} {
+                                    position: relative !important;
+                                    width: 100% !important;
+                                    height: 100% !important;
+                                    overflow: hidden !important;
+                                    border-radius: 1rem !important;
+                                }
+                                #${containerIdRef.current} video {
+                                    position: absolute !important;
+                                    top: 0 !important;
+                                    left: 0 !important;
+                                    width: 100% !important;
+                                    height: 100% !important;
+                                    object-fit: cover !important;
+                                    border-radius: 1rem !important;
+                                    display: block !important;
+                                    z-index: 1 !important;
+                                }
+                                #${containerIdRef.current} #qr-shaded-region {
+                                    display: none !important;
+                                }
+                                #${containerIdRef.current} canvas {
+                                    display: none !important;
+                                }
+                            `}</style>
+
                             <div id={containerIdRef.current} className="w-full h-full" />
 
-                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
                                 <div className="w-56 h-56 border-2 border-[#0073BB]/60 rounded-2xl relative shadow-2xl">
                                     <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#4F8EF7] rounded-tl" />
                                     <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#4F8EF7] rounded-tr" />
