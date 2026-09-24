@@ -377,6 +377,13 @@ async function hydrateFromSupabase(force = false) {
                 return true;
             });
 
+            const localAttendeeMap = new Map();
+            (localBaseline.attendees || []).forEach(a => {
+                if (a.id) localAttendeeMap.set(a.id, a);
+                if (a.booking_id) localAttendeeMap.set(a.booking_id, a);
+                if (a.qr_identifier) localAttendeeMap.set(a.qr_identifier, a);
+            });
+
             // Merge local status overrides using Last-Write-Wins timestamp comparison for existing attendees
             finalAttendees = finalAttendees.map(a => {
                 const localOverride = globalThis.__onepass_locally_updated_attendees__.get(a.id) ||
@@ -2229,6 +2236,7 @@ export const OnePassDB = {
         if (!Array.isArray(db.track_access_logs)) db.track_access_logs = [];
         db.track_access_logs.unshift(logEntry);
         saveDb(db);
+        await upsertToSupabaseDirect('onepass_track_access_logs', logEntry);
 
         return {
             granted: true,
@@ -2287,6 +2295,7 @@ export const OnePassDB = {
             if (!Array.isArray(db.workshop_access_logs)) db.workshop_access_logs = [];
             db.workshop_access_logs.unshift(logEntry);
             saveDb(db);
+            await upsertToSupabaseDirect('onepass_workshop_access_logs', logEntry);
 
             return {
                 granted: true,
@@ -2333,6 +2342,7 @@ export const OnePassDB = {
         if (!Array.isArray(db.workshop_access_logs)) db.workshop_access_logs = [];
         db.workshop_access_logs.unshift(logEntry);
         saveDb(db);
+        await upsertToSupabaseDirect('onepass_workshop_access_logs', logEntry);
 
         return {
             granted: true,
