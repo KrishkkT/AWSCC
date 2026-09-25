@@ -731,7 +731,6 @@ export const OnePassDB = {
 
     // USERS
     async getUsers() {
-        const supabase = getSupabaseClient();
         if (supabase) {
             try {
                 const { data, error } = await supabase
@@ -809,7 +808,6 @@ export const OnePassDB = {
 
     // EVENT VOLUNTEERS
     async getEventVolunteers(eventId) {
-        const supabase = getSupabaseClient();
         if (supabase) {
             try {
                 let query = supabase.from('onepass_event_volunteers').select('*');
@@ -843,7 +841,37 @@ export const OnePassDB = {
     getUserEventAssignments(userId) {
         const db = loadDb();
         if (!Array.isArray(db.event_volunteers)) db.event_volunteers = [];
-        return db.event_volunteers.filter(ev => ev.user_id === userId);
+        const explicit = db.event_volunteers.filter(ev => ev.user_id === userId);
+        if (explicit.length > 0) return explicit;
+
+        // Auto-grant access to active events for volunteer accounts
+        const user = this.getUserById(userId);
+        if (user && user.role === 'VOLUNTEER') {
+            const events = db.events || [];
+            const defaultPerms = ['CHECK_IN', 'VIEW_DASHBOARD', 'TRACK_ACCESS', 'WORKSHOP_ACCESS', 'SWAG', 'FOOD'];
+            const autoAssignments = events.map(e => ({
+                id: `ev_auto_${userId}_${e.id}`,
+                event_id: e.id,
+                user_id: userId,
+                permissions: defaultPerms,
+                assigned_at: user.created_at || new Date().toISOString()
+            }));
+
+            if (autoAssignments.length > 0) {
+                autoAssignments.forEach(rec => {
+                    const exists = db.event_volunteers.some(ev => ev.event_id === rec.event_id && ev.user_id === rec.user_id);
+                    if (!exists) {
+                        db.event_volunteers.push(rec);
+                        upsertToSupabaseDirect('onepass_event_volunteers', rec).catch(() => {});
+                    }
+                });
+                saveDb(db);
+            }
+
+            return autoAssignments;
+        }
+
+        return [];
     },
 
     assignVolunteerToEvent(eventId, userId, permissions = ['CHECK_IN']) {
