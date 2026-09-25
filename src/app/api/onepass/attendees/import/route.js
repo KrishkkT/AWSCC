@@ -26,10 +26,10 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Event not found' }, { status: 404 });
         }
 
-        const existingAttendees = OnePassDB.getAttendees(eventId);
-        const existingEmails = new Set(existingAttendees.map(a => a.email.toLowerCase()));
-        const existingBookingIds = new Set(existingAttendees.map(a => a.booking_id?.toLowerCase()).filter(Boolean));
-        const existingQRs = new Set(existingAttendees.map(a => a.qr_identifier?.toLowerCase()).filter(Boolean));
+        const existingAttendees = await OnePassDB.getAttendees(eventId);
+        const existingEmails = new Set((existingAttendees || []).map(a => (a.email || '').toLowerCase()));
+        const existingBookingIds = new Set((existingAttendees || []).map(a => a.booking_id?.toLowerCase()).filter(Boolean));
+        const existingQRs = new Set((existingAttendees || []).map(a => a.qr_identifier?.toLowerCase()).filter(Boolean));
 
         const seenFileEmails = new Set();
         const seenFileBookingIds = new Set();
