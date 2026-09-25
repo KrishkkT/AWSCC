@@ -730,7 +730,25 @@ export const OnePassDB = {
     },
 
     // USERS
-    getUsers() {
+    async getUsers() {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('onepass_users')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+
+                if (!error && Array.isArray(data)) {
+                    const db = loadDb();
+                    db.users = data;
+                    saveDb(db);
+                    return data;
+                }
+            } catch (err) {
+                console.warn('[OnePassDB] Direct Supabase getUsers error, falling back to cache:', err.message);
+            }
+        }
         return loadDb().users || [];
     },
 
@@ -790,10 +808,36 @@ export const OnePassDB = {
     },
 
     // EVENT VOLUNTEERS
-    getEventVolunteers(eventId) {
+    async getEventVolunteers(eventId) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+            try {
+                let query = supabase.from('onepass_event_volunteers').select('*');
+                if (eventId) {
+                    query = query.eq('event_id', eventId);
+                }
+                const { data, error } = await query;
+                if (!error && Array.isArray(data)) {
+                    const db = loadDb();
+                    if (!Array.isArray(db.event_volunteers)) db.event_volunteers = [];
+                    if (eventId) {
+                        db.event_volunteers = [
+                            ...db.event_volunteers.filter(ev => ev.event_id !== eventId),
+                            ...data
+                        ];
+                    } else {
+                        db.event_volunteers = data;
+                    }
+                    saveDb(db);
+                    return data;
+                }
+            } catch (err) {
+                console.warn('[OnePassDB] Direct Supabase getEventVolunteers error, falling back to cache:', err.message);
+            }
+        }
         const db = loadDb();
         if (!Array.isArray(db.event_volunteers)) db.event_volunteers = [];
-        return db.event_volunteers.filter(ev => ev.event_id === eventId);
+        return eventId ? db.event_volunteers.filter(ev => ev.event_id === eventId) : db.event_volunteers;
     },
 
     getUserEventAssignments(userId) {

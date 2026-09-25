@@ -17,7 +17,7 @@ export async function GET(req) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const users = OnePassDB.getUsers();
+        const users = await OnePassDB.getUsers();
         const volunteers = users.filter(u => u.role === 'VOLUNTEER');
 
         // Attach event assignments to each volunteer
@@ -41,18 +41,47 @@ export async function GET(req) {
         });
 
         if (eventId) {
-            const eventVolunteers = OnePassDB.getEventVolunteers(eventId);
+            const eventVolunteers = await OnePassDB.getEventVolunteers(eventId);
+            const assignedUserIds = new Set(eventVolunteers.map(ev => ev.user_id));
+
             const enrichedEV = eventVolunteers.map(ev => {
-                const u = OnePassDB.getUserById(ev.user_id);
+                const u = users.find(usr => usr.id === ev.user_id) || OnePassDB.getUserById(ev.user_id);
                 return {
                     ...ev,
-                    user: u ? { id: u.id, name: u.name, email: u.email, role: u.role, status: u.status } : null
+                    user: u ? { id: u.id, name: u.name, email: u.email, role: u.role, status: u.status } : { id: ev.user_id, name: 'Volunteer', email: '', role: 'VOLUNTEER', status: 'ACTIVE' }
                 };
             });
-            return NextResponse.json({ volunteers: enriched, event_volunteers: enrichedEV });
+
+            // If volunteer user exists in database but not yet explicitly assigned to this event, auto-include so they are visible
+            volunteers.forEach(v => {
+                if (!assignedUserIds.has(v.id)) {
+                    enrichedEV.push({
+                        id: `ev_auto_${v.id}`,
+                        event_id: eventId,
+                        user_id: v.id,
+                        permissions: ['CHECK_IN', 'VIEW_DASHBOARD', 'TRACK_ACCESS', 'WORKSHOP_ACCESS', 'SWAG', 'FOOD'],
+                        assigned_at: v.created_at || new Date().toISOString(),
+                        user: { id: v.id, name: v.name, email: v.email, role: v.role, status: v.status }
+                    });
+                }
+            });
+
+            return NextResponse.json({ volunteers: enriched, event_volunteers: enrichedEV }, {
+                headers: {
+                    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
         }
 
-        return NextResponse.json({ volunteers: enriched });
+        return NextResponse.json({ volunteers: enriched }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
     } catch (e) {
         console.error('[OnePass Volunteers GET]', e);
         return NextResponse.json({ error: 'Failed to fetch volunteers' }, { status: 500 });

@@ -45,7 +45,14 @@ export async function POST(req) {
             const rowIndex = i + 1;
 
             // Map fields according to provided mapping or common column header variations
-            let name = (rawRow[mapping?.name || 'name'] || rawRow['Name'] || rawRow['Full Name'] || rawRow['Attendee Name'] || rawRow['Attendee'] || '').trim();
+            const rawFirst = (rawRow['First Name'] || rawRow['first_name'] || rawRow['FirstName'] || rawRow['Given Name'] || '').trim();
+            const rawLast = (rawRow['Last Name'] || rawRow['last_name'] || rawRow['LastName'] || rawRow['Surname'] || '').trim();
+            const combinedFirstLast = [rawFirst, rawLast].filter(Boolean).join(' ');
+
+            let name = (rawRow[mapping?.name || 'name'] || rawRow['Name'] || rawRow['Full Name'] || rawRow['Attendee Name'] || rawRow['Attendee'] || combinedFirstLast || '').trim();
+            if (rawFirst && rawLast && (!name || name.toLowerCase() === rawFirst.toLowerCase())) {
+                name = combinedFirstLast;
+            }
             let email = (rawRow[mapping?.email || 'email'] || rawRow['Email'] || rawRow['Email Address'] || rawRow['Mail'] || '').trim().toLowerCase();
             let phone = (rawRow[mapping?.phone || 'phone'] || rawRow['Phone'] || rawRow['Contact'] || rawRow['Mobile'] || rawRow['Contact Number'] || '').trim();
             let bookingId = (rawRow[mapping?.booking_id || 'booking_id'] || rawRow['Booking ID'] || rawRow['BookingId'] || rawRow['Order ID'] || rawRow['Ticket ID'] || '').trim();
@@ -56,7 +63,7 @@ export async function POST(req) {
             let qrIdentifier = (rawRow[mapping?.qr_identifier || 'qr_identifier'] || qrFileName || qrCode || '').trim();
             let ticketUrl = (rawRow[mapping?.ticket_url || 'ticket_url'] || rawRow['Ticket URL'] || rawRow['Ticket Link'] || rawRow['Ticket PDF'] || rawRow['PDF Link'] || rawRow['Download Ticket'] || rawRow['Download Link'] || rawRow['Pass Link'] || rawRow['KonfHub URL'] || rawRow['Invoice URL'] || rawRow['Ticket Download URL'] || '').trim();
 
-            // Smart extraction from QR Code (e.g. "id:10e90612|n:Meet|eid:ab9168b3-c610-4edc-bb16-b45f9517820c")
+            // Smart extraction from QR Code (e.g. "id:10e90612|n:Meet Patel|eid:ab9168b3-c610-4edc-bb16-b45f9517820c")
             if (qrCode && qrCode.includes('|')) {
                 const parts = qrCode.split('|');
                 for (const part of parts) {
@@ -69,13 +76,15 @@ export async function POST(req) {
                 }
             }
 
-            // Smart extraction from QR File Name (e.g. "Meet-10e90612.png" or "Meet-10e90612")
+            // Smart extraction from QR File Name (e.g. "Meet Patel-10e90612.png" or "Meet_Patel-10e90612")
             if (qrFileName) {
                 const cleanFile = qrFileName.replace(/\.(png|jpg|jpeg|webp|svg)$/i, '');
                 if (cleanFile.includes('-')) {
-                    const segs = cleanFile.split('-');
-                    if (!name && segs[0]) name = segs[0].trim();
-                    if (!bookingId && segs.length > 1) bookingId = segs[segs.length - 1].trim();
+                    const lastDashIdx = cleanFile.lastIndexOf('-');
+                    const potentialName = cleanFile.substring(0, lastDashIdx).replace(/_/g, ' ').trim();
+                    const potentialId = cleanFile.substring(lastDashIdx + 1).trim();
+                    if (!name && potentialName) name = potentialName;
+                    if (!bookingId && potentialId) bookingId = potentialId;
                 }
             }
 

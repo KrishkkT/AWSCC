@@ -73,7 +73,10 @@ export async function POST(req) {
         allAttendees.forEach((kh, idx) => {
             const bookingId = kh.booking_id || kh.order_id || kh.id || `KH-${idx + 1}`;
             const email = (kh.email || kh.email_id || '').toLowerCase().trim();
-            const name = (kh.name || kh.full_name || kh.attendee_name || `Attendee ${idx + 1}`).trim();
+            const rawFirst = (kh.first_name || kh.firstName || '').trim();
+            const rawLast = (kh.last_name || kh.lastName || '').trim();
+            const combinedFirstLast = [rawFirst, rawLast].filter(Boolean).join(' ');
+            const name = (kh.name || kh.full_name || kh.attendee_name || combinedFirstLast || `Attendee ${idx + 1}`).trim();
             const phone = (kh.phone || kh.mobile || kh.contact || kh.phone_number || '').trim();
             const ticketType = kh.ticket_name || kh.ticket_type || 'General Pass';
             const ticketPdf = kh.ticket_pdf || kh.pdf_url || kh.download_ticket_url || kh.ticket_url || kh.ticket_link || '';
