@@ -45,18 +45,20 @@ export async function GET(req) {
             workshops,
             foodResources,
             swagResources,
-            counterStats
+            counterStats,
+            resourceClaims
         ] = await Promise.all([
             OnePassDB.getAttendees(targetEventId),
             OnePassDB.getTracks(targetEventId),
             OnePassDB.getWorkshops(targetEventId),
             OnePassDB.getResources(targetEventId, 'FOOD'),
             OnePassDB.getResources(targetEventId, 'SWAG'),
-            OnePassDB.getCounterStats(targetEventId)
+            OnePassDB.getCounterStats(targetEventId),
+            OnePassDB.getResourceClaims(targetEventId)
         ]);
 
-        const allResources = db.resources ? db.resources.filter(r => r.event_id === targetEventId) : [];
-        const resourceClaims = db.resource_claims ? db.resource_claims.filter(c => c.event_id === targetEventId) : [];
+        const allResources = [...foodResources, ...swagResources];
+        const claimsList = Array.isArray(resourceClaims) ? resourceClaims : [];
         const checkedInList = attendees.filter(a => a.check_in_status === 'CHECKED_IN');
 
         // Tab 1: Executive Summary
@@ -144,9 +146,9 @@ export async function GET(req) {
             ['S.No', 'Meal Resource', 'Description', 'Timing Window', 'Limit Per Attendee', 'Total Distributed', 'Total Stock', 'Remaining Stock', 'Distribution %']
         ];
         foodResources.forEach((r, idx) => {
-            const claims = resourceClaims.filter(c => c.resource_id === r.id).length;
+            const claims = claimsList.filter(c => c.resource_id === r.id).length;
             const cap = r.capacity || 450;
-            const dist = claims || r.claims_count || 0;
+            const dist = claims > 0 ? claims : (r.claims_count || 0);
             const rate = cap > 0 ? `${Math.round((dist / cap) * 100)}%` : 'N/A';
             foodTab.push([
                 idx + 1,
@@ -166,9 +168,9 @@ export async function GET(req) {
             ['S.No', 'Swag Item Name', 'Description', 'Limit Per Attendee', 'Total Distributed', 'Allocated Stock', 'Remaining Inventory', 'Distribution %']
         ];
         swagResources.forEach((r, idx) => {
-            const claims = resourceClaims.filter(c => c.resource_id === r.id).length;
+            const claims = claimsList.filter(c => c.resource_id === r.id).length;
             const cap = r.capacity || 400;
-            const dist = claims || r.claims_count || 0;
+            const dist = claims > 0 ? claims : (r.claims_count || 0);
             const rate = cap > 0 ? `${Math.round((dist / cap) * 100)}%` : 'N/A';
             swagTab.push([
                 idx + 1,

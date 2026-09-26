@@ -36,22 +36,29 @@ export async function GET(req) {
             workshops,
             foodResources,
             swagResources,
-            counterStats
+            counterStats,
+            eventVolunteers,
+            users,
+            resourceClaims
         ] = await Promise.all([
             OnePassDB.getAttendees(eventId),
             OnePassDB.getTracks(eventId),
             OnePassDB.getWorkshops(eventId),
             OnePassDB.getResources(eventId, 'FOOD'),
             OnePassDB.getResources(eventId, 'SWAG'),
-            OnePassDB.getCounterStats(eventId)
+            OnePassDB.getCounterStats(eventId),
+            OnePassDB.getEventVolunteers(eventId),
+            OnePassDB.getUsers(),
+            OnePassDB.getResourceClaims(eventId)
         ]);
 
-        const allResources = db.resources ? db.resources.filter(r => r.event_id === eventId) : [];
-        const resourceClaims = db.resource_claims ? db.resource_claims.filter(c => c.event_id === eventId) : [];
+        const allResources = [...foodResources, ...swagResources];
         const trackLogs = db.track_access_logs ? db.track_access_logs.filter(l => l.event_id === eventId) : [];
         const workshopLogs = db.workshop_access_logs ? db.workshop_access_logs.filter(l => l.event_id === eventId) : [];
         const auditLogs = db.audit_logs ? db.audit_logs.filter(l => l.event_id === eventId || l.event_id === 'GLOBAL') : [];
-        const eventVolunteers = OnePassDB.getEventVolunteers(eventId) || [];
+        const volunteersList = Array.isArray(eventVolunteers) ? eventVolunteers : [];
+        const usersList = Array.isArray(users) ? users : [];
+        const claimsList = Array.isArray(resourceClaims) ? resourceClaims : [];
 
         const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
         const eventSafeName = (event.name || 'Event').replace(/\s+/g, '_');
@@ -87,12 +94,12 @@ export async function GET(req) {
                 const wk = workshops.find(w => w.id === a.assigned_workshop_id);
                 return {
                     'S.No': idx + 1,
-                    'Full Name': a.name,
-                    'Email Address': a.email,
+                    'Full Name': a.name || '',
+                    'Email Address': a.email || '',
                     'Phone': a.phone || '',
                     'Ticket Type': a.ticket_type || 'Attendee',
-                    'Booking ID': a.booking_id,
-                    'QR Code': a.qr_identifier,
+                    'Booking ID': a.booking_id || '',
+                    'QR Code': a.qr_identifier || '',
                     'Badge Counter': a.counter || 'Unassigned',
                     'Counter Box #': a.counter_number || '',
                     'Check-in Time': a.check_in_time ? new Date(a.check_in_time).toLocaleString() : '',
@@ -108,7 +115,7 @@ export async function GET(req) {
             const rate = cap > 0 ? ((occ / cap) * 100).toFixed(1) : '0.0';
             return {
                 'S.No': idx + 1,
-                'Track Name': t.name,
+                'Track Name': t.name || '',
                 'Description': t.description || '',
                 'Maximum Capacity': cap,
                 'Checked-In Occupancy': occ,
@@ -124,7 +131,7 @@ export async function GET(req) {
             const rate = cap > 0 ? ((occ / cap) * 100).toFixed(1) : '0.0';
             return {
                 'S.No': idx + 1,
-                'Workshop Name': w.name,
+                'Workshop Name': w.name || '',
                 'Speaker': w.speaker || '',
                 'Location / Room': w.location || w.venue || '',
                 'Timing Window': `${w.start_time || ''} - ${w.end_time || ''}`,
@@ -137,45 +144,47 @@ export async function GET(req) {
         });
 
         const getFoodRows = () => foodResources.map((r, idx) => {
-            const claims = resourceClaims.filter(c => c.resource_id === r.id).length;
+            const claims = claimsList.filter(c => c.resource_id === r.id).length;
             const cap = r.capacity || 450;
+            const distributed = claims > 0 ? claims : (r.claims_count || 0);
             return {
                 'S.No': idx + 1,
-                'Meal Item': r.name,
+                'Meal Item': r.name || '',
                 'Description': r.description || '',
                 'Start Window': r.start_time || 'Open',
                 'End Window': r.end_time || 'Open',
                 'Claim Limit Per Attendee': r.claim_limit || 1,
-                'Total Meals Distributed': claims || r.claims_count || 0,
+                'Total Meals Distributed': distributed,
                 'Total Stock / Capacity': cap,
-                'Remaining Stock': Math.max(0, cap - (claims || r.claims_count || 0)),
-                'Distribution Rate': cap > 0 ? `${(((claims || r.claims_count || 0) / cap) * 100).toFixed(1)}%` : 'N/A'
+                'Remaining Stock': Math.max(0, cap - distributed),
+                'Distribution Rate': cap > 0 ? `${(((distributed) / cap) * 100).toFixed(1)}%` : 'N/A'
             };
         });
 
         const getSwagRows = () => swagResources.map((r, idx) => {
-            const claims = resourceClaims.filter(c => c.resource_id === r.id).length;
+            const claims = claimsList.filter(c => c.resource_id === r.id).length;
             const cap = r.capacity || 400;
+            const distributed = claims > 0 ? claims : (r.claims_count || 0);
             return {
                 'S.No': idx + 1,
-                'Swag Item Name': r.name,
+                'Swag Item Name': r.name || '',
                 'Description': r.description || '',
                 'Claim Limit': r.claim_limit || 1,
-                'Total Distributed': claims || r.claims_count || 0,
+                'Total Distributed': distributed,
                 'Total Allocated Stock': cap,
-                'Remaining Stock': Math.max(0, cap - (claims || r.claims_count || 0)),
-                'Distribution Rate': cap > 0 ? `${(((claims || r.claims_count || 0) / cap) * 100).toFixed(1)}%` : 'N/A'
+                'Remaining Stock': Math.max(0, cap - distributed),
+                'Distribution Rate': cap > 0 ? `${(((distributed) / cap) * 100).toFixed(1)}%` : 'N/A'
             };
         });
 
         const getCounterRows = () => counterStats.map((c, idx) => ({
             'S.No': idx + 1,
-            'Counter Desk': c.counter,
+            'Counter Desk': c.counter || 'Unassigned',
             'Box Number': c.counter_number || 'N/A',
             'Category': c.category || 'General',
-            'Total Badges Assigned': c.total,
-            'Badges Checked-In': c.checked_in,
-            'Badges Pending': c.pending,
+            'Total Badges Assigned': c.total || 0,
+            'Badges Checked-In': c.checked_in || 0,
+            'Badges Pending': c.pending || 0,
             'Collection Rate': c.total > 0 ? `${Math.round((c.checked_in / c.total) * 100)}%` : '0%'
         }));
 
@@ -220,19 +229,19 @@ export async function GET(req) {
             }));
         };
 
-        const getClaimsRows = () => resourceClaims.map((c, idx) => {
+        const getClaimsRows = () => claimsList.map((c, idx) => {
             const res = allResources.find(r => r.id === c.resource_id);
             const att = attendees.find(a => a.id === c.attendee_id);
-            const vol = (db.users || []).find(u => u.id === c.volunteer_id);
+            const vol = usersList.find(u => u.id === c.volunteer_id);
             return {
                 'S.No': idx + 1,
                 'Claim ID': c.id,
                 'Timestamp': c.timestamp ? new Date(c.timestamp).toLocaleString() : '',
-                'Resource Item': res ? res.name : c.resource_id,
+                'Resource Item': res ? res.name : (c.resource_id || 'Resource'),
                 'Resource Type': res ? res.type : 'RESOURCE',
                 'Attendee Name': att ? att.name : 'Unknown',
                 'Attendee Email': att ? att.email : '',
-                'Attendee QR Code': att ? att.qr_identifier : '',
+                'Attendee QR Code': att ? (att.qr_identifier || att.booking_id || '') : '',
                 'Volunteer Scanner': vol ? vol.name : (c.volunteer_id || 'Volunteer')
             };
         });
@@ -244,18 +253,27 @@ export async function GET(req) {
             const wb = XLSX.utils.book_new();
 
             const checkedInCount = attendees.filter(a => a.check_in_status === 'CHECKED_IN').length;
+            const foodClaimsTotal = foodResources.reduce((s, r) => {
+                const liveCount = claimsList.filter(c => c.resource_id === r.id).length;
+                return s + (liveCount > 0 ? liveCount : (r.claims_count || 0));
+            }, 0);
+            const swagClaimsTotal = swagResources.reduce((s, r) => {
+                const liveCount = claimsList.filter(c => c.resource_id === r.id).length;
+                return s + (liveCount > 0 ? liveCount : (r.claims_count || 0));
+            }, 0);
+
             const summaryData = [
                 { 'Metric': 'Event Name', 'Value': event.name || 'Community Event' },
                 { 'Metric': 'Generated At', 'Value': new Date().toLocaleString() },
                 { 'Metric': 'Total Registered Attendees', 'Value': attendees.length },
                 { 'Metric': 'Total Checked-In Attendees', 'Value': checkedInCount },
-                { 'Metric': 'Pending Check-Ins', 'Value': attendees.length - checkedInCount },
+                { 'Metric': 'Pending Check-Ins', 'Value': Math.max(0, attendees.length - checkedInCount) },
                 { 'Metric': 'Attendance Turnout Rate', 'Value': attendees.length > 0 ? `${Math.round((checkedInCount / attendees.length) * 100)}%` : '0%' },
                 { 'Metric': 'Total Tracks', 'Value': tracks.length },
                 { 'Metric': 'Total Workshops', 'Value': workshops.length },
-                { 'Metric': 'Total Food/Lunch Claims', 'Value': foodResources.reduce((s, r) => s + (r.claims_count || 0), 0) },
-                { 'Metric': 'Total Swag Kit Claims', 'Value': swagResources.reduce((s, r) => s + (r.claims_count || 0), 0) },
-                { 'Metric': 'Active Volunteers', 'Value': eventVolunteers.length }
+                { 'Metric': 'Total Food/Lunch Claims', 'Value': foodClaimsTotal },
+                { 'Metric': 'Total Swag Kit Claims', 'Value': swagClaimsTotal },
+                { 'Metric': 'Active Volunteers', 'Value': volunteersList.length }
             ];
 
             const addSheet = (sheetName, data) => {
@@ -282,7 +300,8 @@ export async function GET(req) {
                 status: 200,
                 headers: {
                     'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    'Content-Disposition': `attachment; filename="${xlsxFilename}"`
+                    'Content-Disposition': `attachment; filename="${xlsxFilename}"`,
+                    'Cache-Control': 'no-store, max-age=0'
                 }
             });
         }
@@ -308,7 +327,7 @@ export async function GET(req) {
                 const att = attendees.find(a => a.id === l.attendee_id);
                 const trk = l.track_id ? tracks.find(t => t.id === l.track_id) : null;
                 const wk = l.workshop_id ? workshops.find(w => w.id === l.workshop_id) : null;
-                const vol = (db.users || []).find(u => u.id === l.volunteer_id);
+                const vol = usersList.find(u => u.id === l.volunteer_id);
                 return {
                     'S.No': idx + 1,
                     'Log ID': l.id,
@@ -343,7 +362,8 @@ export async function GET(req) {
             status: 200,
             headers: {
                 'Content-Type': 'text/csv; charset=utf-8',
-                'Content-Disposition': `attachment; filename="${filename}"`
+                'Content-Disposition': `attachment; filename="${filename}"`,
+                'Cache-Control': 'no-store, max-age=0'
             }
         });
     } catch (e) {

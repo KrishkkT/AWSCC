@@ -1235,6 +1235,30 @@ export const OnePassDB = {
         });
     },
 
+    async getResourceClaims(eventId) {
+        let claims = [];
+        if (supabase) {
+            try {
+                let query = supabase.from('onepass_resource_claims').select('*');
+                if (eventId) {
+                    query = query.eq('event_id', eventId);
+                }
+                const { data, error } = await query;
+                if (!error && Array.isArray(data)) {
+                    claims = data;
+                }
+            } catch (e) {
+                console.warn('[OnePass DB] Supabase getResourceClaims warning:', e.message);
+            }
+        }
+        if (claims.length === 0) {
+            const db = loadDb();
+            const localClaims = db.resource_claims || [];
+            claims = eventId ? localClaims.filter(c => c.event_id === eventId) : localClaims;
+        }
+        return claims;
+    },
+
     async getResourceById(id) {
         let resource = null;
         let claims = [];
@@ -2565,8 +2589,35 @@ export const OnePassDB = {
     async claimResource({ eventId, qrToken, resourceId, volunteerId, volunteerName }) {
         return this.withLock(`claim_res_${resourceId}`, async () => {
             const db = loadDb();
-            const attendee = this.getAttendeeByQR(eventId, qrToken);
-            const resource = db.resources.find(r => r.id === resourceId && r.event_id === eventId);
+            let attendee = this.getAttendeeByQR(eventId, qrToken);
+            if (!attendee && supabase) {
+                try {
+                    const liveAttendees = await fetchLiveAttendeesFromSupabase(eventId);
+                    const cleanQR = (qrToken || '').trim().toLowerCase();
+                    attendee = liveAttendees.find(a =>
+                        (a.qr_identifier && a.qr_identifier.toLowerCase() === cleanQR) ||
+                        (a.booking_id && a.booking_id.toLowerCase() === cleanQR) ||
+                        (a.email && a.email.toLowerCase() === cleanQR) ||
+                        (a.name && a.name.toLowerCase() === cleanQR) ||
+                        (a.phone && a.phone.toLowerCase() === cleanQR) ||
+                        (a.id && a.id.toLowerCase() === cleanQR)
+                    );
+                } catch (e) {
+                    console.warn('[OnePass DB] Supabase live attendee lookup in claimResource warning:', e.message);
+                }
+            }
+
+            let resource = (db.resources || []).find(r => r.id === resourceId && r.event_id === eventId);
+            if (!resource) {
+                resource = (db.resources || []).find(r => r.id === resourceId);
+            }
+            if (!resource && supabase) {
+                try {
+                    const { data: cloudRes } = await supabase.from('onepass_resources').select('*').eq('id', resourceId).maybeSingle();
+                    if (cloudRes) resource = cloudRes;
+                } catch (e) {}
+            }
+
             const now = new Date().toISOString();
 
             if (!resource) {
@@ -2587,7 +2638,17 @@ export const OnePassDB = {
             }
 
             // Check if already claimed
-            const existingClaims = db.resource_claims.filter(c => c.resource_id === resourceId && c.attendee_id === attendee.id);
+            let existingClaims = (db.resource_claims || []).filter(c => c.resource_id === resourceId && c.attendee_id === attendee.id);
+            if (supabase) {
+                try {
+                    const { data: cloudClaims } = await supabase.from('onepass_resource_claims').select('*').eq('resource_id', resourceId).eq('attendee_id', attendee.id);
+                    if (Array.isArray(cloudClaims) && cloudClaims.length > 0) {
+                        existingClaims = cloudClaims;
+                    }
+                } catch (e) {
+                    console.warn('[OnePass DB] Supabase claim check warning:', e.message);
+                }
+            }
             const claimLimit = resource.claim_limit || 1;
 
             if (existingClaims.length >= claimLimit) {
@@ -2604,7 +2665,13 @@ export const OnePassDB = {
 
             // Check capacity limit if set
             if (resource.capacity) {
-                const totalClaims = db.resource_claims.filter(c => c.resource_id === resourceId).length;
+                let totalClaims = (db.resource_claims || []).filter(c => c.resource_id === resourceId).length;
+                if (supabase) {
+                    try {
+                        const { count } = await supabase.from('onepass_resource_claims').select('*', { count: 'exact', head: true }).eq('resource_id', resourceId);
+                        if (typeof count === 'number') totalClaims = count;
+                    } catch (e) {}
+                }
                 if (totalClaims >= resource.capacity) {
                     return {
                         success: false,
@@ -2625,6 +2692,7 @@ export const OnePassDB = {
                 timestamp: now,
                 status: 'CLAIMED'
             };
+            if (!Array.isArray(db.resource_claims)) db.resource_claims = [];
             db.resource_claims.push(newClaim);
 
             // Audit log
@@ -2646,6 +2714,7 @@ export const OnePassDB = {
                 timestamp: now,
                 result: 'SUCCESS'
             };
+            if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
             db.audit_logs.unshift(auditEntry);
 
             saveDb(db);

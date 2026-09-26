@@ -16,7 +16,7 @@ export async function POST(req) {
             return NextResponse.json({ error: 'eventId, qrToken and resourceId are required' }, { status: 400 });
         }
 
-        const resource = OnePassDB.getResourceById(resourceId);
+        const resource = await OnePassDB.getResourceById(resourceId);
         if (!resource) {
             return NextResponse.json({ error: 'Resource not found' }, { status: 404 });
         }
