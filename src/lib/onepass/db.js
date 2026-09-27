@@ -1396,6 +1396,10 @@ export const OnePassDB = {
             const cStr = options.counter.trim().toLowerCase();
             list = list.filter(a => (a.counter && a.counter.toLowerCase() === cStr) || `${a.counter_number}` === cStr);
         }
+        if (options.ticket_type || options.ticket) {
+            const tStr = (options.ticket_type || options.ticket).trim().toLowerCase();
+            list = list.filter(a => a.ticket_type && a.ticket_type.trim().toLowerCase() === tStr);
+        }
         return list;
     },
 

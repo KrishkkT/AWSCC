@@ -17,6 +17,7 @@ export async function GET(req) {
         const workshopId = searchParams.get('workshop_id') || '';
         const checkedInBy = searchParams.get('checked_in_by') || '';
         const counter = searchParams.get('counter') || '';
+        const ticketType = searchParams.get('ticket_type') || searchParams.get('ticket') || '';
         const qr = searchParams.get('qr') || '';
 
         if (!eventId) {
@@ -44,7 +45,8 @@ export async function GET(req) {
             assigned_track_id: trackId || undefined,
             assigned_workshop_id: workshopId || undefined,
             checked_in_by: checkedInBy || undefined,
-            counter: counter || undefined
+            counter: counter || undefined,
+            ticket_type: ticketType || undefined
         });
 
         // Enrich with track names for easy table display

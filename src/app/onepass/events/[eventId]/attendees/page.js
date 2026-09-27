@@ -23,9 +23,11 @@ export default function AttendeesDirectoryPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [ticketFilter, setTicketFilter] = useState('');
     const [trackFilter, setTrackFilter] = useState('');
     const [volunteerFilter, setVolunteerFilter] = useState('');
     const [counterFilter, setCounterFilter] = useState('');
+    const [knownTicketTypes, setKnownTicketTypes] = useState([]);
 
     // Counter Allocation State
     const [counterModalOpen, setCounterModalOpen] = useState(false);
@@ -88,13 +90,25 @@ export default function AttendeesDirectoryPage() {
                 eventId,
                 search,
                 check_in_status: statusFilter,
+                ticket_type: ticketFilter,
                 track_id: trackFilter,
                 checked_in_by: volunteerFilter,
                 counter: counterFilter
             });
             const res = await fetch(`/api/onepass/attendees?${queryParams.toString()}`);
             const data = await res.json();
-            setAttendees(data.attendees || []);
+            const list = data.attendees || [];
+            setAttendees(list);
+
+            if (list.length > 0) {
+                setKnownTicketTypes(prev => {
+                    const set = new Set(prev);
+                    list.forEach(a => {
+                        if (a.ticket_type && a.ticket_type.trim()) set.add(a.ticket_type.trim());
+                    });
+                    return Array.from(set).sort();
+                });
+            }
 
             const trkRes = await fetch(`/api/onepass/tracks?eventId=${eventId}`);
             const trkData = await trkRes.json();
@@ -121,7 +135,7 @@ export default function AttendeesDirectoryPage() {
             fetchAttendees();
         }, 250);
         return () => clearTimeout(timeout);
-    }, [eventId, search, statusFilter, trackFilter, volunteerFilter, counterFilter]);
+    }, [eventId, search, statusFilter, ticketFilter, trackFilter, volunteerFilter, counterFilter]);
 
     // Multi-Selection Logic
     const allVisibleIds = useMemo(() => attendees.map(a => a.id), [attendees]);
@@ -757,6 +771,15 @@ export default function AttendeesDirectoryPage() {
         });
     }, [attendees]);
 
+    // Calculate unique ticket types for filter dropdown
+    const availableTicketTypes = useMemo(() => {
+        const types = new Set(knownTicketTypes);
+        attendees.forEach(a => {
+            if (a.ticket_type && a.ticket_type.trim()) types.add(a.ticket_type.trim());
+        });
+        return Array.from(types).sort();
+    }, [attendees, knownTicketTypes]);
+
     // Calculate selection statistics
     const selectedCount = selectedIds.length;
     const selectedCheckedInCount = attendees.filter(a => selectedIds.includes(a.id) && a.check_in_status === 'CHECKED_IN').length;
@@ -846,6 +869,19 @@ export default function AttendeesDirectoryPage() {
 
                 <div className="sm:col-span-2">
                     <select
+                        value={ticketFilter}
+                        onChange={(e) => setTicketFilter(e.target.value)}
+                        className="w-full bg-[#151c2e] border border-[#1a2540] rounded-xl px-3 py-2.5 text-xs text-slate-300 focus:outline-none focus:border-[#0073BB]"
+                    >
+                        <option value="">All Tickets ({availableTicketTypes.length})</option>
+                        {availableTicketTypes.map(t => (
+                            <option key={t} value={t}>🎟️ {t}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                    <select
                         value={counterFilter}
                         onChange={(e) => setCounterFilter(e.target.value)}
                         className="w-full bg-[#151c2e] border border-[#1a2540] rounded-xl px-3 py-2.5 text-xs text-slate-300 focus:outline-none focus:border-[#0073BB]"
@@ -857,26 +893,26 @@ export default function AttendeesDirectoryPage() {
                     </select>
                 </div>
 
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-1">
                     <select
                         value={trackFilter}
                         onChange={(e) => setTrackFilter(e.target.value)}
-                        className="w-full bg-[#151c2e] border border-[#1a2540] rounded-xl px-3 py-2.5 text-xs text-slate-300 focus:outline-none focus:border-[#0073BB]"
+                        className="w-full bg-[#151c2e] border border-[#1a2540] rounded-xl px-2.5 py-2.5 text-xs text-slate-300 focus:outline-none focus:border-[#0073BB]"
                     >
-                        <option value="">All Tracks</option>
+                        <option value="">Tracks</option>
                         {tracks.map(t => (
                             <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
                     </select>
                 </div>
 
-                <div className="sm:col-span-3">
+                <div className="sm:col-span-2">
                     <select
                         value={volunteerFilter}
                         onChange={(e) => setVolunteerFilter(e.target.value)}
                         className="w-full bg-[#151c2e] border border-[#1a2540] rounded-xl px-3 py-2.5 text-xs text-slate-300 focus:outline-none focus:border-[#0073BB]"
                     >
-                        <option value="">All Volunteers / Staff</option>
+                        <option value="">All Volunteers</option>
                         {volunteers.map(v => (
                             <option key={v.id} value={v.id}>👤 {v.name}</option>
                         ))}
