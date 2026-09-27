@@ -7,6 +7,7 @@ import {
     RefreshCw, Sparkles, Package, Gift, Edit2, Trash2, X
 } from 'lucide-react';
 import QRScannerModal from '@/components/onepass/QRScannerModal';
+import ResourceClaimsLedger from '@/components/onepass/ResourceClaimsLedger';
 import { useOnePass } from '@/components/onepass/OnePassContext';
 import { parseScannedQR } from '@/lib/onepass/qr';
 
@@ -433,6 +434,15 @@ export default function SwagManagementPage() {
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* Admitted Attendees & Swag Kit Ledger */}
+            {currentResource && (
+                <ResourceClaimsLedger
+                    eventId={eventId}
+                    resource={currentResource}
+                    onClaimSuccess={() => fetchSwagResources()}
+                />
             )}
 
             {/* Create Swag Modal */}

@@ -2586,24 +2586,38 @@ export const OnePassDB = {
     },
 
     // ATOMIC RESOURCE CLAIM (FOOD / SWAG / OTHER)
-    async claimResource({ eventId, qrToken, resourceId, volunteerId, volunteerName }) {
+    async claimResource({ eventId, qrToken, attendeeId, resourceId, volunteerId, volunteerName }) {
         return this.withLock(`claim_res_${resourceId}`, async () => {
             const db = loadDb();
-            let attendee = this.getAttendeeByQR(eventId, qrToken);
-            if (!attendee && supabase) {
-                try {
-                    const liveAttendees = await fetchLiveAttendeesFromSupabase(eventId);
-                    const cleanQR = (qrToken || '').trim().toLowerCase();
-                    attendee = liveAttendees.find(a =>
-                        (a.qr_identifier && a.qr_identifier.toLowerCase() === cleanQR) ||
-                        (a.booking_id && a.booking_id.toLowerCase() === cleanQR) ||
-                        (a.email && a.email.toLowerCase() === cleanQR) ||
-                        (a.name && a.name.toLowerCase() === cleanQR) ||
-                        (a.phone && a.phone.toLowerCase() === cleanQR) ||
-                        (a.id && a.id.toLowerCase() === cleanQR)
-                    );
-                } catch (e) {
-                    console.warn('[OnePass DB] Supabase live attendee lookup in claimResource warning:', e.message);
+            let attendee = null;
+            if (attendeeId) {
+                attendee = (db.attendees || []).find(a => a.id === attendeeId && a.event_id === eventId);
+                if (!attendee && supabase) {
+                    try {
+                        const liveAttendees = await fetchLiveAttendeesFromSupabase(eventId);
+                        attendee = liveAttendees.find(a => a.id === attendeeId);
+                    } catch (e) {
+                        console.warn('[OnePass DB] Supabase live attendee lookup by ID warning:', e.message);
+                    }
+                }
+            }
+            if (!attendee && qrToken) {
+                attendee = this.getAttendeeByQR(eventId, qrToken);
+                if (!attendee && supabase) {
+                    try {
+                        const liveAttendees = await fetchLiveAttendeesFromSupabase(eventId);
+                        const cleanQR = (qrToken || '').trim().toLowerCase();
+                        attendee = liveAttendees.find(a =>
+                            (a.qr_identifier && a.qr_identifier.toLowerCase() === cleanQR) ||
+                            (a.booking_id && a.booking_id.toLowerCase() === cleanQR) ||
+                            (a.email && a.email.toLowerCase() === cleanQR) ||
+                            (a.name && a.name.toLowerCase() === cleanQR) ||
+                            (a.phone && a.phone.toLowerCase() === cleanQR) ||
+                            (a.id && a.id.toLowerCase() === cleanQR)
+                        );
+                    } catch (e) {
+                        console.warn('[OnePass DB] Supabase live attendee lookup in claimResource warning:', e.message);
+                    }
                 }
             }
 
@@ -2625,7 +2639,7 @@ export const OnePassDB = {
             }
 
             if (!attendee) {
-                return { success: false, code: 'INVALID_QR', message: 'QR code not recognized in this event.' };
+                return { success: false, code: 'INVALID_QR', message: 'Attendee not recognized in this event.' };
             }
 
             if (attendee.check_in_status !== 'CHECKED_IN' || (!attendee.assigned_track_id && !attendee.assigned_workshop_id)) {
@@ -2728,6 +2742,118 @@ export const OnePassDB = {
                 attendee,
                 resource,
                 claim: newClaim
+            };
+        });
+    },
+
+    // BATCH RESOURCE CLAIM FOR CHECKED-IN ATTENDEES
+    async claimResourceBatch({ eventId, attendeeIds = [], resourceId, volunteerId, volunteerName }) {
+        return this.withLock(`claim_res_${resourceId}`, async () => {
+            const db = loadDb();
+            let resource = (db.resources || []).find(r => r.id === resourceId && r.event_id === eventId);
+            if (!resource) {
+                resource = (db.resources || []).find(r => r.id === resourceId);
+            }
+            if (!resource && supabase) {
+                try {
+                    const { data: cloudRes } = await supabase.from('onepass_resources').select('*').eq('id', resourceId).maybeSingle();
+                    if (cloudRes) resource = cloudRes;
+                } catch (e) {}
+            }
+
+            if (!resource) {
+                return { success: false, code: 'RESOURCE_NOT_FOUND', message: 'Resource not found.' };
+            }
+
+            const liveAttendees = await fetchLiveAttendeesFromSupabase(eventId);
+            let existingClaims = (db.resource_claims || []).filter(c => c.resource_id === resourceId && c.event_id === eventId);
+            if (supabase) {
+                try {
+                    const { data: cloudClaims } = await supabase.from('onepass_resource_claims').select('*').eq('resource_id', resourceId);
+                    if (Array.isArray(cloudClaims) && cloudClaims.length > 0) {
+                        existingClaims = cloudClaims;
+                    }
+                } catch (e) {}
+            }
+
+            const existingClaimedAttendeeIds = new Set(existingClaims.map(c => c.attendee_id));
+            const now = new Date().toISOString();
+            const newClaims = [];
+            const newAudits = [];
+            const claimedAttendees = [];
+            let skippedAlreadyClaimed = 0;
+            let skippedNotCheckedIn = 0;
+
+            for (const attId of attendeeIds) {
+                const attendee = liveAttendees.find(a => a.id === attId);
+                if (!attendee) continue;
+
+                if (attendee.check_in_status !== 'CHECKED_IN' || (!attendee.assigned_track_id && !attendee.assigned_workshop_id)) {
+                    skippedNotCheckedIn++;
+                    continue;
+                }
+
+                if (existingClaimedAttendeeIds.has(attendee.id)) {
+                    skippedAlreadyClaimed++;
+                    continue;
+                }
+
+                // Check capacity limit
+                if (resource.capacity && (existingClaims.length + newClaims.length) >= resource.capacity) {
+                    break;
+                }
+
+                const newClaim = {
+                    id: `clm_${crypto.randomBytes(6).toString('hex')}`,
+                    event_id: eventId,
+                    resource_id: resourceId,
+                    attendee_id: attendee.id,
+                    volunteer_id: volunteerId || null,
+                    timestamp: now,
+                    status: 'CLAIMED'
+                };
+                newClaims.push(newClaim);
+                existingClaimedAttendeeIds.add(attendee.id);
+                claimedAttendees.push(attendee);
+
+                const auditEntry = {
+                    id: `aud_${crypto.randomBytes(6).toString('hex')}`,
+                    event_id: eventId,
+                    actor_id: volunteerId,
+                    actor_name: volunteerName || 'Volunteer',
+                    actor_role: 'VOLUNTEER',
+                    action: 'CLAIM_RESOURCE_BATCH',
+                    entity_type: 'RESOURCE',
+                    entity_id: resourceId,
+                    metadata: {
+                        resource_name: resource.name,
+                        resource_type: resource.type,
+                        attendee_name: attendee.name,
+                        attendee_id: attendee.id
+                    },
+                    timestamp: now,
+                    result: 'SUCCESS'
+                };
+                newAudits.push(auditEntry);
+            }
+
+            if (newClaims.length > 0) {
+                if (!Array.isArray(db.resource_claims)) db.resource_claims = [];
+                db.resource_claims.push(...newClaims);
+                if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
+                db.audit_logs.unshift(...newAudits);
+                saveDb(db);
+                await upsertToSupabaseDirect('onepass_resource_claims', newClaims);
+                await upsertToSupabaseDirect('onepass_audit_logs', newAudits);
+            }
+
+            return {
+                success: true,
+                claimed_count: newClaims.length,
+                already_claimed_count: skippedAlreadyClaimed,
+                skipped_not_checked_in: skippedNotCheckedIn,
+                resource,
+                claimed_attendees: claimedAttendees
             };
         });
     },

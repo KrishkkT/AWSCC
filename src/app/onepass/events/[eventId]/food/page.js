@@ -7,6 +7,7 @@ import {
     Clock, RefreshCw, Sparkles, UserCheck, Utensils, Edit2, Trash2, X
 } from 'lucide-react';
 import QRScannerModal from '@/components/onepass/QRScannerModal';
+import ResourceClaimsLedger from '@/components/onepass/ResourceClaimsLedger';
 import { useOnePass } from '@/components/onepass/OnePassContext';
 import { parseScannedQR } from '@/lib/onepass/qr';
 
@@ -436,6 +437,15 @@ export default function FoodManagementPage() {
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* Admitted Attendees & Food Check-In Ledger */}
+            {currentResource && (
+                <ResourceClaimsLedger
+                    eventId={eventId}
+                    resource={currentResource}
+                    onClaimSuccess={() => fetchFoodResources()}
+                />
             )}
 
             {/* Create Meal Modal */}

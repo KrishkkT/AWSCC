@@ -10,10 +10,10 @@ export async function POST(req) {
     try {
         await OnePassDB.ensureHydrated();
         const body = await req.json();
-        const { eventId, qrToken, resourceId } = body;
+        const { eventId, qrToken, attendeeId, resourceId } = body;
 
-        if (!eventId || !qrToken || !resourceId) {
-            return NextResponse.json({ error: 'eventId, qrToken and resourceId are required' }, { status: 400 });
+        if (!eventId || (!qrToken && !attendeeId) || !resourceId) {
+            return NextResponse.json({ error: 'eventId, (qrToken or attendeeId) and resourceId are required' }, { status: 400 });
         }
 
         const resource = await OnePassDB.getResourceById(resourceId);
@@ -28,10 +28,11 @@ export async function POST(req) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const cleanToken = parseScannedQR(qrToken);
+        const cleanToken = qrToken ? parseScannedQR(qrToken) : null;
         const result = await OnePassDB.claimResource({
             eventId,
             qrToken: cleanToken,
+            attendeeId: attendeeId || null,
             resourceId,
             volunteerId: auth.user.id,
             volunteerName: auth.user.name
