@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
     Coffee, Camera, CheckCircle2, AlertTriangle, XCircle, Plus, Search,
-    Clock, RefreshCw, Sparkles, UserCheck, Utensils, Edit2, Trash2, X
+    Clock, RefreshCw, Sparkles, UserCheck, Utensils, Edit2, Trash2, X, RotateCcw
 } from 'lucide-react';
 import QRScannerModal from '@/components/onepass/QRScannerModal';
 import ResourceClaimsLedger from '@/components/onepass/ResourceClaimsLedger';
@@ -24,6 +24,7 @@ export default function FoodManagementPage() {
     const [scannerOpen, setScannerOpen] = useState(false);
     const [manualCode, setManualCode] = useState('');
     const [claiming, setClaiming] = useState(false);
+    const [revertingClaim, setRevertingClaim] = useState(false);
     const [claimResult, setClaimResult] = useState(null);
 
     // Live attendee search state as user types
@@ -127,6 +128,36 @@ export default function FoodManagementPage() {
             });
         } finally {
             setClaiming(false);
+        }
+    };
+
+    const handleRevertClaim = async (attendeeId, claimId) => {
+        if (!attendeeId || !selectedResourceId || revertingClaim) return;
+        if (!confirm('Are you sure you want to revert / undo this food claim?')) return;
+        setRevertingClaim(true);
+        try {
+            const res = await fetch('/api/onepass/resources/claims', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eventId,
+                    resourceId: selectedResourceId,
+                    attendeeId,
+                    claimId
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setClaimResult(null);
+                fetchFoodResources();
+                alert('Food claim successfully reverted and attendee restored to Pending Claim!');
+            } else {
+                alert(data.message || data.error || 'Failed to revert claim');
+            }
+        } catch (e) {
+            alert('Network error while reverting claim');
+        } finally {
+            setRevertingClaim(false);
         }
     };
 
@@ -405,6 +436,16 @@ export default function FoodManagementPage() {
                             <div className="text-[11px] text-slate-400 font-mono">
                                 Claim recorded at {claimResult.timestamp}
                             </div>
+                            <div className="pt-2">
+                                <button
+                                    onClick={() => handleRevertClaim(claimResult.attendee?.id, claimResult.claim?.id)}
+                                    disabled={revertingClaim}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold rounded-xl text-xs transition cursor-pointer disabled:opacity-50"
+                                >
+                                    <RotateCcw className={`w-3.5 h-3.5 ${revertingClaim ? 'animate-spin' : ''}`} />
+                                    <span>{revertingClaim ? 'Reverting...' : '↩ Revert / Undo Claim'}</span>
+                                </button>
+                            </div>
                         </div>
                     ) : claimResult.code === 'ALREADY_CLAIMED' ? (
                         <div className="p-8 bg-amber-950/40 border-2 border-amber-500 rounded-3xl text-center space-y-4 shadow-2xl">
@@ -420,6 +461,16 @@ export default function FoodManagementPage() {
                                     {claimResult.resource?.name} was already claimed for this attendee at{' '}
                                     {claimResult.previous_claim?.timestamp ? new Date(claimResult.previous_claim.timestamp).toLocaleTimeString() : 'an earlier time'}.
                                 </p>
+                            </div>
+                            <div className="pt-2">
+                                <button
+                                    onClick={() => handleRevertClaim(claimResult.attendee?.id, claimResult.previous_claim?.id)}
+                                    disabled={revertingClaim}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold rounded-xl text-xs transition cursor-pointer disabled:opacity-50"
+                                >
+                                    <RotateCcw className={`w-3.5 h-3.5 ${revertingClaim ? 'animate-spin' : ''}`} />
+                                    <span>{revertingClaim ? 'Reverting...' : '↩ Revert / Undo Previous Claim'}</span>
+                                </button>
                             </div>
                         </div>
                     ) : (

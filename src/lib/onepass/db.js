@@ -1375,7 +1375,13 @@ export const OnePassDB = {
             });
         }
         if (options.check_in_status) {
-            list = list.filter(a => a.check_in_status === options.check_in_status);
+            if (options.check_in_status === 'CHECKED_IN') {
+                list = list.filter(a => a.check_in_status === 'CHECKED_IN');
+            } else if (options.check_in_status === 'NOT_CHECKED_IN') {
+                list = list.filter(a => a.check_in_status !== 'CHECKED_IN');
+            } else {
+                list = list.filter(a => a.check_in_status === options.check_in_status);
+            }
         }
         if (options.assigned_track_id) {
             list = list.filter(a => a.assigned_track_id === options.assigned_track_id);
@@ -2144,6 +2150,7 @@ export const OnePassDB = {
         }
         return this.withLock(`event_${eventId}_checkin`, async () => {
             const db = loadDb();
+            const liveAttendees = await fetchLiveAttendeesFromSupabase(eventId);
             const now = new Date().toISOString();
             const effectiveRole = volunteerRole || (actorName.toLowerCase().includes('admin') ? 'ADMIN' : 'VOLUNTEER');
             let count = 0;
@@ -2184,10 +2191,20 @@ export const OnePassDB = {
                     }
                 }
 
+                if (idx === -1) {
+                    const fromLive = liveAttendees.find(a =>
+                        a.id === idToFind || a.booking_id === idToFind || a.qr_identifier === idToFind
+                    );
+                    if (fromLive) {
+                        db.attendees.push({ ...fromLive });
+                        idx = db.attendees.length - 1;
+                    }
+                }
+
                 if (idx === -1) continue;
 
                 const prev = db.attendees[idx];
-                db.attendees[idx] = {
+                const updated = {
                     ...prev,
                     check_in_status: 'NOT_CHECKED_IN',
                     check_in_time: null,
@@ -2198,6 +2215,7 @@ export const OnePassDB = {
                     checked_in_by_role: null,
                     updated_at: now
                 };
+                db.attendees[idx] = updated;
 
                 // Clear food & swag resource claims for this attendee
                 if (!Array.isArray(db.resource_claims)) db.resource_claims = [];
@@ -2236,7 +2254,8 @@ export const OnePassDB = {
                 db.audit_logs.unshift(auditEntry);
                 auditEntries.push(auditEntry);
 
-                updatedAttendees.push(db.attendees[idx]);
+                registerUpdatedAttendee(updated);
+                updatedAttendees.push(updated);
                 count++;
             }
 
@@ -2260,31 +2279,82 @@ export const OnePassDB = {
         }
         return this.withLock(`event_${eventId}_checkin`, async () => {
             const db = loadDb();
+            const liveAttendees = await fetchLiveAttendeesFromSupabase(eventId);
             const now = new Date().toISOString();
             const effectiveRole = volunteerRole || (actorName.toLowerCase().includes('admin') ? 'ADMIN' : 'VOLUNTEER');
             let count = 0;
             const updatedAttendees = [];
             const auditEntries = [];
 
-            for (const attendeeId of attendeeIds) {
-                let idx = db.attendees.findIndex(a => a.id === attendeeId && a.event_id === eventId);
-                if (idx === -1) {
-                    idx = db.attendees.findIndex(a => a.id === attendeeId || a.booking_id === attendeeId || a.qr_identifier === attendeeId);
+            // If neither track nor workshop is specified, fallback to first available track in event
+            let finalTrackId = trackId || null;
+            let finalWorkshopId = workshopId || null;
+            if (!finalTrackId && !finalWorkshopId) {
+                const defaultTrack = (db.tracks || []).find(t => t.event_id === eventId);
+                if (defaultTrack) {
+                    finalTrackId = defaultTrack.id;
                 }
+            }
+
+            for (const attendeeId of attendeeIds) {
+                const idToFind = (attendeeId || '').toString().trim();
+                const idLower = idToFind.toLowerCase();
+
+                let idx = db.attendees.findIndex(a => 
+                    (a.id === idToFind || 
+                     a.booking_id === idToFind || 
+                     a.qr_identifier === idToFind || 
+                     a.qr_token === idToFind || 
+                     a.registration_id === idToFind ||
+                     (a.booking_id && a.booking_id.toLowerCase() === idLower) ||
+                     (a.qr_identifier && a.qr_identifier.toLowerCase() === idLower) ||
+                     (a.qr_token && a.qr_token.toLowerCase() === idLower) ||
+                     (a.registration_id && a.registration_id.toLowerCase() === idLower)
+                    ) && a.event_id === eventId
+                );
+
+                if (idx === -1) {
+                    idx = db.attendees.findIndex(a => 
+                        a.id === idToFind || 
+                        a.booking_id === idToFind || 
+                        a.qr_identifier === idToFind || 
+                        a.qr_token === idToFind || 
+                        a.registration_id === idToFind ||
+                        (a.booking_id && a.booking_id.toLowerCase() === idLower) ||
+                        (a.qr_identifier && a.qr_identifier.toLowerCase() === idLower) ||
+                        (a.qr_token && a.qr_token.toLowerCase() === idLower) ||
+                        (a.registration_id && a.registration_id.toLowerCase() === idLower)
+                    );
+                    if (idx !== -1) {
+                        db.attendees[idx].event_id = eventId;
+                    }
+                }
+
+                if (idx === -1) {
+                    const fromLive = liveAttendees.find(a =>
+                        a.id === idToFind || a.booking_id === idToFind || a.qr_identifier === idToFind
+                    );
+                    if (fromLive) {
+                        db.attendees.push({ ...fromLive });
+                        idx = db.attendees.length - 1;
+                    }
+                }
+
                 if (idx === -1) continue;
 
                 const prev = db.attendees[idx];
-                db.attendees[idx] = {
+                const updated = {
                     ...prev,
                     check_in_status: 'CHECKED_IN',
-                    check_in_time: now,
-                    assigned_track_id: trackId || null,
-                    assigned_workshop_id: workshopId || null,
+                    check_in_time: prev.check_in_time || now,
+                    assigned_track_id: finalTrackId,
+                    assigned_workshop_id: finalWorkshopId,
                     checked_in_by_id: volunteerId || null,
                     checked_in_by_name: actorName || 'Volunteer',
                     checked_in_by_role: effectiveRole,
                     updated_at: now
                 };
+                db.attendees[idx] = updated;
 
                 const auditEntry = {
                     id: `aud_${crypto.randomBytes(6).toString('hex')}`,
@@ -2297,8 +2367,8 @@ export const OnePassDB = {
                     entity_id: prev.id,
                     metadata: {
                         attendee_name: prev.name,
-                        assigned_track_id: trackId,
-                        assigned_workshop_id: workshopId,
+                        assigned_track_id: finalTrackId,
+                        assigned_workshop_id: finalWorkshopId,
                         checked_in_by: actorName,
                         bulk: true
                     },
@@ -2309,7 +2379,8 @@ export const OnePassDB = {
                 db.audit_logs.unshift(auditEntry);
                 auditEntries.push(auditEntry);
 
-                updatedAttendees.push(db.attendees[idx]);
+                registerUpdatedAttendee(updated);
+                updatedAttendees.push(updated);
                 count++;
             }
 
@@ -2854,6 +2925,132 @@ export const OnePassDB = {
                 skipped_not_checked_in: skippedNotCheckedIn,
                 resource,
                 claimed_attendees: claimedAttendees
+            };
+        });
+    },
+
+    // REVERT / UNDO RESOURCE CLAIM
+    async revertResourceClaim({ eventId, resourceId, attendeeId, claimId, volunteerId, volunteerName }) {
+        return this.withLock(`claim_res_${resourceId}`, async () => {
+            const db = loadDb();
+            const now = new Date().toISOString();
+
+            let targetClaim = null;
+            if (claimId) {
+                targetClaim = (db.resource_claims || []).find(c => c.id === claimId);
+            }
+            if (!targetClaim && attendeeId && resourceId) {
+                targetClaim = (db.resource_claims || []).find(c => c.attendee_id === attendeeId && c.resource_id === resourceId);
+            }
+
+            // Remove from local memory
+            if (claimId) {
+                db.resource_claims = (db.resource_claims || []).filter(c => c.id !== claimId);
+            } else if (attendeeId && resourceId) {
+                db.resource_claims = (db.resource_claims || []).filter(c => !(c.attendee_id === attendeeId && c.resource_id === resourceId));
+            }
+
+            // Delete from Supabase
+            if (supabase) {
+                try {
+                    if (claimId) {
+                        await supabase.from('onepass_resource_claims').delete().eq('id', claimId);
+                    } else if (attendeeId && resourceId) {
+                        await supabase.from('onepass_resource_claims').delete().eq('attendee_id', attendeeId).eq('resource_id', resourceId);
+                    }
+                } catch (e) {
+                    console.warn('[OnePass DB] Supabase revertResourceClaim delete error:', e.message);
+                }
+            }
+
+            const resource = (db.resources || []).find(r => r.id === resourceId);
+            const attendee = (db.attendees || []).find(a => a.id === attendeeId);
+
+            // Audit log
+            const auditEntry = {
+                id: `aud_${crypto.randomBytes(6).toString('hex')}`,
+                event_id: eventId,
+                actor_id: volunteerId || null,
+                actor_name: volunteerName || 'Admin / Volunteer',
+                actor_role: 'VOLUNTEER',
+                action: 'REVERT_RESOURCE_CLAIM',
+                entity_type: 'RESOURCE',
+                entity_id: resourceId,
+                metadata: {
+                    resource_name: resource?.name,
+                    resource_type: resource?.type,
+                    attendee_name: attendee?.name,
+                    attendee_id: attendeeId,
+                    claim_id: claimId || targetClaim?.id
+                },
+                timestamp: now,
+                result: 'SUCCESS'
+            };
+            if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
+            db.audit_logs.unshift(auditEntry);
+
+            saveDb(db);
+            await upsertToSupabaseDirect('onepass_audit_logs', auditEntry);
+
+            return {
+                success: true,
+                message: `Successfully reverted ${resource?.name || 'resource'} claim for ${attendee?.name || 'attendee'}.`,
+                attendee,
+                resource
+            };
+        });
+    },
+
+    // BATCH REVERT RESOURCE CLAIMS
+    async revertResourceClaimBatch({ eventId, resourceId, attendeeIds = [], volunteerId, volunteerName }) {
+        return this.withLock(`claim_res_${resourceId}`, async () => {
+            const db = loadDb();
+            const now = new Date().toISOString();
+            const attIdSet = new Set(attendeeIds);
+
+            // Remove from local memory
+            db.resource_claims = (db.resource_claims || []).filter(c => !(c.resource_id === resourceId && attIdSet.has(c.attendee_id)));
+
+            // Delete from Supabase
+            if (supabase && attendeeIds.length > 0) {
+                try {
+                    await supabase.from('onepass_resource_claims').delete().eq('resource_id', resourceId).in('attendee_id', attendeeIds);
+                } catch (e) {
+                    console.warn('[OnePass DB] Supabase batch revertResourceClaim error:', e.message);
+                }
+            }
+
+            const resource = (db.resources || []).find(r => r.id === resourceId);
+
+            // Audit log
+            const auditEntry = {
+                id: `aud_${crypto.randomBytes(6).toString('hex')}`,
+                event_id: eventId,
+                actor_id: volunteerId || null,
+                actor_name: volunteerName || 'Admin / Volunteer',
+                actor_role: 'VOLUNTEER',
+                action: 'BATCH_REVERT_RESOURCE_CLAIMS',
+                entity_type: 'RESOURCE',
+                entity_id: resourceId,
+                metadata: {
+                    resource_name: resource?.name,
+                    resource_type: resource?.type,
+                    reverted_count: attendeeIds.length,
+                    attendee_ids: attendeeIds
+                },
+                timestamp: now,
+                result: 'SUCCESS'
+            };
+            if (!Array.isArray(db.audit_logs)) db.audit_logs = [];
+            db.audit_logs.unshift(auditEntry);
+
+            saveDb(db);
+            await upsertToSupabaseDirect('onepass_audit_logs', auditEntry);
+
+            return {
+                success: true,
+                reverted_count: attendeeIds.length,
+                resource
             };
         });
     },

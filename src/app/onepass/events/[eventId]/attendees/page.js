@@ -333,6 +333,97 @@ export default function AttendeesDirectoryPage() {
         }
     };
 
+    // Single Check-In (1-Click)
+    const handleSingleCheckIn = async (attendee) => {
+        if (!attendee || attendee.check_in_status === 'CHECKED_IN') return;
+
+        // Optimistic update
+        setAttendees(prev => prev.map(a => a.id === attendee.id ? {
+            ...a,
+            check_in_status: 'CHECKED_IN',
+            check_in_time: new Date().toISOString(),
+            checked_in_by_name: user?.name || 'Volunteer'
+        } : a));
+
+        try {
+            const res = await fetch('/api/onepass/attendees/batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eventId,
+                    action: 'CHECK_IN',
+                    attendeeIds: [attendee.id],
+                    trackId: attendee.assigned_track_id || null,
+                    workshopId: attendee.assigned_workshop_id || null
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                if (selectedAttendee && selectedAttendee.id === attendee.id) {
+                    openProfile(attendee.id);
+                }
+                fetchAttendees();
+            } else {
+                alert(data.error || data.message || 'Failed to check-in attendee');
+                fetchAttendees();
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Failed to communicate with server');
+            fetchAttendees();
+        }
+    };
+
+    // Bulk Quick Check-In (Immediate 1-Click for all selected pending)
+    const handleBulkQuickCheckIn = async () => {
+        const selectedPending = attendees.filter(a => selectedIds.includes(a.id) && a.check_in_status !== 'CHECKED_IN');
+        if (selectedPending.length === 0) {
+            alert('All selected attendees are already checked in.');
+            return;
+        }
+
+        const count = selectedPending.length;
+        if (!confirm(`Are you sure you want to directly check in ${count} attendee(s)?`)) return;
+
+        setBulkOperating(true);
+        // Optimistic update
+        const pendingIdSet = new Set(selectedPending.map(a => a.id));
+        const nowStr = new Date().toISOString();
+        setAttendees(prev => prev.map(a => pendingIdSet.has(a.id) ? {
+            ...a,
+            check_in_status: 'CHECKED_IN',
+            check_in_time: nowStr,
+            checked_in_by_name: user?.name || 'Volunteer'
+        } : a));
+
+        try {
+            const res = await fetch('/api/onepass/attendees/batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eventId,
+                    action: 'CHECK_IN',
+                    attendeeIds: selectedPending.map(a => a.id)
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setSelectedIds([]);
+                fetchAttendees();
+                alert(`Successfully checked in ${data.count || count} attendee(s)!`);
+            } else {
+                alert(data.error || data.message || 'Failed to bulk check-in attendees.');
+                fetchAttendees();
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Communication error with server.');
+            fetchAttendees();
+        } finally {
+            setBulkOperating(false);
+        }
+    };
+
     // Bulk Check-In
     const handleBulkCheckInSubmit = async (e) => {
         if (e) e.preventDefault();
@@ -343,6 +434,16 @@ export default function AttendeesDirectoryPage() {
         }
 
         setBulkOperating(true);
+        // Optimistic update
+        const pendingIdSet = new Set(selectedPending.map(a => a.id));
+        const nowStr = new Date().toISOString();
+        setAttendees(prev => prev.map(a => pendingIdSet.has(a.id) ? {
+            ...a,
+            check_in_status: 'CHECKED_IN',
+            check_in_time: nowStr,
+            checked_in_by_name: user?.name || 'Volunteer'
+        } : a));
+
         try {
             const res = await fetch('/api/onepass/attendees/batch', {
                 method: 'POST',
@@ -362,10 +463,12 @@ export default function AttendeesDirectoryPage() {
                 fetchAttendees();
             } else {
                 alert(data.error || data.message || 'Failed to bulk check-in attendees.');
+                fetchAttendees();
             }
         } catch (err) {
             console.error(err);
             alert('Communication error with server.');
+            fetchAttendees();
         } finally {
             setBulkOperating(false);
         }
@@ -953,14 +1056,24 @@ export default function AttendeesDirectoryPage() {
                                                 )}
                                             </td>
                                             <td className="px-5 py-3.5 text-right space-x-1.5" onClick={(e) => e.stopPropagation()}>
-                                                {isCheckedIn && (
+                                                {!isCheckedIn ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSingleCheckIn(a)}
+                                                        className="px-2.5 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-lg transition text-xs font-semibold inline-flex items-center space-x-1 shadow-sm"
+                                                        title="Quick Check-In Attendee"
+                                                    >
+                                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                                        <span>Check-In</span>
+                                                    </button>
+                                                ) : (
                                                     <button
                                                         type="button"
                                                         onClick={() => handleUncheckIn(a.id, a.name)}
                                                         className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg transition text-xs font-medium inline-flex items-center space-x-1"
                                                         title="Revert Check-In & Release Seat"
                                                     >
-                                                        <RotateCcw className="w-3 h-3" />
+                                                        <RotateCcw className="w-3.5 h-3.5" />
                                                         <span>Uncheck-In</span>
                                                     </button>
                                                 )}
@@ -1022,16 +1135,27 @@ export default function AttendeesDirectoryPage() {
                         )}
 
                         {selectedPendingCount > 0 && (
-                            <button
-                                type="button"
-                                onClick={() => setBulkCheckInModalOpen(true)}
-                                disabled={bulkOperating}
-                                className="flex items-center space-x-1.5 px-3 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold transition disabled:opacity-50"
-                                title="Check In selected attendees"
-                            >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Check-In ({selectedPendingCount})</span>
-                            </button>
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={handleBulkQuickCheckIn}
+                                    disabled={bulkOperating}
+                                    className="flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-emerald-900/30 disabled:opacity-50"
+                                    title="Quick Check-In all selected pending attendees"
+                                >
+                                    <CheckCircle2 className={`w-3.5 h-3.5 ${bulkOperating ? 'animate-spin' : ''}`} />
+                                    <span>⚡ Quick Check-In ({selectedPendingCount})</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setBulkCheckInModalOpen(true)}
+                                    disabled={bulkOperating}
+                                    className="flex items-center space-x-1.5 px-3 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold transition disabled:opacity-50"
+                                    title="Check In & Assign Specific Track/Workshop"
+                                >
+                                    <span>⚙️ Assign & Check-In</span>
+                                </button>
+                            </>
                         )}
 
                         <button
@@ -1158,10 +1282,25 @@ export default function AttendeesDirectoryPage() {
 
                         {/* Fast Action Buttons */}
                         <div className="space-y-2">
-                            {selectedAttendee.check_in_status === 'CHECKED_IN' && (
+                            {selectedAttendee.check_in_status !== 'CHECKED_IN' ? (
                                 <button
                                     type="button"
-                                    onClick={() => handleUncheckIn(selectedAttendee.id, selectedAttendee.name)}
+                                    onClick={() => {
+                                        handleSingleCheckIn(selectedAttendee);
+                                        setSelectedAttendee(prev => prev ? { ...prev, check_in_status: 'CHECKED_IN', check_in_time: new Date().toISOString() } : null);
+                                    }}
+                                    className="w-full flex items-center justify-center space-x-1.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-900/20"
+                                >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    <span>Check-In Attendee Now</span>
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        handleUncheckIn(selectedAttendee.id, selectedAttendee.name);
+                                        setSelectedAttendee(prev => prev ? { ...prev, check_in_status: 'NOT_CHECKED_IN', check_in_time: null, checked_in_by_name: null } : null);
+                                    }}
                                     className="w-full flex items-center justify-center space-x-1.5 py-2.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold transition"
                                 >
                                     <RotateCcw className="w-3.5 h-3.5" />

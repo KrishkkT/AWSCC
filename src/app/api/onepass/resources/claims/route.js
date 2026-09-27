@@ -168,3 +168,59 @@ export async function POST(req) {
         return NextResponse.json({ error: 'Failed to process batch resource claim' }, { status: 500 });
     }
 }
+
+export async function DELETE(req) {
+    try {
+        await OnePassDB.ensureHydrated();
+        const { searchParams } = new URL(req.url);
+        let body = {};
+        try {
+            body = await req.json();
+        } catch (e) {}
+
+        const eventId = body.eventId || searchParams.get('eventId');
+        const resourceId = body.resourceId || searchParams.get('resourceId');
+        const attendeeId = body.attendeeId || searchParams.get('attendeeId');
+        const attendeeIds = body.attendeeIds || [];
+        const claimId = body.claimId || searchParams.get('claimId');
+
+        if (!eventId || !resourceId || (!attendeeId && !claimId && attendeeIds.length === 0)) {
+            return NextResponse.json({ error: 'eventId, resourceId and (attendeeId, claimId or attendeeIds) are required' }, { status: 400 });
+        }
+
+        const resource = await OnePassDB.getResourceById(resourceId);
+        if (!resource) {
+            return NextResponse.json({ error: 'Resource not found' }, { status: 404 });
+        }
+
+        const requiredPermission = resource.type === 'FOOD' ? 'FOOD' : (resource.type === 'SWAG' ? 'SWAG' : null);
+        const auth = await authorizeUser(req, null, eventId, requiredPermission);
+        if (!auth.authorized) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
+        }
+
+        if (Array.isArray(attendeeIds) && attendeeIds.length > 0) {
+            const result = await OnePassDB.revertResourceClaimBatch({
+                eventId,
+                resourceId,
+                attendeeIds,
+                volunteerId: auth.user.id,
+                volunteerName: auth.user.name
+            });
+            return NextResponse.json(result);
+        } else {
+            const result = await OnePassDB.revertResourceClaim({
+                eventId,
+                resourceId,
+                attendeeId,
+                claimId,
+                volunteerId: auth.user.id,
+                volunteerName: auth.user.name
+            });
+            return NextResponse.json(result);
+        }
+    } catch (e) {
+        console.error('[OnePass Resource Claims DELETE]', e);
+        return NextResponse.json({ error: 'Failed to revert resource claim' }, { status: 500 });
+    }
+}

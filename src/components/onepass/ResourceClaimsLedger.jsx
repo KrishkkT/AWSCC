@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Users, CheckCircle2, Clock, Search, RefreshCw, Zap,
-    Filter, AlertCircle, Sparkles, ChevronDown, Check,
-    Utensils, Gift, ArrowUpDown, ShieldCheck, CheckSquare, Square
+    RotateCcw, ShieldCheck, CheckSquare, Square, Check,
+    Utensils, Gift, AlertTriangle
 } from 'lucide-react';
 
 export default function ResourceClaimsLedger({
@@ -29,18 +29,16 @@ export default function ResourceClaimsLedger({
     });
 
     const [selectedIds, setSelectedIds] = useState(new Set());
-    const [claimingId, setClaimingId] = useState(null);
-    const [batchClaiming, setBatchClaiming] = useState(false);
+    const [actionInProgressId, setActionInProgressId] = useState(null);
+    const [batchProcessing, setBatchProcessing] = useState(false);
     const [lastSyncTime, setLastSyncTime] = useState(null);
 
     const isFood = resource?.type === 'FOOD';
     const actionLabel = isFood ? 'Claim Meal' : 'Issue Swag';
     const itemNoun = isFood ? 'Food / Meal' : 'Swag Kit';
-    const primaryColor = isFood ? '#FF9900' : '#10B981';
     const primaryBg = isFood ? 'bg-[#FF9900]' : 'bg-emerald-500';
     const primaryHoverBg = isFood ? 'hover:bg-[#FF9900]/90' : 'hover:bg-emerald-400';
     const textPrimary = isFood ? 'text-[#FF9900]' : 'text-emerald-400';
-    const borderPrimary = isFood ? 'border-[#FF9900]' : 'border-emerald-500';
 
     const fetchClaimsData = useCallback(async (isBackground = false) => {
         if (!eventId || !resource?.id) return;
@@ -69,8 +67,8 @@ export default function ResourceClaimsLedger({
 
     // Single 1-Click Claim
     const handleSingleClaim = async (attendee) => {
-        if (claimingId || batchClaiming || attendee.is_claimed) return;
-        setClaimingId(attendee.id);
+        if (actionInProgressId || batchProcessing || attendee.is_claimed) return;
+        setActionInProgressId(attendee.id);
 
         try {
             const res = await fetch('/api/onepass/resources/claims', {
@@ -116,20 +114,81 @@ export default function ResourceClaimsLedger({
             console.error(err);
             alert('Failed to process claim due to network error');
         } finally {
-            setClaimingId(null);
+            setActionInProgressId(null);
+        }
+    };
+
+    // Single Revert Claim
+    const handleSingleRevert = async (attendee) => {
+        if (actionInProgressId || batchProcessing || !attendee.is_claimed) return;
+        const confirmMsg = `Are you sure you want to REVERT / UNDO the ${itemNoun} check-in for "${attendee.name}"?\n\nThis will remove the claim from Supabase and mark them as Pending Claim.`;
+        if (!confirm(confirmMsg)) return;
+
+        setActionInProgressId(attendee.id);
+
+        try {
+            const res = await fetch('/api/onepass/resources/claims', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eventId,
+                    resourceId: resource.id,
+                    attendeeId: attendee.id,
+                    claimId: attendee.claim_id
+                })
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                // Optimistically update local list
+                setData(prev => {
+                    const updated = prev.attendees.map(a => {
+                        if (a.id === attendee.id) {
+                            return {
+                                ...a,
+                                is_claimed: false,
+                                claim_time: null,
+                                claim_id: null
+                            };
+                        }
+                        return a;
+                    });
+                    const newUnclaimed = prev.summary.unclaimed_count + 1;
+                    const newClaimed = Math.max(0, prev.summary.resource_claimed - 1);
+                    return {
+                        ...prev,
+                        summary: {
+                            ...prev.summary,
+                            unclaimed_count: newUnclaimed,
+                            resource_claimed: newClaimed
+                        },
+                        attendees: filterStatus === 'claimed' ? updated.filter(a => a.id !== attendee.id) : updated
+                    };
+                });
+                if (onClaimSuccess) onClaimSuccess(result);
+            } else {
+                alert(result.message || result.error || 'Failed to revert claim');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Failed to revert claim due to network error');
+        } finally {
+            setActionInProgressId(null);
         }
     };
 
     // Batch Claim Selected
     const handleBatchClaim = async (targetAttendeeIds) => {
-        const idsToClaim = targetAttendeeIds || Array.from(selectedIds);
-        if (idsToClaim.length === 0 || batchClaiming) return;
+        const idsToClaim = targetAttendeeIds || Array.from(selectedIds).filter(id => {
+            const att = data.attendees.find(a => a.id === id);
+            return att && !att.is_claimed;
+        });
+        if (idsToClaim.length === 0 || batchProcessing) return;
 
         const count = idsToClaim.length;
         const confirmMsg = `Are you sure you want to directly check-in and claim ${itemNoun} for ${count} admitted attendee(s)?`;
         if (!confirm(confirmMsg)) return;
 
-        setBatchClaiming(true);
+        setBatchProcessing(true);
         try {
             const res = await fetch('/api/onepass/resources/claims', {
                 method: 'POST',
@@ -153,7 +212,47 @@ export default function ResourceClaimsLedger({
             console.error(err);
             alert('Batch claim failed due to network error');
         } finally {
-            setBatchClaiming(false);
+            setBatchProcessing(false);
+        }
+    };
+
+    // Batch Revert Selected
+    const handleBatchRevert = async (targetAttendeeIds) => {
+        const idsToRevert = targetAttendeeIds || Array.from(selectedIds).filter(id => {
+            const att = data.attendees.find(a => a.id === id);
+            return att && att.is_claimed;
+        });
+        if (idsToRevert.length === 0 || batchProcessing) return;
+
+        const count = idsToRevert.length;
+        const confirmMsg = `Are you sure you want to REVERT / UNDO ${itemNoun} check-ins for ${count} attendee(s)?\n\nThis will remove their claims from Supabase and restore them to Pending Claim status.`;
+        if (!confirm(confirmMsg)) return;
+
+        setBatchProcessing(true);
+        try {
+            const res = await fetch('/api/onepass/resources/claims', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eventId,
+                    resourceId: resource.id,
+                    attendeeIds: idsToRevert
+                })
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                setSelectedIds(new Set());
+                fetchClaimsData();
+                if (onClaimSuccess) onClaimSuccess(result);
+                alert(`Successfully reverted ${count} claim(s) from ${resource.name}!`);
+            } else {
+                alert(result.message || result.error || 'Failed to revert claims');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Batch revert failed due to network error');
+        } finally {
+            setBatchProcessing(false);
         }
     };
 
@@ -168,11 +267,10 @@ export default function ResourceClaimsLedger({
     };
 
     const toggleSelectAll = () => {
-        const selectable = data.attendees.filter(a => !a.is_claimed);
-        if (selectedIds.size === selectable.length && selectable.length > 0) {
+        if (selectedIds.size === displayedAttendees.length && displayedAttendees.length > 0) {
             setSelectedIds(new Set());
         } else {
-            setSelectedIds(new Set(selectable.map(a => a.id)));
+            setSelectedIds(new Set(displayedAttendees.map(a => a.id)));
         }
     };
 
@@ -185,6 +283,10 @@ export default function ResourceClaimsLedger({
         : data.attendees.filter(a => a.counter === counterFilter);
 
     const unclaimedInView = displayedAttendees.filter(a => !a.is_claimed);
+    const claimedInView = displayedAttendees.filter(a => a.is_claimed);
+
+    const selectedUnclaimedInView = displayedAttendees.filter(a => selectedIds.has(a.id) && !a.is_claimed);
+    const selectedClaimedInView = displayedAttendees.filter(a => selectedIds.has(a.id) && a.is_claimed);
 
     return (
         <div className="bg-[#151c2e] border border-[#1a2540] rounded-3xl p-6 space-y-6 shadow-2xl">
@@ -198,7 +300,7 @@ export default function ResourceClaimsLedger({
                         </h2>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">
-                        Filter attendees whose event check-in is completed and 1-click claim {itemNoun.toLowerCase()} with live Supabase sync.
+                        Filter attendees whose event check-in is completed to 1-click claim or revert {itemNoun.toLowerCase()} with live Supabase sync.
                     </p>
                 </div>
 
@@ -254,11 +356,11 @@ export default function ResourceClaimsLedger({
 
                     <button
                         onClick={() => handleBatchClaim(unclaimedInView.map(a => a.id))}
-                        disabled={batchClaiming || unclaimedInView.length === 0}
+                        disabled={batchProcessing || unclaimedInView.length === 0}
                         className={`flex items-center gap-2 px-4 py-2 text-neutral-950 text-xs font-extrabold rounded-xl transition shadow-lg shrink-0 cursor-pointer disabled:opacity-50 ${primaryBg} ${primaryHoverBg}`}
                     >
                         <Zap className="w-4 h-4 stroke-[2.5]" />
-                        <span>{batchClaiming ? 'Processing Direct Sync...' : `Quick Claim All Pending (${unclaimedInView.length})`}</span>
+                        <span>{batchProcessing ? 'Processing Direct Sync...' : `Quick Claim All Pending (${unclaimedInView.length})`}</span>
                     </button>
                 </div>
             )}
@@ -352,27 +454,53 @@ export default function ResourceClaimsLedger({
 
             {/* Selection Toolbar */}
             {selectedIds.size > 0 && (
-                <div className="p-3 bg-[#0C111D] border border-blue-500/40 rounded-2xl flex items-center justify-between gap-3 text-xs">
+                <div className="p-3 bg-[#0C111D] border border-blue-500/40 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-lg">
                     <div className="flex items-center gap-2 text-blue-300 font-semibold">
                         <CheckSquare className="w-4 h-4 text-blue-400" />
                         <span>{selectedIds.size} attendee(s) selected</span>
+                        {selectedUnclaimedInView.length > 0 && (
+                            <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-mono rounded-lg">
+                                {selectedUnclaimedInView.length} pending
+                            </span>
+                        )}
+                        {selectedClaimedInView.length > 0 && (
+                            <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono rounded-lg">
+                                {selectedClaimedInView.length} claimed
+                            </span>
+                        )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <button
                             onClick={() => setSelectedIds(new Set())}
-                            className="px-3 py-1 text-slate-400 hover:text-white text-xs"
+                            className="px-3 py-1.5 text-slate-400 hover:text-white text-xs cursor-pointer"
                         >
-                            Clear
+                            Clear Selection
                         </button>
-                        <button
-                            onClick={() => handleBatchClaim()}
-                            disabled={batchClaiming}
-                            className={`flex items-center gap-1.5 px-4 py-1.5 text-neutral-950 font-bold rounded-xl shadow-md transition cursor-pointer ${primaryBg} ${primaryHoverBg}`}
-                        >
-                            <Zap className="w-3.5 h-3.5 stroke-[2.5]" />
-                            <span>{batchClaiming ? 'Syncing...' : `Claim ${itemNoun} for Selected (${selectedIds.size})`}</span>
-                        </button>
+
+                        {/* Batch Claim Action for selected pending attendees */}
+                        {selectedUnclaimedInView.length > 0 && (
+                            <button
+                                onClick={() => handleBatchClaim(selectedUnclaimedInView.map(a => a.id))}
+                                disabled={batchProcessing}
+                                className={`flex items-center gap-1.5 px-3.5 py-1.5 text-neutral-950 font-bold rounded-xl shadow-md transition cursor-pointer disabled:opacity-50 ${primaryBg} ${primaryHoverBg}`}
+                            >
+                                <Zap className="w-3.5 h-3.5 stroke-[2.5]" />
+                                <span>{batchProcessing ? 'Syncing...' : `Claim ${itemNoun} (${selectedUnclaimedInView.length})`}</span>
+                            </button>
+                        )}
+
+                        {/* Batch Revert Action for selected claimed attendees */}
+                        {selectedClaimedInView.length > 0 && (
+                            <button
+                                onClick={() => handleBatchRevert(selectedClaimedInView.map(a => a.id))}
+                                disabled={batchProcessing}
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/40 font-bold rounded-xl shadow-md transition cursor-pointer disabled:opacity-50"
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                <span>{batchProcessing ? 'Reverting...' : `Revert Claims (${selectedClaimedInView.length})`}</span>
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
@@ -404,10 +532,10 @@ export default function ResourceClaimsLedger({
                                 <th className="p-3 w-8">
                                     <button
                                         onClick={toggleSelectAll}
-                                        className="text-slate-400 hover:text-white"
-                                        title="Select/Deselect All Unclaimed"
+                                        className="text-slate-400 hover:text-white cursor-pointer"
+                                        title="Select/Deselect All in View"
                                     >
-                                        {selectedIds.size > 0 && selectedIds.size === unclaimedInView.length ? (
+                                        {selectedIds.size > 0 && selectedIds.size === displayedAttendees.length ? (
                                             <CheckSquare className="w-4 h-4 text-blue-400" />
                                         ) : (
                                             <Square className="w-4 h-4" />
@@ -423,8 +551,8 @@ export default function ResourceClaimsLedger({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#1a2540] bg-[#0C111D]/60">
-                            {displayedAttendees.map((a, idx) => {
-                                const isBusy = claimingId === a.id;
+                            {displayedAttendees.map((a) => {
+                                const isBusy = actionInProgressId === a.id;
                                 const isSelected = selectedIds.has(a.id);
                                 return (
                                     <tr
@@ -434,20 +562,16 @@ export default function ResourceClaimsLedger({
                                         }`}
                                     >
                                         <td className="p-3">
-                                            {!a.is_claimed ? (
-                                                <button
-                                                    onClick={() => toggleSelect(a.id)}
-                                                    className="text-slate-400 hover:text-white"
-                                                >
-                                                    {isSelected ? (
-                                                        <CheckSquare className="w-4 h-4 text-blue-400" />
-                                                    ) : (
-                                                        <Square className="w-4 h-4" />
-                                                    )}
-                                                </button>
-                                            ) : (
-                                                <CheckCircle2 className="w-4 h-4 text-emerald-500/40" />
-                                            )}
+                                            <button
+                                                onClick={() => toggleSelect(a.id)}
+                                                className="text-slate-400 hover:text-white cursor-pointer"
+                                            >
+                                                {isSelected ? (
+                                                    <CheckSquare className="w-4 h-4 text-blue-400" />
+                                                ) : (
+                                                    <Square className="w-4 h-4" />
+                                                )}
+                                            </button>
                                         </td>
 
                                         <td className="p-3">
@@ -502,11 +626,23 @@ export default function ResourceClaimsLedger({
 
                                         <td className="p-3 text-right">
                                             {a.is_claimed ? (
-                                                <span className="text-[11px] font-mono text-slate-500">✓ Collected</span>
+                                                <button
+                                                    onClick={() => handleSingleRevert(a)}
+                                                    disabled={isBusy || batchProcessing}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:border-rose-500/60 font-bold rounded-xl text-xs transition shadow-sm cursor-pointer disabled:opacity-50"
+                                                    title="Undo / Revert this claim and restore attendee to Pending Claim"
+                                                >
+                                                    {isBusy ? (
+                                                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                    ) : (
+                                                        <RotateCcw className="w-3.5 h-3.5" />
+                                                    )}
+                                                    <span>{isBusy ? 'Reverting...' : 'Revert Claim'}</span>
+                                                </button>
                                             ) : (
                                                 <button
                                                     onClick={() => handleSingleClaim(a)}
-                                                    disabled={isBusy || batchClaiming}
+                                                    disabled={isBusy || batchProcessing}
                                                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-neutral-950 font-bold rounded-xl text-xs transition shadow-md cursor-pointer disabled:opacity-50 ${primaryBg} ${primaryHoverBg}`}
                                                 >
                                                     {isBusy ? (
