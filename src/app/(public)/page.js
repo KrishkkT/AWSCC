@@ -18,8 +18,11 @@ if (typeof window !== "undefined") {
 export default function Home() {
     const containerRef = useRef(null);
     const [galleryPhotos, setGalleryPhotos] = useState([]);
-    const [events, setEvents] = useState([]);
-    const [communityEvent, setCommunityEvent] = useState(null);
+    const [upcomingEvents, setUpcomingEvents] = useState([]);
+    const [pastEvents, setPastEvents] = useState([]);
+    const [activeCommunityEvent, setActiveCommunityEvent] = useState(null);
+    const [pastCommunityEvents, setPastCommunityEvents] = useState([]);
+    const [eventTab, setEventTab] = useState('upcoming');
     const [advisoryMembers, setAdvisoryMembers] = useState([]);
     const [teamMembers, setTeamMembers] = useState([]);
     const [foundingMembers, setFoundingMembers] = useState([]);
@@ -56,11 +59,21 @@ export default function Home() {
                     setShowGlimpseGallery(globalSettings.show_glimpse_gallery === true);
                 }
 
-                const { data: eventsData } = await supabase.from('events').select('*').in('status', ['upcoming', 'active']).order('date', { ascending: true }).limit(3);
-                if (eventsData) setEvents(eventsData);
+                // 1. Fetch Upcoming Events
+                const { data: upcomingData } = await supabase.from('events').select('*').in('status', ['upcoming', 'active']).order('date', { ascending: true });
+                if (upcomingData) setUpcomingEvents(upcomingData);
 
-                const { data: scdEvent } = await supabase.from('community_events').select('*').eq('is_active', true).order('year', { ascending: false }).limit(1).maybeSingle();
-                if (scdEvent) setCommunityEvent(scdEvent);
+                // 2. Fetch Past Events
+                const { data: pastData } = await supabase.from('events').select('*').in('status', ['completed', 'past']).order('date', { ascending: false });
+                if (pastData) setPastEvents(pastData);
+
+                // 3. Fetch Active Community Day Flagship Event
+                const { data: activeScd } = await supabase.from('community_events').select('*').eq('is_active', true).order('year', { ascending: false }).limit(1).maybeSingle();
+                if (activeScd) setActiveCommunityEvent(activeScd);
+
+                // 4. Fetch Inactive/Past Community Day Flagship Event
+                const { data: pastScd } = await supabase.from('community_events').select('*').eq('is_active', false).order('year', { ascending: false });
+                if (pastScd) setPastCommunityEvents(pastScd);
 
                 const { data: teamData } = await supabase.from('team_members').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: true });
                 if (teamData && teamData.length > 0) {
@@ -295,94 +308,179 @@ export default function Home() {
                         </div>
                     </div>
 
+                    {/* Tab Switcher */}
                     <div className="flex flex-wrap items-center gap-4 mb-12">
-                        <Link href="/events" className="relative overflow-hidden group bg-white text-[#0C111D] font-bold px-8 py-3 rounded-full text-sm inline-flex justify-center items-center">
-                            <span className="relative z-10 group-hover:text-white transition-colors duration-300">Upcoming events</span>
-                            <div className="absolute inset-0 bg-[#0073BB] transform scale-0 rounded-full group-hover:scale-[2.5] transition-transform duration-500 ease-out origin-center"></div>
-                        </Link>
-                        <Link href="/events?tab=past" className="relative overflow-hidden group border border-white/30 text-white font-bold px-8 py-3 rounded-full text-sm inline-flex justify-center items-center">
-                            <span className="relative z-10 group-hover:text-[#0C111D] transition-colors duration-300">Past events</span>
-                            <div className="absolute inset-0 bg-white transform scale-0 rounded-full group-hover:scale-[2.5] transition-transform duration-500 ease-out origin-center"></div>
-                        </Link>
+                        {(() => {
+                            const upcomingTotal = (activeCommunityEvent ? 1 : 0) + upcomingEvents.length;
+                            const pastTotal = pastCommunityEvents.length + pastEvents.length;
+
+                            return (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEventTab('upcoming')}
+                                        className={`relative overflow-hidden group font-bold px-8 py-3 rounded-full text-sm inline-flex justify-center items-center transition-all duration-300 ${
+                                            eventTab === 'upcoming'
+                                                ? 'bg-white text-[#0C111D] shadow-[0_0_20px_rgba(255,255,255,0.25)]'
+                                                : 'border border-white/30 text-white hover:border-white/60 hover:text-white bg-transparent'
+                                        }`}
+                                    >
+                                        <span className="relative z-10 transition-colors duration-300">
+                                            Upcoming events {upcomingTotal > 0 ? `(${upcomingTotal})` : ''}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEventTab('past')}
+                                        className={`relative overflow-hidden group font-bold px-8 py-3 rounded-full text-sm inline-flex justify-center items-center transition-all duration-300 ${
+                                            eventTab === 'past'
+                                                ? 'bg-white text-[#0C111D] shadow-[0_0_20px_rgba(255,255,255,0.25)]'
+                                                : 'border border-white/30 text-white hover:border-white/60 hover:text-white bg-transparent'
+                                        }`}
+                                    >
+                                        <span className="relative z-10 transition-colors duration-300">
+                                            Past events {pastTotal > 0 ? `(${pastTotal})` : ''}
+                                        </span>
+                                    </button>
+                                </>
+                            );
+                        })()}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {(events.length > 0 || communityEvent) ? (
-                            <>
-                                {communityEvent && (() => {
-                                    const heroData = communityEvent.hero_data || {};
-                                    const desktopImg = heroData.desktop_image || heroData.popup_image || heroData.image || heroData.url;
-                                    const mobileImg = heroData.mobile_image || desktopImg;
+                    {/* Events Grid */}
+                    {(() => {
+                        const upcomingList = [
+                            ...(activeCommunityEvent ? [{ isScd: true, ...activeCommunityEvent }] : []),
+                            ...upcomingEvents.map(e => ({ isScd: false, ...e }))
+                        ];
 
-                                    return (
-                                        <Link href={`/scd/${communityEvent.year}`} className="block group h-full">
-                                            <div className="bg-[#1A1F2B] rounded-2xl h-full border border-brand-aws/50 group-hover:border-brand-aws transition-colors flex flex-col relative overflow-hidden">
+                        const pastList = [
+                            ...pastCommunityEvents.map(e => ({ isScd: true, ...e })),
+                            ...pastEvents.map(e => ({ isScd: false, ...e }))
+                        ];
 
-                                                {(desktopImg || mobileImg) && (
-                                                    <div className="h-48 w-full relative overflow-hidden shrink-0">
-                                                        {mobileImg && <img src={mobileImg} alt={communityEvent.title} className={`w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 ${desktopImg && desktopImg !== mobileImg ? 'sm:hidden' : ''}`} />}
-                                                        {desktopImg && desktopImg !== mobileImg && <img src={desktopImg} alt={communityEvent.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 hidden sm:block" />}
+                        const currentList = eventTab === 'upcoming' ? upcomingList : pastList;
+                        const totalCount = currentList.length;
+                        const displayedEvents = currentList.slice(0, 3);
+
+                        return (
+                            <div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {displayedEvents.length > 0 ? (
+                                        displayedEvents.map((item) => {
+                                            if (item.isScd) {
+                                                const heroData = item.hero_data || {};
+                                                const desktopImg = heroData.desktop_image || heroData.popup_image || heroData.image || heroData.url;
+                                                const mobileImg = heroData.mobile_image || desktopImg;
+
+                                                return (
+                                                    <Link href={`/scd/${item.year}`} key={`scd-${item.id || item.year}`} className="block group h-full">
+                                                        <div className="bg-[#1A1F2B] rounded-2xl h-full border border-brand-aws/50 group-hover:border-brand-aws transition-colors flex flex-col relative overflow-hidden">
+                                                            {(desktopImg || mobileImg) && (
+                                                                <div className="h-48 w-full relative overflow-hidden shrink-0">
+                                                                    {mobileImg && <img src={mobileImg} alt={item.title} className={`w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 ${desktopImg && desktopImg !== mobileImg ? 'sm:hidden' : ''}`} />}
+                                                                    {desktopImg && desktopImg !== mobileImg && <img src={desktopImg} alt={item.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 hidden sm:block" />}
+                                                                </div>
+                                                            )}
+
+                                                            <div className="p-8 flex flex-col flex-grow relative">
+                                                                <div className="absolute inset-0 bg-gradient-to-b from-brand-aws/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                                                                <div className="mb-6 z-10 flex items-center gap-2">
+                                                                    <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-orange-500/20 text-orange-400">
+                                                                        {eventTab === 'past' ? 'FLAGSHIP • COMPLETED' : 'FLAGSHIP EVENT'}
+                                                                    </span>
+                                                                    {item.year && (
+                                                                        <span className="text-[10px] font-mono text-gray-400 font-bold px-2 py-1 rounded bg-white/5">
+                                                                            {item.year}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <h3 className="text-white text-2xl font-bold mb-4 group-hover:text-brand-aws transition-colors leading-tight z-10">{item.title}</h3>
+                                                                <p className="text-gray-400 text-sm line-clamp-3 mb-6 flex-grow leading-relaxed z-10">
+                                                                    {item.about_data?.text ? item.about_data.text.slice(0, 140) + '...' : 'Our flagship annual multi-track cloud conference. Explore expert sessions, workshops, and community highlights.'}
+                                                                </p>
+
+                                                                <div className="mt-auto z-10 pt-4 border-t border-white/5">
+                                                                    <span className="inline-flex items-center gap-2 text-brand-aws font-bold text-sm group-hover:gap-3 transition-all">
+                                                                        {eventTab === 'past' ? 'Explore Archive' : 'View Event'} <ArrowRight size={16} />
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </Link>
+                                                );
+                                            }
+
+                                            const titleLower = item.title?.toLowerCase() || '';
+                                            const isHackathon = titleLower.includes('hackathon');
+                                            const isFlagship = titleLower.includes('day') || titleLower.includes('flagship');
+                                            const badgeColor = isHackathon ? 'bg-yellow-500/20 text-yellow-400' : isFlagship ? 'bg-orange-500/20 text-orange-400' : 'bg-pink-500/20 text-pink-400';
+                                            const badgeText = isHackathon ? 'HACKATHON' : isFlagship ? 'FLAGSHIP' : 'MEETUP';
+                                            const targetLink = eventTab === 'past' ? '/events?tab=past' : '/events';
+
+                                            return (
+                                                <Link href={targetLink} key={`event-${item.id}`} className="block group h-full">
+                                                    <div className="bg-[#1A1F2B] rounded-2xl p-8 h-full border border-white/5 group-hover:border-white/20 transition-colors flex flex-col relative overflow-hidden">
+                                                        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+
+                                                        <div className="mb-6 flex items-center justify-between">
+                                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${badgeColor}`}>
+                                                                {badgeText}
+                                                            </span>
+                                                            {item.date && (
+                                                                <span className="text-[10px] font-mono text-gray-400">
+                                                                    {new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <h3 className="text-white text-2xl font-bold mb-4 group-hover:text-brand-cyan transition-colors leading-tight">{item.title}</h3>
+                                                        <p className="text-gray-400 text-sm line-clamp-3 mb-6 flex-grow leading-relaxed">{item.description || 'Details coming soon. Stay tuned. 🚀'}</p>
+
+                                                        <div className="mt-auto pt-4 border-t border-white/5">
+                                                            <span className="inline-flex items-center gap-2 text-brand-cyan font-bold text-sm group-hover:gap-3 transition-all">
+                                                                {eventTab === 'past' ? 'View Recap' : 'View Event'} <ArrowRight size={16} />
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                )}
+                                                </Link>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-16 px-6 text-white/60 bg-[#1A1F2B] rounded-2xl border border-white/5 flex flex-col items-center justify-center space-y-4">
+                                            <p className="text-base font-medium">
+                                                {eventTab === 'upcoming'
+                                                    ? 'No upcoming events scheduled right now. Check back soon!'
+                                                    : 'No past events found in the archive.'}
+                                            </p>
+                                            {eventTab === 'upcoming' && pastList.length > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEventTab('past')}
+                                                    className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-brand-cyan text-xs font-bold transition-all border border-brand-cyan/30 flex items-center gap-2"
+                                                >
+                                                    <span>Browse Past Events ({pastList.length})</span>
+                                                    <ArrowRight size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
 
-                                                <div className="p-8 flex flex-col flex-grow relative">
-                                                    <div className="absolute inset-0 bg-gradient-to-b from-brand-aws/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                                                    <div className="mb-6 z-10">
-                                                        <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-orange-500/20 text-orange-400">
-                                                            FLAGSHIP EVENT
-                                                        </span>
-                                                    </div>
-                                                    <h3 className="text-white text-2xl font-bold mb-4 group-hover:text-brand-aws transition-colors leading-tight z-10">{communityEvent.title}</h3>
-                                                    <p className="text-gray-400 text-sm line-clamp-3 mb-6 flex-grow leading-relaxed z-10">Join us for a full day of expert sessions, hands-on workshops, and massive networking opportunities.</p>
-
-                                                    <div className="mt-auto z-10 pt-4 border-t border-white/5">
-                                                        <span className="inline-flex items-center gap-2 text-brand-aws font-bold text-sm group-hover:gap-3 transition-all">
-                                                            View Event <ArrowRight size={16} />
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                {/* View More Events Button (Shown ONLY when total events in current tab > 3) */}
+                                {totalCount > 3 && (
+                                    <div className="mt-12 flex justify-center">
+                                        <Link
+                                            href={eventTab === 'past' ? '/events?tab=past' : '/events'}
+                                            className="group relative inline-flex items-center gap-3 px-8 py-3.5 rounded-full bg-[#0073BB] hover:bg-[#005f9e] text-white font-bold text-sm shadow-[0_0_25px_rgba(0,115,187,0.35)] hover:shadow-[0_0_35px_rgba(0,115,187,0.6)] transition-all duration-300 hover:scale-105"
+                                        >
+                                            <span>View More Events ({totalCount})</span>
+                                            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                         </Link>
-                                    );
-                                })()}
-                                {events.map((event) => {
-                                    const titleLower = event.title?.toLowerCase() || '';
-                                    const isHackathon = titleLower.includes('hackathon');
-                                    const isFlagship = titleLower.includes('day') || titleLower.includes('flagship');
-                                    const badgeColor = isHackathon ? 'bg-yellow-500/20 text-yellow-400' : isFlagship ? 'bg-orange-500/20 text-orange-400' : 'bg-pink-500/20 text-pink-400';
-                                    const badgeText = isHackathon ? 'HACKATHON' : isFlagship ? 'FLAGSHIP' : 'MEETUP';
-
-                                    return (
-                                        <Link href={`/events`} key={event.id} className="block group h-full">
-                                            <div className="bg-[#1A1F2B] rounded-2xl p-8 h-full border border-white/5 group-hover:border-white/20 transition-colors flex flex-col relative overflow-hidden">
-                                                {/* Optional faint gradient glow on hover */}
-                                                <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-
-                                                <div className="mb-6">
-                                                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${badgeColor}`}>
-                                                        {badgeText}
-                                                    </span>
-                                                </div>
-                                                <h3 className="text-white text-2xl font-bold mb-4 group-hover:text-brand-cyan transition-colors leading-tight">{event.title}</h3>
-                                                <p className="text-gray-400 text-sm line-clamp-3 mb-6 flex-grow leading-relaxed">{event.description || 'Details coming soon. Stay tuned. 🚀'}</p>
-
-                                                <div className="mt-auto pt-4 border-t border-white/5">
-                                                    <span className="inline-flex items-center gap-2 text-brand-cyan font-bold text-sm group-hover:gap-3 transition-all">
-                                                        View Event <ArrowRight size={16} />
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </Link>
-                                    );
-                                })
-                                }
-                            </>
-                        ) : (
-                            <div className="col-span-3 text-center py-12 text-white/50 bg-[#1A1F2B] rounded-2xl border border-white/5">
-                                No upcoming events at the moment. Check back soon!
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
+                        );
+                    })()}
                 </div>
             </section>
 

@@ -16,19 +16,52 @@ export default function Events() {
     const [regFormData, setRegFormData] = useState({ full_name: '', email: '' });
     const [regSubmitting, setRegSubmitting] = useState(false);
     const [regSuccess, setRegSuccess] = useState(false);
-    const [communityEvent, setCommunityEvent] = useState(null);
+    const [upcomingCommunityEvent, setUpcomingCommunityEvent] = useState(null);
+    const [pastCommunityEvents, setPastCommunityEvents] = useState([]);
 
-    const fetchCommunityEvent = useCallback(async () => {
-        const { data, error } = await supabase
-            .from('community_events')
-            .select('*')
-            .eq('is_active', true)
-            .order('year', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab') || params.get('filter');
+            if (tab === 'past') {
+                setFilter('past');
+            } else if (tab === 'upcoming') {
+                setFilter('upcoming');
+            }
+        }
+    }, []);
 
-        if (!error && data) {
-            setCommunityEvent(data);
+    const fetchCommunityEvents = useCallback(async () => {
+        try {
+            // 1. Fetch active community events (upcoming)
+            const { data: activeData } = await supabase
+                .from('community_events')
+                .select('*')
+                .eq('is_active', true)
+                .order('year', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (activeData) {
+                setUpcomingCommunityEvent(activeData);
+            } else {
+                setUpcomingCommunityEvent(null);
+            }
+
+            // 2. Fetch inactive/past community events
+            const { data: pastData } = await supabase
+                .from('community_events')
+                .select('*')
+                .eq('is_active', false)
+                .order('year', { ascending: false });
+
+            if (pastData && pastData.length > 0) {
+                setPastCommunityEvents(pastData);
+            } else {
+                setPastCommunityEvents([]);
+            }
+        } catch (e) {
+            console.error("Error fetching community events:", e);
         }
     }, [supabase]);
 
@@ -73,11 +106,11 @@ export default function Events() {
         const fetchAll = async () => {
             await Promise.all([
                 fetchEvents(),
-                fetchCommunityEvent()
+                fetchCommunityEvents()
             ]);
         };
         fetchAll();
-    }, [fetchEvents, fetchCommunityEvent]);
+    }, [fetchEvents, fetchCommunityEvents]);
 
     async function handleRegister(e) {
         e.preventDefault();
@@ -141,7 +174,8 @@ export default function Events() {
                     </div>
                 </div>
 
-                {filter === 'upcoming' && communityEvent && (
+                {/* Flagship Event Banner (Upcoming or Past SCD) */}
+                {filter === 'upcoming' && upcomingCommunityEvent && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -160,14 +194,14 @@ export default function Events() {
                             </div>
 
                             <h2 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight">
-                                {communityEvent.title}
+                                {upcomingCommunityEvent.title}
                             </h2>
                             <p className="text-white/60 mb-8 font-medium max-w-xl text-lg">
-                                Our largest annual multi-track cloud computing event. Join us for a full day of expert sessions, hands-on workshops, and massive networking opportunities at {communityEvent.venue || 'Dharmsinh Desai University'}.
+                                Our largest annual multi-track cloud computing event. Join us for a full day of expert sessions, hands-on workshops, and massive networking opportunities at {upcomingCommunityEvent.venue || 'Dharmsinh Desai University'}.
                             </p>
 
                             <div className="flex items-center gap-4">
-                                <Link href={`/scd/${communityEvent.year}`}>
+                                <Link href={`/scd/${upcomingCommunityEvent.year}`}>
                                     <button className="btn-primary py-3.5 px-8 flex items-center gap-3 shadow-[0_0_30px_rgba(0,194,255,0.3)]">
                                         View Entire Schedule & Details <ArrowRight size={18} />
                                     </button>
@@ -183,18 +217,71 @@ export default function Events() {
                                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                                 className="relative z-10 font-display font-black text-7xl md:text-9xl text-transparent bg-clip-text bg-gradient-to-b from-white/50 to-transparent"
                             >
-                                {communityEvent.year}
+                                {upcomingCommunityEvent.year}
                             </motion.div>
                         </div>
                     </motion.div>
                 )}
+
+                {/* Past Flagship Event Banner (When Inactive / Past) */}
+                {filter === 'past' && pastCommunityEvents.length > 0 && (() => {
+                    const featuredPastScd = pastCommunityEvents[0];
+                    return (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mb-16 relative overflow-hidden rounded-3xl border border-brand-aws/30 bg-[#0a0f18] shadow-2xl group flex flex-col md:flex-row"
+                        >
+                            {/* Interactive Background */}
+                            <div className="absolute inset-0 bg-slate-grid pointer-events-none opacity-50 mix-blend-overlay"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-2xl bg-brand-aws/10 blur-[100px] pointer-events-none rounded-full"></div>
+
+                            <div className="flex-1 p-8 md:p-12 relative z-10 flex flex-col justify-center">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400"></span>
+                                        Flagship Community Day (Completed)
+                                    </div>
+                                    <span className="text-xs font-mono text-white/50">{featuredPastScd.year}</span>
+                                </div>
+
+                                <h2 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight">
+                                    {featuredPastScd.title}
+                                </h2>
+                                <p className="text-white/60 mb-8 font-medium max-w-xl text-lg">
+                                    Our flagship multi-track annual cloud conference hosted at {featuredPastScd.venue || 'Dharmsinh Desai University'}. Explore sessions, speaker archives, tracks, and moments from this edition.
+                                </p>
+
+                                <div className="flex items-center gap-4">
+                                    <Link href={`/scd/${featuredPastScd.year}`}>
+                                        <button className="btn-primary py-3.5 px-8 flex items-center gap-3 shadow-[0_0_30px_rgba(255,153,0,0.25)]">
+                                            Explore Event Archive & Highlights <ArrowRight size={18} />
+                                        </button>
+                                    </Link>
+                                </div>
+                            </div>
+
+                            {/* Visual graphic on the right */}
+                            <div className="w-full md:w-2/5 p-8 relative flex items-center justify-center bg-brand-dark/50 border-l border-white/5 overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-brand-aws/5" />
+                                <motion.div
+                                    animate={{ y: [0, -10, 0] }}
+                                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                                    className="relative z-10 font-display font-black text-7xl md:text-9xl text-transparent bg-clip-text bg-gradient-to-b from-white/40 to-transparent"
+                                >
+                                    {featuredPastScd.year}
+                                </motion.div>
+                            </div>
+                        </motion.div>
+                    );
+                })()}
 
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-32 space-y-4">
                         <div className="w-12 h-12 border-4 border-secondary border-t-brand-aws rounded-full animate-spin"></div>
                         <p className="text-muted-foreground font-medium animate-pulse">Syncing events...</p>
                     </div>
-                ) : (events.length === 0 && !(filter === 'upcoming' && communityEvent)) ? (
+                ) : (events.length === 0 && !(filter === 'upcoming' && upcomingCommunityEvent) && !(filter === 'past' && pastCommunityEvents.length > 0)) ? (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
