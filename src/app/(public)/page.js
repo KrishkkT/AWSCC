@@ -266,8 +266,8 @@ export default function Home() {
 
             {/* ABOUT SECTION */}
             <section className="py-24 bg-[#F9F9F9]">
-                <div className="container px-6 md:px-10 max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
-                    <div className="w-full lg:w-1/2 flex flex-col items-start">
+                <div className="container px-6 md:px-10 max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+                    <div className="w-full lg:w-5/12 flex flex-col items-start">
                         <span className="text-[#0073BB] font-bold text-sm tracking-[0.15em] uppercase mb-4">
                             ABOUT US
                         </span>
@@ -282,10 +282,10 @@ export default function Home() {
                             <div className="absolute inset-0 bg-[#0C111D] transform scale-0 rounded-full group-hover:scale-[2.5] transition-transform duration-500 ease-out origin-center"></div>
                         </Link>
                     </div>
-                    <div className="w-full lg:w-1/2">
-                        <div className="border-l-[12px] border-[#0073BB] pl-0 shadow-2xl">
+                    <div className="w-full lg:w-7/12">
+                        <div className="border-l-[12px] border-[#0073BB] pl-0 shadow-2xl overflow-hidden">
                             {/* Fallback image if real one isn't present, but using generic grey block with text for now if missing, actually img is better */}
-                            <img src="/images/aws-sbg-ddu-students-cloud-workshop.png" alt="AWS Student Builder Group DDU students at cloud workshop Nadiad" className="w-full h-[400px] object-cover bg-gray-200" onError={(e) => { e.target.src = 'https://placehold.co/800x600/e2e8f0/64748b?text=Community+Image' }} />
+                            <img src="/images/aws-sbg-ddu-students-cloud-workshop.png" alt="AWS Student Builder Group DDU students at cloud workshop Nadiad" className="w-full h-[380px] sm:h-[420px] md:h-[460px] object-cover bg-gray-200" onError={(e) => { e.target.src = 'https://placehold.co/800x600/e2e8f0/64748b?text=Community+Image' }} />
                         </div>
                     </div>
                 </div>
