@@ -31,10 +31,27 @@ export default function Events() {
         }
     }, []);
 
+    // 1. Instant cache hydration
+    useEffect(() => {
+        try {
+            const cached = localStorage.getItem(`awscc_events_${filter}_cache_v1`);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed.events?.length) {
+                    setEvents(parsed.events);
+                    setLoading(false);
+                }
+                if (parsed.upcomingCommunityEvent) setUpcomingCommunityEvent(parsed.upcomingCommunityEvent);
+                if (parsed.pastCommunityEvents?.length) setPastCommunityEvents(parsed.pastCommunityEvents);
+            }
+        } catch (e) {}
+    }, [filter]);
+
     const fetchCommunityEvents = useCallback(async () => {
         try {
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000));
             // 1. Fetch active community events (upcoming)
-            const { data: activeData } = await supabase
+            const activePromise = supabase
                 .from('community_events')
                 .select('*')
                 .eq('is_active', true)
@@ -42,21 +59,26 @@ export default function Events() {
                 .limit(1)
                 .maybeSingle();
 
-            if (activeData) {
-                setUpcomingCommunityEvent(activeData);
-            } else {
-                setUpcomingCommunityEvent(null);
-            }
-
             // 2. Fetch inactive/past community events
-            const { data: pastData } = await supabase
+            const pastPromise = supabase
                 .from('community_events')
                 .select('*')
                 .eq('is_active', false)
                 .order('year', { ascending: false });
 
-            if (pastData && pastData.length > 0) {
-                setPastCommunityEvents(pastData);
+            const [activeRes, pastRes] = await Promise.allSettled([
+                Promise.race([activePromise, timeoutPromise]),
+                Promise.race([pastPromise, timeoutPromise])
+            ]);
+
+            if (activeRes.status === 'fulfilled' && activeRes.value?.data) {
+                setUpcomingCommunityEvent(activeRes.value.data);
+            } else {
+                setUpcomingCommunityEvent(null);
+            }
+
+            if (pastRes.status === 'fulfilled' && pastRes.value?.data && pastRes.value.data.length > 0) {
+                setPastCommunityEvents(pastRes.value.data);
             } else {
                 setPastCommunityEvents([]);
             }
@@ -93,8 +115,15 @@ export default function Events() {
                 query = query.lt('end_time', now).order('end_time', { ascending: false });
             }
 
-            const { data, error } = await query;
-            if (!error) setEvents(data || []);
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000));
+            const { data, error } = await Promise.race([query, timeoutPromise]);
+            if (!error && data) {
+                setEvents(data);
+                try {
+                    const prev = JSON.parse(localStorage.getItem(`awscc_events_${filter}_cache_v1`) || '{}');
+                    localStorage.setItem(`awscc_events_${filter}_cache_v1`, JSON.stringify({ ...prev, events: data }));
+                } catch (e) {}
+            }
         } catch (err) {
             console.error("Error fetching events:", err);
         } finally {
@@ -104,7 +133,7 @@ export default function Events() {
 
     useEffect(() => {
         const fetchAll = async () => {
-            await Promise.all([
+            await Promise.allSettled([
                 fetchEvents(),
                 fetchCommunityEvents()
             ]);
@@ -306,6 +335,8 @@ export default function Events() {
                                         <img
                                             src={event.image_url}
                                             alt={event.title}
+                                            loading="lazy"
+                                            decoding="async"
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80 group-hover:opacity-100"
                                         />
                                     ) : (

@@ -29,6 +29,7 @@ const inter = localFont({
         },
     ],
     variable: "--font-inter",
+    display: "swap",
 });
 
 const outfit = localFont({
@@ -55,16 +56,19 @@ const outfit = localFont({
         },
     ],
     variable: "--font-outfit",
+    display: "swap",
 });
 
 const cinzel = Cinzel({
     subsets: ["latin"],
     variable: '--font-cinzel',
+    display: "swap",
 });
 
 const playfair = Playfair_Display({
     subsets: ["latin"],
     variable: '--font-playfair',
+    display: "swap",
 });
 
 export const metadata = {

@@ -10,17 +10,41 @@ export default function Team() {
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
 
-    const fetchTeam = useCallback(async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from('team_members')
-            .select('*')
-            .order('display_order', { ascending: true });
+    // 1. Instant cache hydration
+    useEffect(() => {
+        try {
+            const cached = localStorage.getItem('awscc_team_cache_v1');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed && parsed.length > 0) {
+                    setTeam(parsed);
+                    setLoading(false);
+                }
+            }
+        } catch (e) {}
+    }, []);
 
-        if (data) {
-            setTeam(data);
+    const fetchTeam = useCallback(async () => {
+        try {
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000));
+            const fetchPromise = supabase
+                .from('team_members')
+                .select('*')
+                .order('display_order', { ascending: true });
+
+            const { data } = await Promise.race([fetchPromise, timeoutPromise]);
+
+            if (data && data.length > 0) {
+                setTeam(data);
+                try {
+                    localStorage.setItem('awscc_team_cache_v1', JSON.stringify(data));
+                } catch (e) {}
+            }
+        } catch (err) {
+            console.error("Error fetching team:", err);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     }, [supabase]);
 
     useEffect(() => {
@@ -49,8 +73,10 @@ export default function Team() {
                             {/* Image Section */}
                             <div className="absolute inset-0 w-full h-full overflow-hidden">
                                 <img
-                                    src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.full_name}&background=111111&color=fff`}
-                                    alt={member.full_name}
+                                    src={member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name || 'Member')}&background=111111&color=fff`}
+                                    alt={member.full_name || 'Team Member'}
+                                    loading="lazy"
+                                    decoding="async"
                                     className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-700"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-[#080B13] via-[#080B13]/40 to-transparent"></div>

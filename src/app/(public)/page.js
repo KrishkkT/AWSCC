@@ -40,88 +40,147 @@ export default function Home() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // 1. Instant cache hydration for 0ms load on reload / slow network
     useEffect(() => {
+        try {
+            const cached = localStorage.getItem('awscc_home_cache_v1');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed.galleryPhotos?.length) setGalleryPhotos(parsed.galleryPhotos);
+                if (parsed.upcomingEvents?.length) setUpcomingEvents(parsed.upcomingEvents);
+                if (parsed.pastEvents?.length) setPastEvents(parsed.pastEvents);
+                if (parsed.activeCommunityEvent) setActiveCommunityEvent(parsed.activeCommunityEvent);
+                if (parsed.pastCommunityEvents?.length) setPastCommunityEvents(parsed.pastCommunityEvents);
+                if (parsed.advisoryMembers?.length) setAdvisoryMembers(parsed.advisoryMembers);
+                if (parsed.teamMembers?.length) setTeamMembers(parsed.teamMembers);
+                if (parsed.foundingMembers?.length) setFoundingMembers(parsed.foundingMembers);
+                if (parsed.showGlimpseGallery !== undefined) setShowGlimpseGallery(parsed.showGlimpseGallery);
+            }
+        } catch (e) {
+            // Ignore storage parse errors
+        }
+    }, []);
+
+    // 2. Parallel background fetch with timeout
+    useEffect(() => {
+        let isMounted = true;
+
+        const withTimeout = (promise, ms = 7000) => {
+            return Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+            ]);
+        };
+
         const fetchData = async () => {
             try {
                 const { createClient } = await import("@/utils/supabase/client");
                 const supabase = createClient();
 
-                const { data: galleryData } = await supabase.from('home_gallery').select('*').order('created_at', { ascending: false }).limit(20);
-                let photos = [];
-                if (galleryData && galleryData.length > 0) {
-                    photos = galleryData;
+                // Run ALL 7 queries concurrently in parallel
+                const results = await Promise.allSettled([
+                    withTimeout(supabase.from('home_gallery').select('*').order('created_at', { ascending: false }).limit(20)),
+                    withTimeout(supabase.from('global_settings').select('show_glimpse_gallery').single()),
+                    withTimeout(supabase.from('events').select('*').in('status', ['upcoming', 'active']).order('date', { ascending: true })),
+                    withTimeout(supabase.from('events').select('*').in('status', ['completed', 'past']).order('date', { ascending: false })),
+                    withTimeout(supabase.from('community_events').select('*').eq('is_active', true).order('year', { ascending: false }).limit(1).maybeSingle()),
+                    withTimeout(supabase.from('community_events').select('*').eq('is_active', false).order('year', { ascending: false })),
+                    withTimeout(supabase.from('team_members').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: true }))
+                ]);
+
+                if (!isMounted) return;
+
+                const [galleryRes, settingsRes, upcomingRes, pastRes, activeScdRes, pastScdRes, teamRes] = results;
+
+                const cacheObj = {};
+
+                // 1. Gallery
+                if (galleryRes.status === 'fulfilled' && galleryRes.value?.data) {
+                    const photos = galleryRes.value.data;
+                    setGalleryPhotos(photos);
+                    cacheObj.galleryPhotos = photos;
                 }
 
-                setGalleryPhotos(photos);
-
-                const { data: globalSettings } = await supabase.from('global_settings').select('show_glimpse_gallery').single();
-                if (globalSettings && globalSettings.show_glimpse_gallery !== undefined) {
-                    setShowGlimpseGallery(globalSettings.show_glimpse_gallery === true);
+                // 2. Global Settings
+                if (settingsRes.status === 'fulfilled' && settingsRes.value?.data?.show_glimpse_gallery !== undefined) {
+                    const show = settingsRes.value.data.show_glimpse_gallery === true;
+                    setShowGlimpseGallery(show);
+                    cacheObj.showGlimpseGallery = show;
                 }
 
-                // 1. Fetch Upcoming Events
-                const { data: upcomingData } = await supabase.from('events').select('*').in('status', ['upcoming', 'active']).order('date', { ascending: true });
-                if (upcomingData) setUpcomingEvents(upcomingData);
+                // 3. Upcoming Events
+                if (upcomingRes.status === 'fulfilled' && upcomingRes.value?.data) {
+                    setUpcomingEvents(upcomingRes.value.data);
+                    cacheObj.upcomingEvents = upcomingRes.value.data;
+                }
 
-                // 2. Fetch Past Events
-                const { data: pastData } = await supabase.from('events').select('*').in('status', ['completed', 'past']).order('date', { ascending: false });
-                if (pastData) setPastEvents(pastData);
+                // 4. Past Events
+                if (pastRes.status === 'fulfilled' && pastRes.value?.data) {
+                    setPastEvents(pastRes.value.data);
+                    cacheObj.pastEvents = pastRes.value.data;
+                }
 
-                // 3. Fetch Active Community Day Flagship Event
-                const { data: activeScd } = await supabase.from('community_events').select('*').eq('is_active', true).order('year', { ascending: false }).limit(1).maybeSingle();
-                if (activeScd) setActiveCommunityEvent(activeScd);
+                // 5. Active Flagship SCD
+                if (activeScdRes.status === 'fulfilled' && activeScdRes.value?.data) {
+                    setActiveCommunityEvent(activeScdRes.value.data);
+                    cacheObj.activeCommunityEvent = activeScdRes.value.data;
+                }
 
-                // 4. Fetch Inactive/Past Community Day Flagship Event
-                const { data: pastScd } = await supabase.from('community_events').select('*').eq('is_active', false).order('year', { ascending: false });
-                if (pastScd) setPastCommunityEvents(pastScd);
+                // 6. Past Flagship SCD
+                if (pastScdRes.status === 'fulfilled' && pastScdRes.value?.data) {
+                    setPastCommunityEvents(pastScdRes.value.data);
+                    cacheObj.pastCommunityEvents = pastScdRes.value.data;
+                }
 
-                const { data: teamData } = await supabase.from('team_members').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: true });
-                if (teamData && teamData.length > 0) {
-                    // 1. Advisory Committee
+                // 7. Team Members
+                if (teamRes.status === 'fulfilled' && teamRes.value?.data && teamRes.value.data.length > 0) {
+                    const teamData = teamRes.value.data;
                     const advisory = teamData.filter(m => m.category === 'Advisory' || m.category === 'Advisor');
                     setAdvisoryMembers(advisory);
+                    cacheObj.advisoryMembers = advisory;
 
-                    // 2. Academic Mentors / Faculty Mentors
                     const mentorList = teamData.filter(m => m.category === 'Mentor' || m.category === 'Faculty');
                     if (mentorList.length > 0) {
                         setTeamMembers(mentorList);
+                        cacheObj.teamMembers = mentorList;
                     } else {
                         const mainNames = ['Vipul Dabhi', 'Harshad Prajapati', 'Sandeep Suthar', 'Anand Patel'];
                         let mainMembers = teamData.filter(m => {
                             const name = (m.full_name || '').toLowerCase();
                             return mainNames.some(mainName => name.includes(mainName.toLowerCase()));
                         });
-
-                        // Sort to match requested order
                         mainMembers.sort((a, b) => {
                             const nameA = (a.full_name || '').toLowerCase();
                             const nameB = (b.full_name || '').toLowerCase();
-                            const indexA = mainNames.findIndex(n => nameA.includes(n.toLowerCase()));
-                            const indexB = mainNames.findIndex(n => nameB.includes(n.toLowerCase()));
-                            return indexA - indexB;
+                            return mainNames.findIndex(n => nameA.includes(n.toLowerCase())) - mainNames.findIndex(n => nameB.includes(n.toLowerCase()));
                         });
-
-                        // Fallback if none found
-                        if (mainMembers.length === 0) {
-                            mainMembers = teamData.slice(0, 4);
-                        }
-
+                        if (mainMembers.length === 0) mainMembers = teamData.slice(0, 4);
                         setTeamMembers(mainMembers);
+                        cacheObj.teamMembers = mainMembers;
                     }
 
-                    // 3. Founding Leaders
                     const founding = teamData.filter(m => m.category === 'Founding');
                     setFoundingMembers(founding);
-                } else {
-                    setAdvisoryMembers([]);
-                    setTeamMembers([]);
-                    setFoundingMembers([]);
+                    cacheObj.foundingMembers = founding;
+                }
+
+                // Save to cache for offline/instant reload
+                try {
+                    const prevCache = JSON.parse(localStorage.getItem('awscc_home_cache_v1') || '{}');
+                    localStorage.setItem('awscc_home_cache_v1', JSON.stringify({ ...prevCache, ...cacheObj }));
+                } catch (e) {
+                    // Ignore storage quota errors
                 }
             } catch (err) {
-                console.error("Error fetching data:", err);
+                console.error("Error fetching home data:", err);
             }
         };
+
         fetchData();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     useGSAP(() => {
@@ -222,7 +281,7 @@ export default function Home() {
                 <div
                     className="absolute inset-0 opacity-20"
                     style={{
-                        backgroundImage: "url('/images/aws-sbg-ddu-students-cloud-workshop.png')",
+                        backgroundImage: "url('/images/aws-sbg-ddu-students-cloud-workshop.webp')",
                         backgroundSize: 'cover',
                         backgroundPosition: 'center'
                     }}
@@ -284,13 +343,18 @@ export default function Home() {
                     </div>
                     <div className="w-full lg:w-[58%]">
                         <div className="border-l-[12px] border-[#0073BB] pl-0 shadow-2xl overflow-hidden rounded-sm">
-                            {/* Full width natural aspect ratio ensures no one is cropped from sides */}
-                            <img
-                                src="/images/aws-sbg-ddu-students-cloud-workshop.png"
-                                alt="AWS Student Builder Group DDU students at cloud workshop Nadiad"
-                                className="w-full h-auto object-contain bg-gray-200 block"
-                                onError={(e) => { e.target.src = 'https://placehold.co/800x600/e2e8f0/64748b?text=Community+Image' }}
-                            />
+                            {/* Full width natural aspect ratio with modern WebP compression */}
+                            <picture>
+                                <source srcSet="/images/aws-sbg-ddu-students-cloud-workshop.webp" type="image/webp" />
+                                <img
+                                    src="/images/aws-sbg-ddu-students-cloud-workshop.png"
+                                    alt="AWS Student Builder Group DDU students at cloud workshop Nadiad"
+                                    className="w-full h-auto object-contain bg-gray-200 block"
+                                    loading="lazy"
+                                    decoding="async"
+                                    onError={(e) => { e.target.src = 'https://placehold.co/800x600/e2e8f0/64748b?text=Community+Image' }}
+                                />
+                            </picture>
                         </div>
                     </div>
                 </div>
@@ -383,8 +447,8 @@ export default function Home() {
                                                         <div className="bg-[#1A1F2B] rounded-2xl h-full border border-brand-aws/50 group-hover:border-brand-aws transition-colors flex flex-col relative overflow-hidden">
                                                             {(desktopImg || mobileImg) && (
                                                                 <div className="h-48 w-full relative overflow-hidden shrink-0">
-                                                                    {mobileImg && <img src={mobileImg} alt={item.title} className={`w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 ${desktopImg && desktopImg !== mobileImg ? 'sm:hidden' : ''}`} />}
-                                                                    {desktopImg && desktopImg !== mobileImg && <img src={desktopImg} alt={item.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 hidden sm:block" />}
+                                                                    {mobileImg && <img src={mobileImg} alt={item.title} loading="lazy" decoding="async" className={`w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 ${desktopImg && desktopImg !== mobileImg ? 'sm:hidden' : ''}`} />}
+                                                                    {desktopImg && desktopImg !== mobileImg && <img src={desktopImg} alt={item.title} loading="lazy" decoding="async" className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 hidden sm:block" />}
                                                                 </div>
                                                             )}
 
@@ -537,7 +601,7 @@ export default function Home() {
                                                         className={`glimpse-photo rounded-xl overflow-hidden shadow-2xl opacity-0 ${isMobile ? '' : spanClass} ${mobileImgClass} pointer-events-auto`}
                                                         data-startrot={startRot}
                                                     >
-                                                        <img src={photoData.url} alt={photoData.title || `Photo ${i + 1}`} className="w-full h-full object-cover" />
+                                                        <img src={photoData.url} alt={photoData.title || `Photo ${i + 1}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                                     </div>
                                                 );
                                             })}
@@ -599,7 +663,7 @@ export default function Home() {
                                                 )}
                                             </div>
                                             <div className="absolute bottom-0 left-0 right-0 h-[320px] sm:h-[260px] overflow-hidden rounded-b-3xl mt-4">
-                                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name || 'Advisor')}&background=111111&color=fff`} alt={member.full_name || 'Advisor'} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
+                                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name || 'Advisor')}&background=111111&color=fff`} alt={member.full_name || 'Advisor'} loading="lazy" decoding="async" className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
                                             </div>
                                         </div>
                                     ))}
@@ -638,7 +702,7 @@ export default function Home() {
                                                 )}
                                             </div>
                                             <div className="absolute bottom-0 left-0 right-0 h-[320px] sm:h-[260px] overflow-hidden rounded-b-3xl mt-4">
-                                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name || 'Mentor')}&background=111111&color=fff`} alt={member.full_name || 'Academic Mentor'} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
+                                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name || 'Mentor')}&background=111111&color=fff`} alt={member.full_name || 'Academic Mentor'} loading="lazy" decoding="async" className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
                                             </div>
                                         </div>
                                     ))}
@@ -677,7 +741,7 @@ export default function Home() {
                                                 )}
                                             </div>
                                             <div className="absolute bottom-0 left-0 right-0 h-[320px] sm:h-[260px] overflow-hidden rounded-b-3xl mt-4">
-                                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name || 'Leader')}&background=111111&color=fff`} alt={member.full_name || 'Founding Leader'} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
+                                                <img src={member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name || 'Leader')}&background=111111&color=fff`} alt={member.full_name || 'Founding Leader'} loading="lazy" decoding="async" className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
                                             </div>
                                         </div>
                                     ))}
