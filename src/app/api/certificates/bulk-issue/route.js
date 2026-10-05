@@ -6,7 +6,7 @@ export const maxDuration = 300; // Allow sufficient execution time for large bat
 export async function POST(req) {
     try {
         const supabase = await createClient();
-        const { eventId, customEventTitle, recipients } = await req.json();
+        const { eventId, customEventTitle, introText, recipients } = await req.json();
 
         if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
             return new Response(JSON.stringify({ error: "Invalid request. Non-empty recipients array is required." }), { status: 400 });
@@ -44,6 +44,8 @@ export async function POST(req) {
             return new Response(JSON.stringify({ error: "Please provide a valid Event or Custom Event Title." }), { status: 400 });
         }
 
+        const defaultIntro = (introText && introText.trim()) || "for successfully attending the";
+
         // 3. Prepare Data for Insertion
         const allCertData = recipients.map(item => ({
             recipient_name: item.recipient_name || item.name || 'Participant',
@@ -52,7 +54,8 @@ export async function POST(req) {
             event_name: eventName,
             certificate_type: item.certificate_type || 'participation',
             template: 'blue',
-            status: 'verified'
+            status: 'verified',
+            intro_text: defaultIntro
         })).filter(c => c.recipient_email.length > 0);
 
         // 4. Batch Insert into Database in Chunks of 100 (Safe for 500+ attendees)
@@ -61,10 +64,21 @@ export async function POST(req) {
 
         for (let i = 0; i < allCertData.length; i += CHUNK_SIZE) {
             const chunk = allCertData.slice(i, i + CHUNK_SIZE);
-            const { data: insertedChunk, error: insertError } = await supabase
+            let { data: insertedChunk, error: insertError } = await supabase
                 .from('certificates')
                 .insert(chunk)
                 .select('id, recipient_name, recipient_email');
+
+            // If intro_text column does not exist in the database table, retry without it
+            if (insertError && insertError.message?.includes('intro_text')) {
+                const chunkWithoutIntro = chunk.map(({ intro_text, ...rest }) => rest);
+                const retry = await supabase
+                    .from('certificates')
+                    .insert(chunkWithoutIntro)
+                    .select('id, recipient_name, recipient_email');
+                insertedChunk = retry.data;
+                insertError = retry.error;
+            }
 
             if (insertError) {
                 console.error(`Error inserting certificate chunk [${i}-${i + chunk.length}]:`, insertError);

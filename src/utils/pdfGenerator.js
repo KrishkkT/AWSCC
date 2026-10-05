@@ -178,6 +178,7 @@ export const generateCertificatePDF = async (certData) => {
         // 3. Draw Dynamic Text
         const recipientName = (certData.recipient_name || "Recipient").toUpperCase();
         const eventTitle = certData.event_name || certData.events?.title || "AWS Community Event";
+        const introText = certData.intro_text || certData.introText || certData.intro || "for successfully attending the";
 
         // Horizontal center for right column (at 75% width)
         const centerX = width * 0.75;
@@ -199,6 +200,20 @@ export const generateCertificatePDF = async (certData) => {
             nameTextWidth = fontMonoBold.widthOfTextAtSize(recipientName, nameFontSize);
         }
 
+        // Dynamic font-sizing for Intro Phrase (Monospace font)
+        let introFontSize = 18;
+        if (introText.length > 35) {
+            introFontSize = 14;
+        } else if (introText.length > 25) {
+            introFontSize = 16;
+        }
+
+        let introTextWidth = fontMono.widthOfTextAtSize(introText, introFontSize);
+        while (introTextWidth > maxTextWidth && introFontSize > 10) {
+            introFontSize -= 1;
+            introTextWidth = fontMono.widthOfTextAtSize(introText, introFontSize);
+        }
+
         // Dynamic font-sizing for Event Title (Monospace font - Smaller refined size)
         let eventFontSize = 24;
         if (eventTitle.length > 35) {
@@ -213,10 +228,6 @@ export const generateCertificatePDF = async (certData) => {
             eventTextWidth = fontMonoBold.widthOfTextAtSize(eventTitle, eventFontSize);
         }
 
-        const introText = "for successfully attending the";
-        const introFontSize = 18;
-        const introTextWidth = fontMono.widthOfTextAtSize(introText, introFontSize);
-
         // Recipient Name - Crisp White Monospace (Centered below "Proudly present to")
         firstPage.drawText(recipientName, {
             x: centerX - nameTextWidth / 2,
@@ -226,7 +237,7 @@ export const generateCertificatePDF = async (certData) => {
             color: rgb(1, 1, 1),
         });
 
-        // "for successfully attending the" - Monospace Light White
+        // Custom Intro Text - Monospace Light White
         firstPage.drawText(introText, {
             x: centerX - introTextWidth / 2,
             y: height * 0.315,

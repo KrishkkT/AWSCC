@@ -98,6 +98,7 @@ export default function VerifyClient({ params }) {
                         <CertificateTemplate
                             recipientName={cert.recipient_name}
                             eventName={cert.event_name || cert.events?.title}
+                            introText={cert.intro_text || "for successfully attending the"}
                             date={new Date(cert.events?.start_time || cert.events?.date || cert.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                             type={cert.certificate_type}
                             certificateId={cert.id}

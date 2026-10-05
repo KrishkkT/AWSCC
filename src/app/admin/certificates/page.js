@@ -28,6 +28,7 @@ export default function AdminCertificates() {
         recipient_email: '',
         event_id: '',
         custom_event_title: '',
+        intro_text: 'for successfully attending the',
         certificate_type: 'participation',
         template: 'blue'
     });
@@ -79,6 +80,7 @@ export default function AdminCertificates() {
                 recipient_email: '',
                 event_id: '',
                 custom_event_title: '',
+                intro_text: 'for successfully attending the',
                 certificate_type: 'participation'
             });
             setShowModal(true);
@@ -102,6 +104,7 @@ export default function AdminCertificates() {
             ? (newCert.custom_event_title.trim() || 'AWS Community Event')
             : (newCert.custom_event_title.trim() || selectedEvent?.title || 'AWS Community Event');
         const targetEventId = useCustomEvent || newCert.event_id === '__custom__' ? null : (newCert.event_id || null);
+        const introPhrase = (newCert.intro_text && newCert.intro_text.trim()) || 'for successfully attending the';
 
         if (bulkData.length > 0) {
             try {
@@ -112,6 +115,7 @@ export default function AdminCertificates() {
                     body: JSON.stringify({
                         eventId: targetEventId,
                         customEventTitle: eventName,
+                        introText: introPhrase,
                         recipients: bulkData
                     })
                 });
@@ -132,7 +136,7 @@ export default function AdminCertificates() {
                 setBulkData([]);
                 setBulkStats(null);
                 setUseCustomEvent(false);
-                setNewCert({ recipient_name: '', recipient_email: '', event_id: '', custom_event_title: '', certificate_type: 'participation', template: 'blue' });
+                setNewCert({ recipient_name: '', recipient_email: '', event_id: '', custom_event_title: '', intro_text: 'for successfully attending the', certificate_type: 'participation', template: 'blue' });
                 await fetchCertificates();
                 setFeedback({
                     message: `Successfully issued ${data.issuedCount} certificates! (${data.emailsSent} notification emails sent securely via Nodemailer).`,
@@ -144,19 +148,38 @@ export default function AdminCertificates() {
                 setFeedback({ message: "Error issuing certificates: " + err.message, type: 'error' });
             }
         } else {
-            const { data: certData, error } = await supabase
+            let { data: certData, error } = await supabase
                 .from('certificates')
                 .insert([{
                     recipient_name: newCert.recipient_name,
                     recipient_email: newCert.recipient_email,
                     event_id: targetEventId,
                     event_name: eventName,
+                    intro_text: introPhrase,
                     certificate_type: newCert.certificate_type,
                     template: 'blue',
                     status: 'verified'
                 }])
                 .select('id')
                 .single();
+
+            if (error && error.message?.includes('intro_text')) {
+                const retry = await supabase
+                    .from('certificates')
+                    .insert([{
+                        recipient_name: newCert.recipient_name,
+                        recipient_email: newCert.recipient_email,
+                        event_id: targetEventId,
+                        event_name: eventName,
+                        certificate_type: newCert.certificate_type,
+                        template: 'blue',
+                        status: 'verified'
+                    }])
+                    .select('id')
+                    .single();
+                certData = retry.data;
+                error = retry.error;
+            }
 
             if (!error && certData) {
                 try {
@@ -185,7 +208,7 @@ export default function AdminCertificates() {
                 );
                 setShowModal(false);
                 setUseCustomEvent(false);
-                setNewCert({ recipient_name: '', recipient_email: '', event_id: '', custom_event_title: '', certificate_type: 'participation', template: 'blue' });
+                setNewCert({ recipient_name: '', recipient_email: '', event_id: '', custom_event_title: '', intro_text: 'for successfully attending the', certificate_type: 'participation', template: 'blue' });
                 await fetchCertificates();
                 setFeedback({ message: 'Certificate issued and notification email sent successfully!', type: 'success' });
             } else {
@@ -438,6 +461,27 @@ export default function AdminCertificates() {
                                             </table>
                                         </div>
                                     </div>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">
+                                                Introductory Phrase / Text
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => setNewCert({ ...newCert, intro_text: 'for successfully attending the' })}
+                                                className="text-[10px] text-brand-cyan hover:underline uppercase tracking-wider font-bold"
+                                            >
+                                                Reset to Default
+                                            </button>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={newCert.intro_text}
+                                            onChange={e => setNewCert({ ...newCert, intro_text: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-3.5 text-white focus:border-brand-cyan outline-none transition-all font-mono text-xs sm:text-sm placeholder-white/20"
+                                            placeholder="e.g. for successfully attending the, for participating in, in recognition of winning..."
+                                        />
+                                    </div>
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">
@@ -483,20 +527,18 @@ export default function AdminCertificates() {
                                                 <option value="__custom__" className="bg-brand-dark text-brand-cyan">✍️ Enter Custom Event Title / Text...</option>
                                             </select>
                                         ) : (
-                                            <div className="space-y-1.5">
-                                                <input
-                                                    required={useCustomEvent}
-                                                    type="text"
-                                                    value={newCert.custom_event_title}
-                                                    onChange={e => setNewCert({ ...newCert, custom_event_title: e.target.value })}
-                                                    className="w-full bg-white/5 border border-brand-cyan/40 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold placeholder-white/20"
-                                                    placeholder="e.g. AWS Cloud Day, Hackathon Finalist, Cloud Bootcamp..."
-                                                />
-                                                <p className="text-[11px] text-white/30 ml-2">
-                                                    Will be rendered as: <span className="text-white/60 font-mono">for successfully attending the [Your Text]</span>
-                                                </p>
-                                            </div>
+                                            <input
+                                                required={useCustomEvent}
+                                                type="text"
+                                                value={newCert.custom_event_title}
+                                                onChange={e => setNewCert({ ...newCert, custom_event_title: e.target.value })}
+                                                className="w-full bg-white/5 border border-brand-cyan/40 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold placeholder-white/20"
+                                                placeholder="e.g. AWS Cloud Day, Hackathon Finalist, Cloud Bootcamp..."
+                                            />
                                         )}
+                                        <p className="text-[11px] text-white/40 ml-2">
+                                            Certificate wording preview: <span className="text-brand-cyan font-mono">{newCert.intro_text || 'for successfully attending the'}</span> <span className="text-white font-mono font-bold">{(!useCustomEvent ? events.find(x => x.id === newCert.event_id)?.title : newCert.custom_event_title) || '[Event Name]'}</span>
+                                        </p>
                                     </div>
                                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
                                         <button type="button" onClick={() => { setShowModal(false); setBulkData([]); setBulkStats(null); setUseCustomEvent(false); }} className="w-full sm:flex-1 btn-secondary py-3.5 sm:py-4 font-black uppercase tracking-widest">Cancel</button>
@@ -535,6 +577,27 @@ export default function AdminCertificates() {
                                             placeholder="email@example.com"
                                         />
                                     </div>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">
+                                                Introductory Phrase / Text
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => setNewCert({ ...newCert, intro_text: 'for successfully attending the' })}
+                                                className="text-[10px] text-brand-cyan hover:underline uppercase tracking-wider font-bold"
+                                            >
+                                                Reset to Default
+                                            </button>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={newCert.intro_text}
+                                            onChange={e => setNewCert({ ...newCert, intro_text: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-3.5 text-white focus:border-brand-cyan outline-none transition-all font-mono text-xs sm:text-sm placeholder-white/20"
+                                            placeholder="e.g. for successfully attending the, for participating in, in recognition of winning..."
+                                        />
+                                    </div>
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">
@@ -580,20 +643,18 @@ export default function AdminCertificates() {
                                                 <option value="__custom__" className="bg-brand-dark text-brand-cyan">✍️ Enter Custom Event Title / Text...</option>
                                             </select>
                                         ) : (
-                                            <div className="space-y-1.5">
-                                                <input
-                                                    required={useCustomEvent}
-                                                    type="text"
-                                                    value={newCert.custom_event_title}
-                                                    onChange={e => setNewCert({ ...newCert, custom_event_title: e.target.value })}
-                                                    className="w-full bg-white/5 border border-brand-cyan/40 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold placeholder-white/20"
-                                                    placeholder="e.g. AWS Cloud Day, Hackathon Finalist, Cloud Bootcamp..."
-                                                />
-                                                <p className="text-[11px] text-white/30 ml-2">
-                                                    Will be rendered as: <span className="text-white/60 font-mono">for successfully attending the [Your Text]</span>
-                                                </p>
-                                            </div>
+                                            <input
+                                                required={useCustomEvent}
+                                                type="text"
+                                                value={newCert.custom_event_title}
+                                                onChange={e => setNewCert({ ...newCert, custom_event_title: e.target.value })}
+                                                className="w-full bg-white/5 border border-brand-cyan/40 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold placeholder-white/20"
+                                                placeholder="e.g. AWS Cloud Day, Hackathon Finalist, Cloud Bootcamp..."
+                                            />
                                         )}
+                                        <p className="text-[11px] text-white/40 ml-2">
+                                            Certificate wording preview: <span className="text-brand-cyan font-mono">{newCert.intro_text || 'for successfully attending the'}</span> <span className="text-white font-mono font-bold">{(!useCustomEvent ? events.find(x => x.id === newCert.event_id)?.title : newCert.custom_event_title) || '[Event Name]'}</span>
+                                        </p>
                                     </div>
                                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
                                         <button type="button" onClick={() => { setShowModal(false); setUseCustomEvent(false); }} className="w-full sm:flex-1 btn-secondary py-3.5 sm:py-4 font-black uppercase tracking-widest">Cancel</button>
@@ -652,6 +713,7 @@ export default function AdminCertificates() {
                                 <CertificateTemplate
                                     recipientName={showPreview.recipient_name}
                                     eventName={showPreview.event_name}
+                                    introText={showPreview.intro_text || "for successfully attending the"}
                                     date={new Date(showPreview.created_at).toLocaleDateString()}
                                     type={showPreview.certificate_type}
                                     certificateId={showPreview.id}

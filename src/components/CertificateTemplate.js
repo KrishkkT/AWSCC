@@ -3,6 +3,7 @@
 export default function CertificateTemplate({
     recipientName = "John Doe",
     eventName = "AWS Cloud Day",
+    introText = "for successfully attending the",
     date = new Date().toLocaleDateString(),
     type = "participation",
     certificateId = "CERT-12345"
@@ -52,7 +53,7 @@ export default function CertificateTemplate({
                         </h1>
                     </div>
 
-                    {/* Event Section - "for successfully attending the" + Event Title */}
+                    {/* Event Section - Custom Intro Phrase + Event Title */}
                     <div className="absolute top-[67%] left-[55%] w-[40%] text-center px-1 flex flex-col items-center justify-center">
                         <p
                             className="text-white/80 font-mono font-medium tracking-normal leading-tight drop-shadow-md text-center"
@@ -60,7 +61,7 @@ export default function CertificateTemplate({
                                 fontSize: "clamp(6px, 1.05cqi, 11px)"
                             }}
                         >
-                            for successfully attending the
+                            {introText || "for successfully attending the"}
                         </p>
                         <p
                             className="text-white font-mono font-bold tracking-normal leading-snug drop-shadow-md text-center mt-0.5"
