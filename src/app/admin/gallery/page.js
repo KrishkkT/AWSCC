@@ -112,7 +112,7 @@ export default function AdminGallery() {
             const { error } = await supabase.from('gallery').delete().eq('id', id);
             if (!error) {
                 if (photoToDelete?.url) {
-                    deleteFile(photoToDelete.url).catch(() => {});
+                    deleteFile(photoToDelete.url).catch(() => { });
                 }
                 await logActivity(supabase, 'Deleted Gallery Photo', `Deleted photo: "${photoToDelete?.title || id}" (Event: ${photoToDelete?.event || 'Unknown'})`, 'warning');
                 showFeedback('Photo removed!', 'info');
@@ -189,7 +189,7 @@ export default function AdminGallery() {
                         <div className="flex items-center justify-between mb-6 sm:mb-8">
                             <div>
                                 <h2 className="text-xl sm:text-2xl font-black text-white">{editingPhoto ? 'Edit Photo' : 'Add to Gallery'}</h2>
-                                <p className="text-xs text-white/40 font-bold uppercase tracking-widest mt-1">AWS Cloud Club Vault</p>
+                                <p className="text-xs text-white/40 font-bold uppercase tracking-widest mt-1">AWS SBG Vault</p>
                             </div>
                             <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white transition-colors p-1">
                                 <X size={24} />

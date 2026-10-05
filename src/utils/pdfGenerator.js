@@ -49,7 +49,7 @@ export const generateProfessionalReport = async (data, title = "System Report", 
     doc.addPage();
     doc.setFillColor(...bgLight);
     doc.rect(0, 0, width, height, 'F');
-    
+
     doc.setFillColor(...brandNavy);
     doc.rect(0, 0, width, 40, 'F');
     doc.setTextColor(255, 255, 255);
@@ -69,12 +69,12 @@ export const generateProfessionalReport = async (data, title = "System Report", 
     doc.line(20, 65, 80, 65);
 
     let yPos = 85;
-    
+
     doc.setFontSize(11);
     Object.entries(data).forEach(([key, value]) => {
         doc.setFillColor(255, 255, 255);
         doc.rect(20, yPos - 8, width - 40, 16, 'F');
-        
+
         doc.setDrawColor(230, 230, 230);
         doc.setLineWidth(0.1);
         doc.line(20, yPos + 8, width - 20, yPos + 8);
@@ -85,11 +85,11 @@ export const generateProfessionalReport = async (data, title = "System Report", 
 
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(...textGray);
-        
+
         const valStr = String(value);
         const splitText = doc.splitTextToSize(valStr, width - 120);
         doc.text(splitText, 100, yPos + 2);
-        
+
         yPos += 16 + (splitText.length > 1 ? (splitText.length - 1) * 5 : 0);
 
         if (yPos > height - 40) {
@@ -112,7 +112,7 @@ export const generateProfessionalReport = async (data, title = "System Report", 
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(20);
         doc.text("VISUAL ANALYTICS", 20, 25);
-        
+
         let chartY = 60;
         chartImages.forEach((imgData, index) => {
             if (chartY + 100 > height - 30) {
@@ -121,14 +121,14 @@ export const generateProfessionalReport = async (data, title = "System Report", 
                 doc.rect(0, 0, width, height, 'F');
                 chartY = 30;
             }
-            
+
             doc.setFillColor(255, 255, 255);
             doc.setDrawColor(230, 230, 230);
             doc.setLineWidth(0.5);
             doc.rect(20, chartY, width - 40, 100, 'FD');
 
             doc.addImage(imgData, 'PNG', 25, chartY + 5, 160, 90);
-            
+
             chartY += 120;
         });
     }
@@ -140,12 +140,12 @@ export const generateProfessionalReport = async (data, title = "System Report", 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         doc.setTextColor(150, 150, 150);
-        
+
         doc.setDrawColor(200, 200, 200);
         doc.setLineWidth(0.5);
         doc.line(20, height - 20, width - 20, height - 20);
 
-        doc.text(`AWS Cloud Club DDU Admin Report`, 20, height - 12);
+        doc.text(`AWS SBG DDU Admin Report`, 20, height - 12);
         doc.text(`Page ${i} of ${pageCount}`, width - 20, height - 12, { align: 'right' });
     }
 
@@ -162,7 +162,7 @@ export const generateCertificatePDF = async (certData) => {
     try {
         // 1. Fetch the template PDF (Blue template)
         const templateFile = 'attendee_template_blue.pdf';
-            
+
         const response = await fetch(`/templates/${templateFile}`);
         if (!response.ok) throw new Error(`Template not found: ${templateFile}`);
         const existingPdfBytes = await response.arrayBuffer();
@@ -178,7 +178,7 @@ export const generateCertificatePDF = async (certData) => {
         // 3. Draw Dynamic Text
         const recipientName = (certData.recipient_name || "Recipient").toUpperCase();
         const eventTitle = certData.event_name || certData.events?.title || "AWS Community Event";
-        
+
         // Horizontal center for right column (at 75% width)
         const centerX = width * 0.75;
         const maxTextWidth = width * 0.40; // 40% column width budget

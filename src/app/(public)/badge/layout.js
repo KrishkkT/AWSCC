@@ -5,7 +5,7 @@ export const metadata = {
         title: 'Claim Your Official Event Badge - AWS SCD 2026',
         description: 'Generate your official personalized attendee badge for AWS Student Community Day DDU Nadiad 2026.',
         url: 'https://aws.ddu.ac.in/badge',
-        siteName: 'AWS Cloud Club - DDU',
+        siteName: 'AWS SBG - DDU',
         images: [
             {
                 url: '/images/badge1.png',

@@ -28,7 +28,7 @@ export const sendEmail = async ({ to, subject, html }) => {
     try {
         const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
         const info = await transporter.sendMail({
-            from: `"AWS Cloud Club DDU" <${fromEmail}>`,
+            from: `"AWS SBG DDU" <${fromEmail}>`,
             to,
             subject,
             html,
@@ -85,15 +85,15 @@ export const sendBatchCertificateEmails = async (items, delayMs = 250) => {
 
 export const emailTemplates = {
     memberActivation: (name) => ({
-        subject: "Welcome to AWS Cloud Club DDU | Account Activated!",
+        subject: "Welcome to AWS SBG DDU | Account Activated!",
         html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: auto; padding: 32px 24px; background: #070b12; color: #ffffff; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
                 <div style="margin-bottom: 24px;">
-                    <span style="font-size: 18px; font-weight: 900; letter-spacing: 2px; color: #00C2FF;">AWS CLOUD CLUB</span>
+                    <span style="font-size: 18px; font-weight: 900; letter-spacing: 2px; color: #00C2FF;">AWS SBG</span>
                     <span style="font-size: 14px; color: #8892b0; margin-left: 8px;">DDU Chapter</span>
                 </div>
                 <h2 style="color: #ffffff; font-size: 22px; margin-top: 0;">Hello ${name}! 👋</h2>
-                <p style="color: #a0aec0; line-height: 1.6;">Your membership at <strong>AWS Cloud Club - DDU</strong> has been approved and activated.</p>
+                <p style="color: #a0aec0; line-height: 1.6;">Your membership at <strong>AWS SBG - DDU</strong> has been approved and activated.</p>
                 <p style="color: #a0aec0; line-height: 1.6;">You can now access the member portal to register for upcoming workshops, track cloud certifications, and participate in community events.</p>
                 <div style="margin: 28px 0;">
                     <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://awsccddu.in'}/auth/login" style="display: inline-block; padding: 12px 28px; background: linear-gradient(135deg, #00C2FF, #0077FF); color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 8px;">Login to Portal</a>
@@ -103,14 +103,14 @@ export const emailTemplates = {
         `
     }),
     rolePromotion: (name, role) => ({
-        subject: `AWS Cloud Club | New Role Assigned: ${role.toUpperCase()}`,
+        subject: `AWS SBG | New Role Assigned: ${role.toUpperCase()}`,
         html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: auto; padding: 32px 24px; background: #070b12; color: #ffffff; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
                 <div style="margin-bottom: 24px;">
-                    <span style="font-size: 18px; font-weight: 900; letter-spacing: 2px; color: #00C2FF;">AWS CLOUD CLUB</span>
+                    <span style="font-size: 18px; font-weight: 900; letter-spacing: 2px; color: #00C2FF;">AWS SBG</span>
                 </div>
                 <h2 style="color: #ffffff; font-size: 22px; margin-top: 0;">Congratulations, ${name}! 🎉</h2>
-                <p style="color: #a0aec0; line-height: 1.6;">You have been promoted to the role of <strong style="color: #00C2FF;">${role.toUpperCase()}</strong> at AWS Cloud Club - DDU.</p>
+                <p style="color: #a0aec0; line-height: 1.6;">You have been promoted to the role of <strong style="color: #00C2FF;">${role.toUpperCase()}</strong> at AWS SBG - DDU.</p>
                 <p style="color: #a0aec0; line-height: 1.6;">Your administrative privileges and dashboard permissions are now updated.</p>
                 <div style="margin: 28px 0;">
                     <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://awsccddu.in'}/dashboard" style="display: inline-block; padding: 12px 28px; background: linear-gradient(135deg, #00C2FF, #0077FF); color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 8px;">Go to Dashboard</a>
@@ -123,7 +123,7 @@ export const emailTemplates = {
         html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: auto; padding: 32px 24px; background: #070b12; color: #ffffff; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
                 <div style="margin-bottom: 24px; display: flex; align-items: center;">
-                    <span style="font-size: 18px; font-weight: 900; letter-spacing: 2px; color: #00C2FF;">AWS CLOUD CLUB</span>
+                    <span style="font-size: 18px; font-weight: 900; letter-spacing: 2px; color: #00C2FF;">AWS SBG</span>
                     <span style="font-size: 13px; color: #8892b0; margin-left: 8px;">· DDU Chapter</span>
                 </div>
                 <h2 style="color: #ffffff; font-size: 22px; margin-top: 0;">Great job, ${name}! 🏅</h2>

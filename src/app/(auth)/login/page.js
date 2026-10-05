@@ -66,7 +66,7 @@ export default function Login() {
                     >
                         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-bold uppercase tracking-wider backdrop-blur-md shadow-[0_0_20px_rgba(0,194,255,0.2)]">
                             <span className="w-2 h-2 rounded-full bg-brand-cyan animate-ping" />
-                            AWS Cloud Club · DDU Chapter
+                            AWS SBG · DDU Chapter
                         </div>
 
                         <h2 className="text-5xl xl:text-6xl font-black tracking-tight text-white leading-tight">
@@ -131,7 +131,7 @@ export default function Login() {
                                 Admin <span className="text-brand-cyan">Authentication</span>
                             </h1>
                             <p className="text-white/50 text-sm leading-relaxed">
-                                Sign in with your registered AWS Cloud Club Google account to access administrative controls.
+                                Sign in with your registered AWS SBG Google account to access administrative controls.
                             </p>
                         </div>
 
