@@ -160,10 +160,8 @@ export const generateCertificatePDF = async (certData) => {
     if (!certData) return;
 
     try {
-        // 1. Fetch the template PDF
-        const templateFile = certData.template === 'purple' 
-            ? 'attendee_template_purple.pdf' 
-            : 'attendee_template_green.pdf';
+        // 1. Fetch the template PDF (Blue template)
+        const templateFile = 'attendee_template_blue.pdf';
             
         const response = await fetch(`/templates/${templateFile}`);
         if (!response.ok) throw new Error(`Template not found: ${templateFile}`);
@@ -171,40 +169,79 @@ export const generateCertificatePDF = async (certData) => {
 
         // 2. Load the PDF
         const pdfDoc = await PDFDocument.load(existingPdfBytes);
-        const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const fontMonoBold = await pdfDoc.embedFont(StandardFonts.CourierBold);
+        const fontMono = await pdfDoc.embedFont(StandardFonts.Courier);
         const pages = pdfDoc.getPages();
         const firstPage = pages[0];
         const { width, height } = firstPage.getSize();
 
-        // 3. Draw Dynamic Text - FINAL CALIBRATION
-        // Coordinates restored to better matching positions based on user feedback
-
-        // Recipient Name - UPPERCASE & BOLD
+        // 3. Draw Dynamic Text
         const recipientName = (certData.recipient_name || "Recipient").toUpperCase();
+        const eventTitle = certData.event_name || certData.events?.title || "AWS Community Event";
         
-        // Dynamic font-sizing based on name length to prevent overlap and text clipping
-        const nameLength = recipientName.length;
-        let nameFontSize = 26;
-        if (nameLength > 25) {
-            nameFontSize = 16;
-        } else if (nameLength > 18) {
-            nameFontSize = 20;
-        } else if (nameLength > 12) {
-            nameFontSize = 23;
+        // Horizontal center for right column (at 75% width)
+        const centerX = width * 0.75;
+        const maxTextWidth = width * 0.40; // 40% column width budget
+
+        // Dynamic font-sizing for Recipient Name (Monospace font - Larger prominent size)
+        let nameFontSize = 74;
+        if (recipientName.length > 25) {
+            nameFontSize = 48;
+        } else if (recipientName.length > 18) {
+            nameFontSize = 58;
+        } else if (recipientName.length > 12) {
+            nameFontSize = 66;
         }
 
-        const nameTextWidth = font.widthOfTextAtSize(recipientName, nameFontSize);
-        
-        // Color selection: Green (#00B77A) for Green template, Black for Purple template
-        const isGreenTemplate = certData.template !== 'purple';
-        const nameColor = isGreenTemplate ? rgb(0, 0.71, 0.48) : rgb(0, 0, 0);
+        let nameTextWidth = fontMonoBold.widthOfTextAtSize(recipientName, nameFontSize);
+        while (nameTextWidth > maxTextWidth && nameFontSize > 22) {
+            nameFontSize -= 2;
+            nameTextWidth = fontMonoBold.widthOfTextAtSize(recipientName, nameFontSize);
+        }
 
+        // Dynamic font-sizing for Event Title (Monospace font - Smaller refined size)
+        let eventFontSize = 24;
+        if (eventTitle.length > 35) {
+            eventFontSize = 18;
+        } else if (eventTitle.length > 25) {
+            eventFontSize = 21;
+        }
+
+        let eventTextWidth = fontMonoBold.widthOfTextAtSize(eventTitle, eventFontSize);
+        while (eventTextWidth > maxTextWidth && eventFontSize > 14) {
+            eventFontSize -= 1;
+            eventTextWidth = fontMonoBold.widthOfTextAtSize(eventTitle, eventFontSize);
+        }
+
+        const introText = "for successfully attending the";
+        const introFontSize = 18;
+        const introTextWidth = fontMono.widthOfTextAtSize(introText, introFontSize);
+
+        // Recipient Name - Crisp White Monospace (Centered below "Proudly present to")
         firstPage.drawText(recipientName, {
-            x: 762.5 - nameTextWidth / 2,
-            y: height * 0.40, // Positioned on the right side below "Proudly presented to"
+            x: centerX - nameTextWidth / 2,
+            y: height * 0.380,
             size: nameFontSize,
-            font: font,
-            color: nameColor,
+            font: fontMonoBold,
+            color: rgb(1, 1, 1),
+        });
+
+        // "for successfully attending the" - Monospace Light White
+        firstPage.drawText(introText, {
+            x: centerX - introTextWidth / 2,
+            y: height * 0.315,
+            size: introFontSize,
+            font: fontMono,
+            color: rgb(0.9, 0.9, 0.9),
+        });
+
+        // Event Title - Crisp White Monospace Bold (Centered below intro phrase)
+        firstPage.drawText(eventTitle, {
+            x: centerX - eventTextWidth / 2,
+            y: height * 0.280,
+            size: eventFontSize,
+            font: fontMonoBold,
+            color: rgb(1, 1, 1),
         });
 
         // 4. Save and Download

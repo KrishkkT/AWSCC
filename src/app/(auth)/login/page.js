@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight, ShieldCheck, Lock, Sparkles, Server, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function Login() {
@@ -29,73 +29,123 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen bg-brand-dark flex relative overflow-hidden">
-            {/* Left Side - Visual */}
-            <div className="hidden lg:flex w-1/2 relative items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-dot-grid opacity-20"></div>
-                <div className="absolute inset-0 bg-gradient-to-r from-brand-dark/0 to-brand-dark z-10"></div>
+        <div className="min-h-screen bg-[#060913] flex relative overflow-hidden text-white select-none">
+            {/* Ambient Background Glows */}
+            <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-brand-cyan/15 rounded-full blur-[140px] pointer-events-none" />
+            <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] bg-blue-600/15 rounded-full blur-[160px] pointer-events-none" />
+            <div className="absolute inset-0 bg-dot-grid opacity-15 pointer-events-none" />
 
-                {/* Animated Orb/Globe Effect */}
+            {/* Left Side - Visual Graphic (Desktop) */}
+            <div className="hidden lg:flex w-1/2 relative items-center justify-center overflow-hidden border-r border-white/5">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#060913]/40 to-[#060913] z-10" />
+
+                {/* Animated Rotating Tech Rings */}
                 <div className="relative z-0">
                     <motion.div
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 100, repeat: Infinity, ease: "linear" }}
-                        className="w-[800px] h-[800px] rounded-full border border-white/5 border-dashed relative flex items-center justify-center"
+                        transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
+                        className="w-[680px] h-[680px] rounded-full border border-white/5 border-dashed relative flex items-center justify-center"
                     >
-                        <div className="w-[600px] h-[600px] rounded-full border border-white/5 border-dashed opacity-50"></div>
-                        <div className="w-[400px] h-[400px] rounded-full border border-brand-cyan/20 border-dashed opacity-50"></div>
+                        <motion.div
+                            animate={{ rotate: -360 }}
+                            transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
+                            className="w-[500px] h-[500px] rounded-full border border-brand-cyan/20 border-dashed flex items-center justify-center"
+                        >
+                            <div className="w-[340px] h-[340px] rounded-full border border-white/10" />
+                        </motion.div>
                     </motion.div>
                 </div>
 
-                <div className="absolute z-20 text-center">
+                {/* Left Side Content Overlay */}
+                <div className="absolute z-20 max-w-lg px-8 text-center flex flex-col items-center">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
+                        transition={{ duration: 0.6 }}
+                        className="space-y-4"
                     >
-                        <h2 className="text-6xl font-black text-white mb-4 tracking-tighter">
-                            System <span className="text-brand-cyan">Access</span>
+                        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-bold uppercase tracking-wider backdrop-blur-md shadow-[0_0_20px_rgba(0,194,255,0.2)]">
+                            <span className="w-2 h-2 rounded-full bg-brand-cyan animate-ping" />
+                            AWS Cloud Club · DDU Chapter
+                        </div>
+
+                        <h2 className="text-5xl xl:text-6xl font-black tracking-tight text-white leading-tight">
+                            Command <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-cyan via-blue-400 to-cyan-200">Center</span>
                         </h2>
-                        <p className="text-white/40 font-medium text-lg uppercase tracking-widest">
-                            Authorized Personnel Only
+
+                        <p className="text-white/50 text-sm xl:text-base font-medium max-w-md mx-auto leading-relaxed">
+                            Unified management console for events, on-chain certificates, verified badges, and member operations.
                         </p>
+
+                        <div className="pt-6 grid grid-cols-2 gap-4 text-left">
+                            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 backdrop-blur-sm">
+                                <div className="text-brand-cyan font-bold text-sm mb-1 flex items-center gap-1.5">
+                                    <Server size={14} /> High Availability
+                                </div>
+                                <div className="text-white/40 text-xs">Fast, server-side cached API & automated pipelines</div>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 backdrop-blur-sm">
+                                <div className="text-brand-cyan font-bold text-sm mb-1 flex items-center gap-1.5">
+                                    <Lock size={14} /> Zero Trust RBAC
+                                </div>
+                                <div className="text-white/40 text-xs">Granular authorization with role-based policies</div>
+                            </div>
+                        </div>
                     </motion.div>
                 </div>
             </div>
 
-            {/* Right Side - Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative z-20">
-                {/* Mobile Background */}
-                <div className="absolute inset-0 bg-dot-grid opacity-10 lg:hidden"></div>
-
+            {/* Right Side - Login Card */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-10 relative z-20">
                 <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
                     className="max-w-md w-full"
                 >
-                    <div className="glass-card p-10 border-white/10 relative overflow-hidden group">
-                        {/* Glow Effect */}
-                        <div className="absolute -top-20 -right-20 w-40 h-40 bg-brand-cyan/20 rounded-full blur-[80px] group-hover:bg-brand-cyan/30 transition-colors duration-500"></div>
+                    {/* Return Link Header */}
+                    <div className="mb-6 flex items-center justify-between">
+                        <Link
+                            href="/"
+                            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40 hover:text-brand-cyan transition-colors"
+                        >
+                            <ArrowLeft size={14} /> Back to Public Site
+                        </Link>
+                        <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            Systems Online
+                        </div>
+                    </div>
 
-                        <div className="mb-10">
-                            <div className="w-14 h-14 bg-white/5 rounded-xl flex items-center justify-center mb-6 border border-white/10 text-brand-cyan">
+                    {/* Main Card */}
+                    <div className="relative rounded-3xl p-8 sm:p-10 bg-[#0c1222]/80 border border-white/10 shadow-2xl backdrop-blur-2xl overflow-hidden group">
+                        {/* Interactive Corner Glow */}
+                        <div className="absolute -top-24 -right-24 w-48 h-48 bg-brand-cyan/20 rounded-full blur-3xl group-hover:bg-brand-cyan/30 transition-all duration-700 pointer-events-none" />
+
+                        {/* Brand Icon Header */}
+                        <div className="mb-8">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-cyan/20 to-blue-500/10 border border-brand-cyan/30 flex items-center justify-center text-brand-cyan shadow-[0_0_25px_rgba(0,194,255,0.2)] mb-5">
                                 <ShieldCheck size={28} />
                             </div>
-                            <h1 className="text-3xl font-black text-white mb-2">Welcome Back.</h1>
-                            <p className="text-white/50">Log in to manage the platform.</p>
+                            <h1 className="text-3xl font-black tracking-tight text-white mb-2">
+                                Admin <span className="text-brand-cyan">Authentication</span>
+                            </h1>
+                            <p className="text-white/50 text-sm leading-relaxed">
+                                Sign in with your registered AWS Cloud Club Google account to access administrative controls.
+                            </p>
                         </div>
 
+                        {/* Sign In Button */}
                         <button
                             onClick={handleLogin}
                             disabled={loading}
-                            className="w-full py-4 bg-white text-brand-dark font-black rounded-xl flex items-center justify-center gap-3 relative overflow-hidden group/btn hover:scale-[1.02] transition-transform active:scale-[0.98]"
+                            className="w-full py-4 px-6 bg-white text-[#060913] hover:bg-white/95 font-black text-sm rounded-2xl flex items-center justify-center gap-3 relative overflow-hidden transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-[0_0_35px_rgba(0,194,255,0.3)] hover:scale-[1.01] active:scale-[0.98] disabled:opacity-60 cursor-pointer"
                         >
-                            <div className="absolute inset-0 bg-brand-cyan opacity-0 group-hover/btn:opacity-10 transition-opacity"></div>
                             {loading ? (
-                                <div className="w-5 h-5 border-2 border-brand-dark/30 border-t-brand-dark rounded-full animate-spin"></div>
+                                <div className="w-5 h-5 border-2 border-[#060913]/30 border-t-[#060913] rounded-full animate-spin" />
                             ) : (
                                 <>
-                                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                                         <path
                                             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                                             fill="#4285F4"
@@ -114,15 +164,17 @@ export default function Login() {
                                         />
                                     </svg>
                                     <span className="tracking-tight">Sign in with Google</span>
-                                    <ArrowRight size={16} className="opacity-40" />
+                                    <ArrowRight size={16} className="text-black/50 ml-auto" />
                                 </>
                             )}
                         </button>
 
-                        <div className="mt-8 text-center">
-                            <Link href="/" className="text-xs font-bold uppercase tracking-widest text-white/30 hover:text-white transition-colors">
-                                Return to Homepage
-                            </Link>
+                        {/* Security Footer Badge */}
+                        <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between text-[11px] text-white/30">
+                            <span className="flex items-center gap-1.5">
+                                <Lock size={12} className="text-brand-cyan" /> 256-bit Encrypted
+                            </span>
+                            <span>Authorized Personnel Only</span>
                         </div>
                     </div>
                 </motion.div>

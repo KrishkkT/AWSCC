@@ -7,6 +7,8 @@ import { Award, Search, Download, Plus, Eye, Trash2, FileText, Loader2, X, Shiel
 import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
 import { generateCertificatePDF } from "@/utils/pdfGenerator";
+import { parseCSVRecipients } from "@/utils/csvParser";
+import CertificateTemplate from "@/components/CertificateTemplate";
 
 export default function AdminCertificates() {
     const [certificates, setCertificates] = useState([]);
@@ -18,6 +20,7 @@ export default function AdminCertificates() {
     const [processingId, setProcessingId] = useState(null);
     const [feedback, setFeedback] = useState(null);
     const [showPreview, setShowPreview] = useState(null);
+    const [bulkStats, setBulkStats] = useState(null);
     const certificateRef = useRef(null);
     const [newCert, setNewCert] = useState({
         recipient_name: '',
@@ -56,55 +59,32 @@ export default function AdminCertificates() {
         const reader = new FileReader();
         reader.onload = (event) => {
             const text = event.target.result;
-            const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
-            if (lines.length === 0) {
-                setFeedback({ message: 'The CSV file is empty.', type: 'error' });
+            const parseResult = parseCSVRecipients(text);
+
+            if (!parseResult.success) {
+                setFeedback({ message: parseResult.error || 'Failed to parse CSV.', type: 'error' });
                 return;
             }
 
-            const firstLine = lines[0].split(',').map(item => item.trim().replace(/^["']|["']$/g, '').toLowerCase());
-            let nameColIdx = -1;
-            let emailColIdx = -1;
+            setBulkData(parseResult.recipients);
+            setBulkStats({
+                total: parseResult.totalParsed,
+                duplicates: parseResult.duplicateCount,
+                invalid: parseResult.invalidCount
+            });
+            setNewCert({
+                recipient_name: '',
+                recipient_email: '',
+                event_id: '',
+                certificate_type: 'participation'
+            });
+            setShowModal(true);
 
-            nameColIdx = firstLine.findIndex(h => h.includes('name') || h === 'recipient');
-            emailColIdx = firstLine.findIndex(h => h.includes('email') || h.includes('mail') || h === 'address');
-
-            let startIndex = 0;
-            if (nameColIdx !== -1 && emailColIdx !== -1) {
-                startIndex = 1;
-            } else {
-                nameColIdx = 0;
-                emailColIdx = 1;
-                startIndex = 0;
+            let msg = `Loaded ${parseResult.totalParsed} attendees from CSV.`;
+            if (parseResult.duplicateCount > 0) {
+                msg += ` (${parseResult.duplicateCount} duplicate emails removed)`;
             }
-
-            const parsed = [];
-            for (let i = startIndex; i < lines.length; i++) {
-                const cols = lines[i].split(',').map(item => item.trim().replace(/^["']|["']$/g, ''));
-                const name = cols[nameColIdx];
-                const email = cols[emailColIdx];
-                if (name && email && email.includes('@')) {
-                    parsed.push({
-                        recipient_name: name,
-                        recipient_email: email,
-                        template: 'blue'
-                    });
-                }
-            }
-
-            if (parsed.length > 0) {
-                setBulkData(parsed);
-                setNewCert({
-                    recipient_name: '',
-                    recipient_email: '',
-                    event_id: '',
-                    certificate_type: 'participation'
-                });
-                setShowModal(true);
-                setFeedback({ message: `Parsed ${parsed.length} recipients from CSV.`, type: 'success' });
-            } else {
-                setFeedback({ message: 'Failed to parse names and emails. Make sure the CSV has Name and Email columns.', type: 'error' });
-            }
+            setFeedback({ message: msg, type: 'success' });
         };
         reader.readAsText(file);
         e.target.value = null;
@@ -117,59 +97,42 @@ export default function AdminCertificates() {
         const eventName = events.find(ev => ev.id === newCert.event_id)?.title || 'Event';
 
         if (bulkData.length > 0) {
-            const insertData = bulkData.map(item => ({
-                recipient_name: item.recipient_name,
-                recipient_email: item.recipient_email,
-                event_id: newCert.event_id,
-                event_name: eventName,
-                certificate_type: newCert.certificate_type,
-                template: item.template,
-                status: 'verified'
-            }));
+            try {
+                // Call dedicated bulk issuance API with chunking and rate-limited email queue
+                const res = await fetch('/api/certificates/bulk-issue', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        eventId: newCert.event_id,
+                        recipients: bulkData
+                    })
+                });
 
-            const { data: insertedCerts, error } = await supabase
-                .from('certificates')
-                .insert(insertData)
-                .select('id, recipient_name, recipient_email');
-
-            if (!error) {
-                if (insertedCerts && insertedCerts.length > 0) {
-                    for (const cert of insertedCerts) {
-                        try {
-                            await fetch('/api/email', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    to: cert.recipient_email,
-                                    type: 'certificateissued',
-                                    data: {
-                                        name: cert.recipient_name,
-                                        eventName: eventName,
-                                        certId: cert.id
-                                    }
-                                })
-                            });
-                        } catch (err) {
-                            console.error("Email notification failed for:", cert.recipient_email, err);
-                        }
-                    }
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Failed to issue bulk certificates');
                 }
 
                 await logActivity(
                     supabase,
                     'Batch Issued Certificates',
-                    `Issued ${insertData.length} certificates for event "${eventName}"`,
+                    `Issued ${data.issuedCount} certificates (${data.emailsSent} emails sent) for event "${eventName}"`,
                     'success'
                 );
+
                 setShowModal(false);
                 setBulkData([]);
+                setBulkStats(null);
                 setNewCert({ recipient_name: '', recipient_email: '', event_id: '', certificate_type: 'participation', template: 'blue' });
-                fetchCertificates();
-                setFeedback({ message: `Successfully issued ${insertData.length} certificates!`, type: 'success' });
-            } else {
-                console.error("Supabase Error:", error);
-                await logActivity(supabase, 'Batch Certificate Issuance Failed', `Error: ${error.message}`, 'error');
-                setFeedback({ message: "Error issuing certificates: " + error.message, type: 'error' });
+                await fetchCertificates();
+                setFeedback({
+                    message: `Successfully issued ${data.issuedCount} certificates! (${data.emailsSent} notification emails sent securely via Nodemailer).`,
+                    type: 'success'
+                });
+            } catch (err) {
+                console.error("Bulk issuance failed:", err);
+                await logActivity(supabase, 'Batch Certificate Issuance Failed', `Error: ${err.message}`, 'error');
+                setFeedback({ message: "Error issuing certificates: " + err.message, type: 'error' });
             }
         } else {
             const { data: certData, error } = await supabase
@@ -177,12 +140,13 @@ export default function AdminCertificates() {
                 .insert([{
                     ...newCert,
                     event_name: eventName,
+                    template: 'blue',
                     status: 'verified'
                 }])
                 .select('id')
                 .single();
 
-            if (!error) {
+            if (!error && certData) {
                 try {
                     await fetch('/api/email', {
                         method: 'POST',
@@ -209,12 +173,12 @@ export default function AdminCertificates() {
                 );
                 setShowModal(false);
                 setNewCert({ recipient_name: '', recipient_email: '', event_id: '', certificate_type: 'participation', template: 'blue' });
-                fetchCertificates();
-                setFeedback({ message: 'Certificate issued successfully!', type: 'success' });
+                await fetchCertificates();
+                setFeedback({ message: 'Certificate issued and notification email sent successfully!', type: 'success' });
             } else {
                 console.error("Supabase Error:", error);
-                await logActivity(supabase, 'Certificate Issuance Failed', `Error: ${error.message}`, 'error');
-                setFeedback({ message: "Error issuing certificate: " + error.message, type: 'error' });
+                await logActivity(supabase, 'Certificate Issuance Failed', `Error: ${error?.message}`, 'error');
+                setFeedback({ message: "Error issuing certificate: " + (error?.message || 'Unknown error'), type: 'error' });
             }
         }
         setSubmitting(false);
@@ -332,15 +296,23 @@ export default function AdminCertificates() {
                                     <Eye size={20} />
                                 </button>
                                 <button
+                                    disabled={processingId === cert.id}
                                     onClick={async () => {
-                                        setProcessingId(cert.id);
-                                        setShowPreview(cert);
-                                        setProcessingId(null);
+                                        try {
+                                            setProcessingId(cert.id);
+                                            await generateCertificatePDF(cert);
+                                            setFeedback({ message: `Certificate downloaded for ${cert.recipient_name}`, type: 'success' });
+                                        } catch (err) {
+                                            console.error("PDF download failed:", err);
+                                            setFeedback({ message: "Download failed: " + err.message, type: 'error' });
+                                        } finally {
+                                            setProcessingId(null);
+                                        }
                                     }}
-                                    className="btn-crud-edit"
-                                    title="Download Certificate"
+                                    className="btn-crud-edit disabled:opacity-50"
+                                    title="Download Certificate PDF"
                                 >
-                                    <Download size={20} />
+                                    {processingId === cert.id ? <Loader2 size={20} className="animate-spin text-brand-cyan" /> : <Download size={20} />}
                                 </button>
                                 <button
                                     disabled={processingId === cert.id}
@@ -370,23 +342,43 @@ export default function AdminCertificates() {
                     >
                         {bulkData.length > 0 ? (
                             <>
-                                <h2 className="text-2xl sm:text-3xl font-black text-white mb-6">Issue Bulk <span className="text-brand-cyan">Certificates</span></h2>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-2xl sm:text-3xl font-black text-white">Issue Bulk <span className="text-brand-cyan">Certificates</span></h2>
+                                    {bulkStats && (
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="px-2.5 py-1 rounded-full bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan font-bold">
+                                                {bulkData.length} Attendees
+                                            </span>
+                                            {bulkStats.duplicates > 0 && (
+                                                <span className="px-2.5 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 font-bold" title="Duplicates removed automatically">
+                                                    {bulkStats.duplicates} dupes filtered
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                                 <form onSubmit={handleIssueCert} className="space-y-6">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Recipients List ({bulkData.length})</label>
+                                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">
+                                            <span>Attendee Preview List ({bulkData.length})</span>
+                                            {bulkData.length > 50 && (
+                                                <span className="text-brand-cyan">Showing first 50 of {bulkData.length}</span>
+                                            )}
+                                        </div>
                                         <div className="max-h-60 overflow-y-auto border border-white/10 rounded-2xl overflow-hidden bg-white/5">
                                             <table className="w-full text-left text-xs border-collapse">
                                                 <thead className="sticky top-0 bg-brand-dark border-b border-white/10 text-white/40">
                                                     <tr>
+                                                        <th className="px-4 py-2.5 font-black uppercase tracking-widest text-[9px] w-12 text-center">#</th>
                                                         <th className="px-4 py-2.5 font-black uppercase tracking-widest text-[9px]">Name</th>
                                                         <th className="px-4 py-2.5 font-black uppercase tracking-widest text-[9px]">Email</th>
-                                                        <th className="px-4 py-2.5 font-black uppercase tracking-widest text-[9px]">Template</th>
                                                         <th className="px-4 py-2.5 font-black uppercase tracking-widest text-[9px] text-center w-10"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {bulkData.map((item, idx) => (
+                                                    {bulkData.slice(0, 100).map((item, idx) => (
                                                         <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                                            <td className="px-2 py-1.5 text-center text-white/30 font-mono text-[10px]">{idx + 1}</td>
                                                             <td className="px-2 py-1.5 text-white">
                                                                 <input
                                                                     type="text"
@@ -412,20 +404,6 @@ export default function AdminCertificates() {
                                                                     }}
                                                                     className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-white/80 text-xs font-medium focus:border-brand-cyan outline-none"
                                                                 />
-                                                            </td>
-                                                            <td className="px-2 py-1.5">
-                                                                <select
-                                                                    value={item.template || 'blue'}
-                                                                    onChange={(e) => {
-                                                                        const updated = [...bulkData];
-                                                                        updated[idx].template = e.target.value;
-                                                                        setBulkData(updated);
-                                                                    }}
-                                                                    className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-[11px] font-medium focus:border-brand-cyan outline-none"
-                                                                >
-                                                                    <option value="blue" className="bg-brand-dark">Green</option>
-                                                                    <option value="purple" className="bg-brand-dark">Purple</option>
-                                                                </select>
                                                             </td>
                                                             <td className="px-2 py-1.5 text-center">
                                                                 <button
@@ -462,9 +440,14 @@ export default function AdminCertificates() {
                                         </select>
                                     </div>
                                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
-                                        <button type="button" onClick={() => { setShowModal(false); setBulkData([]); }} className="w-full sm:flex-1 btn-secondary py-3.5 sm:py-4 font-black uppercase tracking-widest">Cancel</button>
-                                        <button type="submit" disabled={submitting} className="w-full sm:flex-1 btn-primary py-3.5 sm:py-4 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,194,255,0.2)]">
-                                            {submitting ? 'Issuing...' : 'Confirm Issue'}
+                                        <button type="button" onClick={() => { setShowModal(false); setBulkData([]); setBulkStats(null); }} className="w-full sm:flex-1 btn-secondary py-3.5 sm:py-4 font-black uppercase tracking-widest">Cancel</button>
+                                        <button type="submit" disabled={submitting} className="w-full sm:flex-1 btn-primary py-3.5 sm:py-4 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(0,194,255,0.2)] flex items-center justify-center gap-2">
+                                            {submitting ? (
+                                                <>
+                                                    <Loader2 size={18} className="animate-spin text-white" />
+                                                    <span>Issuing & Sending Emails...</span>
+                                                </>
+                                            ) : `Confirm Issue (${bulkData.length})`}
                                         </button>
                                     </div>
                                 </form>
@@ -492,18 +475,6 @@ export default function AdminCertificates() {
                                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold"
                                             placeholder="email@example.com"
                                         />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Template Color</label>
-                                        <select
-                                            required
-                                            value={newCert.template}
-                                            onChange={e => setNewCert({ ...newCert, template: e.target.value })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-brand-cyan outline-none transition-all font-bold cursor-pointer font-sans"
-                                        >
-                                            <option value="blue" className="bg-brand-dark font-sans">Green</option>
-                                            <option value="purple" className="bg-brand-dark font-sans">Purple</option>
-                                        </select>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Select Event</label>
@@ -541,23 +512,50 @@ export default function AdminCertificates() {
                         onClick={() => setShowPreview(null)}
                     />
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                        initial={{ opacity: 0, scale: 0.95, y: 15 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="relative z-10 w-full max-w-5xl flex flex-col items-center gap-6"
+                        className="relative z-10 w-full max-w-3xl flex flex-col items-center gap-3.5 max-h-[90vh] overflow-y-auto"
                     >
-                        <div className="flex items-center justify-between w-full text-white/40 font-bold px-4">
-                            <span className="text-xs font-black uppercase tracking-widest">Preview Mode · {showPreview.recipient_name}</span>
-                            <button onClick={() => setShowPreview(null)} className="hover:text-white transition-colors"><X size={24} /></button>
+                        <div className="flex items-center justify-between w-full text-white/70 font-bold px-1">
+                            <span className="text-xs font-black uppercase tracking-widest text-brand-cyan">Certificate Preview</span>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    disabled={processingId === showPreview.id}
+                                    onClick={async () => {
+                                        try {
+                                            setProcessingId(showPreview.id);
+                                            await generateCertificatePDF(showPreview);
+                                            setFeedback({ message: `Certificate downloaded for ${showPreview.recipient_name}`, type: 'success' });
+                                        } catch (err) {
+                                            console.error("PDF download failed:", err);
+                                            setFeedback({ message: "Download failed: " + err.message, type: 'error' });
+                                        } finally {
+                                            setProcessingId(null);
+                                        }
+                                    }}
+                                    className="btn-primary py-1.5 px-3.5 flex items-center gap-2 text-xs font-black uppercase tracking-wider shadow-[0_0_20px_rgba(0,194,255,0.25)]"
+                                >
+                                    {processingId === showPreview.id ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                                    Download PDF
+                                </button>
+                                <button onClick={() => setShowPreview(null)} className="text-white/40 hover:text-white p-1 transition-colors"><X size={22} /></button>
+                            </div>
                         </div>
 
-                        <div className="w-full bg-[#05080f] p-8 rounded-3xl border border-white/10 flex flex-col items-center">
-                            <div className="text-center py-12 space-y-4">
-                                <Award size={64} className="text-brand-cyan mx-auto animate-bounce" />
-                                <h2 className="text-3xl font-black text-white">{showPreview.recipient_name}</h2>
-                                <p className="text-white/60">{showPreview.event_name}</p>
-                                <span className="inline-block px-4 py-1.5 rounded-full bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan text-xs font-black uppercase tracking-widest">
-                                    ID: {showPreview.id}
-                                </span>
+                        <div className="w-full bg-[#05080f] p-3 sm:p-5 rounded-2xl border border-white/10 flex flex-col items-center shadow-2xl">
+                            <div className="w-full max-w-2xl overflow-hidden rounded-xl shadow-2xl bg-[#070b12] border border-white/10 flex justify-center">
+                                <CertificateTemplate
+                                    recipientName={showPreview.recipient_name}
+                                    eventName={showPreview.event_name}
+                                    date={new Date(showPreview.created_at).toLocaleDateString()}
+                                    type={showPreview.certificate_type}
+                                    certificateId={showPreview.id}
+                                />
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between w-full mt-3 pt-3 border-t border-white/5 text-xs text-white/40 gap-2">
+                                <div>Recipient: <strong className="text-white">{showPreview.recipient_name}</strong></div>
+                                <div>Event: <strong className="text-white">{showPreview.event_name}</strong></div>
+                                <div>ID: <span className="font-mono text-brand-cyan">{showPreview.id}</span></div>
                             </div>
                         </div>
                     </motion.div>

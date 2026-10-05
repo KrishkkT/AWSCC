@@ -2,6 +2,18 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
 export async function middleware(request) {
+    const { pathname } = request.nextUrl
+
+    // Fast-path: Only intercept protected admin routes
+    if (!pathname.startsWith('/admin')) {
+        return NextResponse.next()
+    }
+
+    // Allow unauthorized page without re-checking to avoid redirect loops
+    if (pathname === '/admin/unauthorized') {
+        return NextResponse.next()
+    }
+
     let response = NextResponse.next({
         request: {
             headers: request.headers,
@@ -17,7 +29,7 @@ export async function middleware(request) {
                     return request.cookies.getAll()
                 },
                 setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+                    cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
                     response = NextResponse.next({
                         request: {
                             headers: request.headers,
@@ -35,49 +47,33 @@ export async function middleware(request) {
         data: { user },
     } = await supabase.auth.getUser()
 
-    const { pathname } = request.nextUrl
+    // If not authenticated, redirect to login
+    if (!user) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/login'
+        return NextResponse.redirect(url)
+    }
 
-    // Protected Admin Routes
-    if (pathname.startsWith('/admin')) {
-        // If not logged in, redirect to login
-        if (!user) {
-            const url = request.nextUrl.clone()
-            url.pathname = '/login'
-            return NextResponse.redirect(url)
-        }
+    // Check RBAC role from profiles table
+    const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role, is_active')
+        .eq('id', user.id)
+        .single()
 
-        // Bypass unauthorized page to prevent infinite loop
-        if (pathname === '/admin/unauthorized') {
-            return response
-        }
+    if (error || !profile) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin/unauthorized'
+        return NextResponse.redirect(url)
+    }
 
-        // Check RBAC role from profiles table
-        const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('role, is_active')
-            .eq('id', user.id)
-            .single()
+    const isAdmin = ['admin', 'faculty', 'Leader', 'core', 'member', 'captain'].includes(profile.role)
+    const isActive = profile.is_active === true
 
-        // Debug: log to server console
-        console.log('[Middleware RBAC]', { userId: user.id, profile, error: error?.message })
-
-        // If RLS blocks the query or profile not found, check if we should allow
-        if (error || !profile) {
-            console.log('[Middleware] Profile query failed, redirecting to unauthorized')
-            const url = request.nextUrl.clone()
-            url.pathname = '/admin/unauthorized'
-            return NextResponse.redirect(url)
-        }
-
-        const isAdmin = ['faculty', 'Leader', 'core', 'member', 'captain'].includes(profile.role)
-        const isActive = profile.is_active === true
-
-        if (!isAdmin || !isActive) {
-            console.log('[Middleware] Access denied:', { role: profile.role, is_active: profile.is_active })
-            const url = request.nextUrl.clone()
-            url.pathname = '/admin/unauthorized'
-            return NextResponse.redirect(url)
-        }
+    if (!isAdmin || !isActive) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin/unauthorized'
+        return NextResponse.redirect(url)
     }
 
     return response
@@ -85,6 +81,6 @@ export async function middleware(request) {
 
 export const config = {
     matcher: [
-        '/((?!_next/static|_next/image|favicon.ico).*)',
+        '/admin/:path*',
     ],
 }
