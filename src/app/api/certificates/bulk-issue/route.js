@@ -6,10 +6,10 @@ export const maxDuration = 300; // Allow sufficient execution time for large bat
 export async function POST(req) {
     try {
         const supabase = await createClient();
-        const { eventId, recipients } = await req.json();
+        const { eventId, customEventTitle, recipients } = await req.json();
 
-        if (!eventId || !recipients || !Array.isArray(recipients) || recipients.length === 0) {
-            return new Response(JSON.stringify({ error: "Invalid request. eventId and non-empty recipients array are required." }), { status: 400 });
+        if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+            return new Response(JSON.stringify({ error: "Invalid request. Non-empty recipients array is required." }), { status: 400 });
         }
 
         // 1. Verify Authorization
@@ -21,24 +21,34 @@ export async function POST(req) {
             return new Response(JSON.stringify({ error: "Forbidden: Admin or Lead privileges required." }), { status: 403 });
         }
 
-        // 2. Fetch Event Title
-        const { data: event, error: eventError } = await supabase
-            .from('events')
-            .select('id, title')
-            .eq('id', eventId)
-            .single();
+        // 2. Resolve Event Name (From Selected Event or Custom Text)
+        let eventName = customEventTitle ? customEventTitle.trim() : '';
+        let validEventId = null;
 
-        if (eventError || !event) {
-            return new Response(JSON.stringify({ error: "Selected event was not found." }), { status: 404 });
+        if (eventId && eventId !== '__custom__' && eventId !== 'custom') {
+            const { data: event, error: eventError } = await supabase
+                .from('events')
+                .select('id, title')
+                .eq('id', eventId)
+                .single();
+
+            if (!eventError && event) {
+                validEventId = event.id;
+                if (!eventName) {
+                    eventName = event.title;
+                }
+            }
         }
 
-        const eventName = event.title;
+        if (!eventName) {
+            return new Response(JSON.stringify({ error: "Please provide a valid Event or Custom Event Title." }), { status: 400 });
+        }
 
         // 3. Prepare Data for Insertion
         const allCertData = recipients.map(item => ({
             recipient_name: item.recipient_name || item.name || 'Participant',
             recipient_email: (item.recipient_email || item.email || '').toLowerCase().trim(),
-            event_id: eventId,
+            event_id: validEventId,
             event_name: eventName,
             certificate_type: item.certificate_type || 'participation',
             template: 'blue',
@@ -66,7 +76,7 @@ export async function POST(req) {
             }
         }
 
-        // 5. Dispatch Nodemailer Batch with 250ms interval between sends (pooled)
+        // 5. Dispatch Nodemailer Batch with 200ms interval between sends (pooled)
         const emailItems = insertedCertificates.map(cert => ({
             name: cert.recipient_name,
             email: cert.recipient_email,
@@ -80,6 +90,7 @@ export async function POST(req) {
             success: true,
             totalRequested: recipients.length,
             issuedCount: insertedCertificates.length,
+            eventName,
             emailsSent: emailResults.sent,
             emailsFailed: emailResults.failed,
             errors: emailResults.errors
