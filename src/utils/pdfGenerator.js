@@ -162,17 +162,22 @@ export function parseCertificateEvent(certOrEventName, fallbackIntro = "for succ
     }
 
     if (typeof certOrEventName === 'object') {
-        const directIntro = certOrEventName.intro_text || certOrEventName.introText;
         const rawEvent = certOrEventName.event_name || certOrEventName.events?.title || '';
-
+        if (typeof rawEvent === 'string' && rawEvent.includes(':::')) {
+            const parts = rawEvent.split(':::');
+            return {
+                introText: parts[0].trim() || fallbackIntro,
+                eventName: parts.slice(1).join(':::').trim() || "AWS Community Event"
+            };
+        }
+        const directIntro = certOrEventName.intro_text || certOrEventName.introText;
         if (directIntro) {
             return {
                 introText: directIntro,
-                eventName: rawEvent.includes(':::') ? rawEvent.split(':::').slice(1).join(':::').trim() : (rawEvent || "AWS Community Event")
+                eventName: rawEvent || "AWS Community Event"
             };
         }
-
-        return parseCertificateEvent(rawEvent, fallbackIntro);
+        return { introText: fallbackIntro, eventName: rawEvent || "AWS Community Event" };
     }
 
     const raw = String(certOrEventName);

@@ -695,7 +695,6 @@ export default function AdminCertificates() {
                                 <CertificateTemplate
                                     recipientName={showPreview.recipient_name}
                                     eventName={showPreview.event_name}
-                                    introText={showPreview.intro_text || "for successfully attending the"}
                                     date={new Date(showPreview.created_at).toLocaleDateString()}
                                     type={showPreview.certificate_type}
                                     certificateId={showPreview.id}
@@ -703,7 +702,7 @@ export default function AdminCertificates() {
                             </div>
                             <div className="flex flex-wrap items-center justify-between w-full mt-3 pt-3 border-t border-white/5 text-xs text-white/40 gap-2">
                                 <div>Recipient: <strong className="text-white">{showPreview.recipient_name}</strong></div>
-                                <div>Event: <strong className="text-white">{showPreview.event_name}</strong></div>
+                                <div>Event: <strong className="text-white">{parseCertificateEvent(showPreview.event_name).eventName}</strong></div>
                                 <div>ID: <span className="font-mono text-brand-cyan">{showPreview.id}</span></div>
                             </div>
                         </div>

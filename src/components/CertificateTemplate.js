@@ -10,8 +10,10 @@ export default function CertificateTemplate({
 }) {
     const templateUrl = "/templates/attendee_template_blue.jpg";
     const parsed = parseCertificateEvent(eventName, introText || "for successfully attending the");
-    const displayIntro = introText || parsed.introText || "for successfully attending the";
-    const displayEvent = parsed.eventName || eventName;
+    const displayIntro = (eventName && typeof eventName === 'string' && eventName.includes(':::'))
+        ? parsed.introText
+        : (introText || parsed.introText || "for successfully attending the");
+    const displayEvent = parsed.eventName || (typeof eventName === 'string' && eventName.includes(':::') ? eventName.split(':::').slice(1).join(':::').trim() : eventName);
 
     return (
         <div className="w-full flex justify-center items-center py-2 bg-transparent">
