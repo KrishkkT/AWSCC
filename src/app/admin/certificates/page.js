@@ -2,11 +2,12 @@
 
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { motion } from "framer-motion";
-import { Award, Search, Download, Plus, Eye, Trash2, FileText, Loader2, X, ShieldCheck, Upload } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Award, Search, Download, Plus, Eye, Trash2, FileText, Loader2, X, ShieldCheck, Upload, Archive, CheckSquare, Square, Image as ImageIcon, Check } from "lucide-react";
 import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
-import { generateCertificatePDF, parseCertificateEvent } from "@/utils/pdfGenerator";
+import JSZip from "jszip";
+import { generateCertificatePDF, generateCertificatePDFBlob, generateCertificateImageBlob, parseCertificateEvent } from "@/utils/pdfGenerator";
 import { parseCSVRecipients } from "@/utils/csvParser";
 import CertificateTemplate from "@/components/CertificateTemplate";
 
@@ -18,6 +19,8 @@ export default function AdminCertificates() {
     const [events, setEvents] = useState([]);
     const [submitting, setSubmitting] = useState(false);
     const [processingId, setProcessingId] = useState(null);
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [zipProgress, setZipProgress] = useState({ current: 0, total: 0, active: false, type: '' });
     const [feedback, setFeedback] = useState(null);
     const [showPreview, setShowPreview] = useState(null);
     const [bulkStats, setBulkStats] = useState(null);
@@ -214,6 +217,11 @@ export default function AdminCertificates() {
                     `Deleted certificate for ${certToDelete?.recipient_name || id} (Event: ${certToDelete?.event_name || 'Event'})`,
                     'warning'
                 );
+                setSelectedIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(id);
+                    return next;
+                });
                 setFeedback({ message: "Certificate deleted!", type: "info" });
                 fetchCertificates();
             } else {
@@ -222,6 +230,130 @@ export default function AdminCertificates() {
             setProcessingId(null);
         }
     }
+
+    const toggleSelect = (id) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filtered.length && filtered.length > 0) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filtered.map(c => c.id)));
+        }
+    };
+
+    const handleDownloadPNGZip = async () => {
+        const selectedCerts = certificates.filter(c => selectedIds.has(c.id));
+        if (selectedCerts.length === 0) return;
+
+        setZipProgress({ current: 0, total: selectedCerts.length, active: true, type: 'PNG' });
+        try {
+            const zip = new JSZip();
+            const folder = zip.folder("certificates_png");
+
+            for (let i = 0; i < selectedCerts.length; i++) {
+                const cert = selectedCerts[i];
+                setZipProgress({ current: i + 1, total: selectedCerts.length, active: true, type: 'PNG' });
+                const blob = await generateCertificateImageBlob(cert);
+                if (blob) {
+                    const cleanName = (cert.recipient_name || `cert_${i + 1}`).replace(/[^a-zA-Z0-9_\-]/g, '_');
+                    const filename = `${cleanName}_${cert.id.slice(0, 8)}.png`;
+                    folder.file(filename, blob);
+                }
+            }
+
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            const url = URL.createObjectURL(zipBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `AWSCC_Certificates_PNG_${Date.now()}.zip`;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            setFeedback({ message: `Successfully downloaded ${selectedCerts.length} certificates in PNG ZIP!`, type: "success" });
+        } catch (err) {
+            console.error("ZIP Generation failed:", err);
+            setFeedback({ message: `Failed to create PNG ZIP: ${err.message}`, type: "error" });
+        } finally {
+            setZipProgress({ current: 0, total: 0, active: false, type: '' });
+        }
+    };
+
+    const handleDownloadPDFZip = async () => {
+        const selectedCerts = certificates.filter(c => selectedIds.has(c.id));
+        if (selectedCerts.length === 0) return;
+
+        setZipProgress({ current: 0, total: selectedCerts.length, active: true, type: 'PDF' });
+        try {
+            const zip = new JSZip();
+            const folder = zip.folder("certificates_pdf");
+
+            for (let i = 0; i < selectedCerts.length; i++) {
+                const cert = selectedCerts[i];
+                setZipProgress({ current: i + 1, total: selectedCerts.length, active: true, type: 'PDF' });
+                const blob = await generateCertificatePDFBlob(cert);
+                if (blob) {
+                    const cleanName = (cert.recipient_name || `cert_${i + 1}`).replace(/[^a-zA-Z0-9_\-]/g, '_');
+                    const filename = `${cleanName}_${cert.id.slice(0, 8)}.pdf`;
+                    folder.file(filename, blob);
+                }
+            }
+
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            const url = URL.createObjectURL(zipBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `AWSCC_Certificates_PDF_${Date.now()}.zip`;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            setFeedback({ message: `Successfully downloaded ${selectedCerts.length} certificates in PDF ZIP!`, type: "success" });
+        } catch (err) {
+            console.error("ZIP Generation failed:", err);
+            setFeedback({ message: `Failed to create PDF ZIP: ${err.message}`, type: "error" });
+        } finally {
+            setZipProgress({ current: 0, total: 0, active: false, type: '' });
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        const idsToDelete = Array.from(selectedIds);
+        if (idsToDelete.length === 0) return;
+
+        if (confirm(`Are you sure you want to permanently delete ${idsToDelete.length} selected certificate(s)?`)) {
+            setSubmitting(true);
+            try {
+                const CHUNK_SIZE = 50;
+                for (let i = 0; i < idsToDelete.length; i += CHUNK_SIZE) {
+                    const chunk = idsToDelete.slice(i, i + CHUNK_SIZE);
+                    const { error } = await supabase.from('certificates').delete().in('id', chunk);
+                    if (error) throw error;
+                }
+
+                await logActivity(
+                    supabase,
+                    'Bulk Deleted Certificates',
+                    `Deleted ${idsToDelete.length} certificates`,
+                    'warning'
+                );
+
+                setSelectedIds(new Set());
+                await fetchCertificates();
+                setFeedback({ message: `Successfully deleted ${idsToDelete.length} certificates.`, type: "info" });
+            } catch (err) {
+                console.error("Bulk delete failed:", err);
+                setFeedback({ message: `Bulk delete failed: ${err.message}`, type: "error" });
+            } finally {
+                setSubmitting(false);
+            }
+        }
+    };
 
     const filtered = (certificates || []).filter(c =>
         (c.recipient_name || c.event_name || '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -279,9 +411,120 @@ export default function AdminCertificates() {
                 ))}
             </div>
 
-            <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-5 py-3 max-w-md group focus-within:border-brand-cyan/50 transition-all">
-                <Search size={16} className="text-white/20 group-focus-within:text-brand-cyan" />
-                <input type="text" placeholder="Search certificates..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent border-none outline-none text-sm text-white placeholder-white/20 w-full font-bold" />
+            {/* Sticky Bulk Action Bar */}
+            <AnimatePresence>
+                {selectedIds.size > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -20, scale: 0.98 }}
+                        className="sticky top-6 z-40 w-full p-4 sm:p-5 rounded-2xl bg-brand-dark/95 border border-brand-cyan/40 backdrop-blur-xl shadow-[0_15px_50px_rgba(0,194,255,0.2)] flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                        <div className="flex items-center gap-3.5">
+                            <div className="w-9 h-9 rounded-xl bg-brand-cyan/20 border border-brand-cyan/40 text-brand-cyan font-black text-sm flex items-center justify-center shadow-[0_0_15px_rgba(0,194,255,0.3)]">
+                                {selectedIds.size}
+                            </div>
+                            <div>
+                                <div className="text-white font-bold text-sm sm:text-base">{selectedIds.size} Certificate{selectedIds.size > 1 ? 's' : ''} Selected</div>
+                                <div className="text-white/40 text-xs">Download high-res PNG ZIP or manage batch</div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2.5">
+                            {/* Download High-Res PNG ZIP */}
+                            <button
+                                onClick={handleDownloadPNGZip}
+                                disabled={zipProgress.active}
+                                className="btn-primary py-2.5 px-4 text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(0,194,255,0.3)]"
+                            >
+                                {zipProgress.active && zipProgress.type === 'PNG' ? (
+                                    <>
+                                        <Loader2 size={15} className="animate-spin" />
+                                        <span>Bundling PNGs ({zipProgress.current}/{zipProgress.total})...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <ImageIcon size={15} />
+                                        <span>Download PNG ZIP</span>
+                                    </>
+                                )}
+                            </button>
+
+                            {/* Download PDF ZIP */}
+                            <button
+                                onClick={handleDownloadPDFZip}
+                                disabled={zipProgress.active}
+                                className="btn-outline py-2.5 px-4 text-xs font-bold border-white/20 hover:border-brand-cyan flex items-center gap-2"
+                            >
+                                {zipProgress.active && zipProgress.type === 'PDF' ? (
+                                    <>
+                                        <Loader2 size={15} className="animate-spin" />
+                                        <span>Bundling PDFs ({zipProgress.current}/{zipProgress.total})...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Archive size={15} />
+                                        <span>Download PDF ZIP</span>
+                                    </>
+                                )}
+                            </button>
+
+                            {/* Bulk Delete */}
+                            <button
+                                onClick={handleBulkDelete}
+                                disabled={submitting || zipProgress.active}
+                                className="btn-crud-delete px-4 py-2.5 text-xs font-bold flex items-center gap-2 text-red-400 border-red-500/30 hover:bg-red-500/10"
+                            >
+                                {submitting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                                <span>Delete ({selectedIds.size})</span>
+                            </button>
+
+                            {/* Deselect All */}
+                            <button
+                                onClick={() => setSelectedIds(new Set())}
+                                className="text-white/40 hover:text-white p-2 text-xs font-bold transition-colors ml-1"
+                                title="Clear selection"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Search & Select All Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-5 py-3 w-full max-w-md group focus-within:border-brand-cyan/50 transition-all">
+                    <Search size={16} className="text-white/20 group-focus-within:text-brand-cyan" />
+                    <input
+                        type="text"
+                        placeholder="Search certificates..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="bg-transparent border-none outline-none text-sm text-white placeholder-white/20 w-full font-bold"
+                    />
+                </div>
+
+                {filtered.length > 0 && (
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={toggleSelectAll}
+                            className="btn-outline py-2.5 px-4 text-xs font-bold flex items-center gap-2 border-white/10 hover:border-brand-cyan"
+                        >
+                            {selectedIds.size === filtered.length && filtered.length > 0 ? (
+                                <>
+                                    <CheckSquare size={16} className="text-brand-cyan" />
+                                    <span>Deselect All ({filtered.length})</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Square size={16} className="text-white/40" />
+                                    <span>Select All ({filtered.length})</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {loading ? (
@@ -295,8 +538,26 @@ export default function AdminCertificates() {
             ) : (
                 <div className="space-y-3">
                     {filtered.map((cert, i) => (
-                        <motion.div key={cert.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="glass-card p-5 border-white/5 hover:border-white/10 transition-all flex items-center justify-between">
+                        <motion.div
+                            key={cert.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                            className={`glass-card p-5 border-white/5 hover:border-white/10 transition-all flex items-center justify-between ${selectedIds.has(cert.id) ? 'border-brand-cyan/40 bg-brand-cyan/5' : ''}`}
+                        >
                             <div className="flex items-center gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => toggleSelect(cert.id)}
+                                    className="text-white/40 hover:text-brand-cyan p-1 transition-colors"
+                                    title={selectedIds.has(cert.id) ? "Deselect" : "Select"}
+                                >
+                                    {selectedIds.has(cert.id) ? (
+                                        <CheckSquare size={20} className="text-brand-cyan" />
+                                    ) : (
+                                        <Square size={20} />
+                                    )}
+                                </button>
                                 <div className="w-11 h-11 rounded-xl bg-brand-cyan/10 border border-brand-cyan/20 flex items-center justify-center text-brand-cyan">
                                     <FileText size={20} />
                                 </div>
