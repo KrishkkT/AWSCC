@@ -1,5 +1,6 @@
 import VerifyClient from "./VerifyClient";
 import { createClient } from "@/utils/supabase/server";
+import { parseCertificateEvent } from "@/utils/pdfGenerator";
 
 export async function generateMetadata({ params }) {
     const { id } = await params;
@@ -12,15 +13,16 @@ export async function generateMetadata({ params }) {
 
     if (!cert) return { title: 'Certificate Not Found | AWSCC DDU' };
 
+    const { introText, eventName } = parseCertificateEvent(cert.event_name);
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://awsccddu.com';
     const templateUrl = 'attendee_template_blue.jpg';
 
     return {
         title: `${cert.recipient_name}'s Certificate | AWSCC DDU`,
-        description: `Official ${cert.certificate_type} certificate for ${cert.recipient_name} regarding ${cert.event_name}. Verified by AWS Student Builder Group DDU.`,
+        description: `Official ${cert.certificate_type} certificate for ${cert.recipient_name} ${introText} ${eventName}. Verified by AWS Student Builder Group DDU.`,
         openGraph: {
             title: `${cert.recipient_name} - AWS Student Builder Group Certificate`,
-            description: `Achievement for ${cert.event_name} issued by AWS Student Builder Group DDU.`,
+            description: `Achievement for ${eventName} issued by AWS Student Builder Group DDU.`,
             images: [
                 {
                     url: `${siteUrl}/templates/${templateUrl}`,

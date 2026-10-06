@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Award, Search, Download, Plus, Eye, Trash2, FileText, Loader2, X, ShieldCheck, Upload } from "lucide-react";
 import { logActivity } from "@/utils/logger";
 import Toast from "@/components/Toast";
-import { generateCertificatePDF } from "@/utils/pdfGenerator";
+import { generateCertificatePDF, parseCertificateEvent } from "@/utils/pdfGenerator";
 import { parseCSVRecipients } from "@/utils/csvParser";
 import CertificateTemplate from "@/components/CertificateTemplate";
 
@@ -105,6 +105,7 @@ export default function AdminCertificates() {
             : (newCert.custom_event_title.trim() || selectedEvent?.title || 'AWS Community Event');
         const targetEventId = useCustomEvent || newCert.event_id === '__custom__' ? null : (newCert.event_id || null);
         const introPhrase = (newCert.intro_text && newCert.intro_text.trim()) || 'for successfully attending the';
+        const storedEventName = introPhrase !== 'for successfully attending the' ? `${introPhrase}:::${eventName}` : eventName;
 
         if (bulkData.length > 0) {
             try {
@@ -114,7 +115,7 @@ export default function AdminCertificates() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         eventId: targetEventId,
-                        customEventTitle: eventName,
+                        customEventTitle: storedEventName,
                         introText: introPhrase,
                         recipients: bulkData
                     })
@@ -148,38 +149,19 @@ export default function AdminCertificates() {
                 setFeedback({ message: "Error issuing certificates: " + err.message, type: 'error' });
             }
         } else {
-            let { data: certData, error } = await supabase
+            const { data: certData, error } = await supabase
                 .from('certificates')
                 .insert([{
                     recipient_name: newCert.recipient_name,
                     recipient_email: newCert.recipient_email,
                     event_id: targetEventId,
-                    event_name: eventName,
-                    intro_text: introPhrase,
+                    event_name: storedEventName,
                     certificate_type: newCert.certificate_type,
                     template: 'blue',
                     status: 'verified'
                 }])
                 .select('id')
                 .single();
-
-            if (error && error.message?.includes('intro_text')) {
-                const retry = await supabase
-                    .from('certificates')
-                    .insert([{
-                        recipient_name: newCert.recipient_name,
-                        recipient_email: newCert.recipient_email,
-                        event_id: targetEventId,
-                        event_name: eventName,
-                        certificate_type: newCert.certificate_type,
-                        template: 'blue',
-                        status: 'verified'
-                    }])
-                    .select('id')
-                    .single();
-                certData = retry.data;
-                error = retry.error;
-            }
 
             if (!error && certData) {
                 try {
@@ -320,7 +302,7 @@ export default function AdminCertificates() {
                                 </div>
                                 <div>
                                     <div className="font-bold text-white text-sm">{cert.recipient_name}</div>
-                                    <div className="text-xs text-white/30">{cert.event_name} · {new Date(cert.created_at).toLocaleDateString()}</div>
+                                    <div className="text-xs text-white/30">{parseCertificateEvent(cert.event_name).eventName} · {new Date(cert.created_at).toLocaleDateString()}</div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">

@@ -45,17 +45,19 @@ export async function POST(req) {
         }
 
         const defaultIntro = (introText && introText.trim()) || "for successfully attending the";
+        const storedEventName = eventName.includes(':::')
+            ? eventName
+            : (defaultIntro !== "for successfully attending the" ? `${defaultIntro}:::${eventName}` : eventName);
 
         // 3. Prepare Data for Insertion
         const allCertData = recipients.map(item => ({
             recipient_name: item.recipient_name || item.name || 'Participant',
             recipient_email: (item.recipient_email || item.email || '').toLowerCase().trim(),
             event_id: validEventId,
-            event_name: eventName,
+            event_name: storedEventName,
             certificate_type: item.certificate_type || 'participation',
             template: 'blue',
-            status: 'verified',
-            intro_text: defaultIntro
+            status: 'verified'
         })).filter(c => c.recipient_email.length > 0);
 
         // 4. Batch Insert into Database in Chunks of 100 (Safe for 500+ attendees)
@@ -64,21 +66,10 @@ export async function POST(req) {
 
         for (let i = 0; i < allCertData.length; i += CHUNK_SIZE) {
             const chunk = allCertData.slice(i, i + CHUNK_SIZE);
-            let { data: insertedChunk, error: insertError } = await supabase
+            const { data: insertedChunk, error: insertError } = await supabase
                 .from('certificates')
                 .insert(chunk)
                 .select('id, recipient_name, recipient_email');
-
-            // If intro_text column does not exist in the database table, retry without it
-            if (insertError && insertError.message?.includes('intro_text')) {
-                const chunkWithoutIntro = chunk.map(({ intro_text, ...rest }) => rest);
-                const retry = await supabase
-                    .from('certificates')
-                    .insert(chunkWithoutIntro)
-                    .select('id, recipient_name, recipient_email');
-                insertedChunk = retry.data;
-                insertError = retry.error;
-            }
 
             if (insertError) {
                 console.error(`Error inserting certificate chunk [${i}-${i + chunk.length}]:`, insertError);
@@ -91,10 +82,11 @@ export async function POST(req) {
         }
 
         // 5. Dispatch Nodemailer Batch with 200ms interval between sends (pooled)
+        const cleanEventName = storedEventName.includes(':::') ? storedEventName.split(':::').slice(1).join(':::').trim() : storedEventName;
         const emailItems = insertedCertificates.map(cert => ({
             name: cert.recipient_name,
             email: cert.recipient_email,
-            eventName: eventName,
+            eventName: cleanEventName,
             certId: cert.id
         }));
 
@@ -104,7 +96,7 @@ export async function POST(req) {
             success: true,
             totalRequested: recipients.length,
             issuedCount: insertedCertificates.length,
-            eventName,
+            eventName: cleanEventName,
             emailsSent: emailResults.sent,
             emailsFailed: emailResults.failed,
             errors: emailResults.errors

@@ -153,111 +153,242 @@ export const generateProfessionalReport = async (data, title = "System Report", 
 };
 
 /**
- * Generates a high-quality certificate PDF by stamping data onto a template.
- * @param {Object} certData - Certificate data (recipient_name, event_name, etc.)
+ * Parses certificate record or event string to extract intro text and event title.
+ * Format support: "introText:::eventName" or separate fields.
+ */
+export function parseCertificateEvent(certOrEventName, fallbackIntro = "for successfully attending the") {
+    if (!certOrEventName) {
+        return { introText: fallbackIntro, eventName: "AWS Community Event" };
+    }
+
+    if (typeof certOrEventName === 'object') {
+        const directIntro = certOrEventName.intro_text || certOrEventName.introText;
+        const rawEvent = certOrEventName.event_name || certOrEventName.events?.title || '';
+
+        if (directIntro) {
+            return {
+                introText: directIntro,
+                eventName: rawEvent.includes(':::') ? rawEvent.split(':::').slice(1).join(':::').trim() : (rawEvent || "AWS Community Event")
+            };
+        }
+
+        return parseCertificateEvent(rawEvent, fallbackIntro);
+    }
+
+    const raw = String(certOrEventName);
+    if (raw.includes(':::')) {
+        const parts = raw.split(':::');
+        return {
+            introText: parts[0].trim() || fallbackIntro,
+            eventName: parts.slice(1).join(':::').trim() || "AWS Community Event"
+        };
+    }
+
+    return {
+        introText: fallbackIntro,
+        eventName: raw || "AWS Community Event"
+    };
+}
+
+/**
+ * Generates certificate PDF bytes.
+ */
+export const generateCertificatePDFBytes = async (certData) => {
+    if (!certData) return null;
+
+    // 1. Fetch template PDF (Blue template)
+    const templateFile = 'attendee_template_blue.pdf';
+    const response = await fetch(`/templates/${templateFile}`);
+    if (!response.ok) throw new Error(`Template not found: ${templateFile}`);
+    const existingPdfBytes = await response.arrayBuffer();
+
+    // 2. Load PDF
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+    const fontMonoBold = await pdfDoc.embedFont(StandardFonts.CourierBold);
+    const fontMono = await pdfDoc.embedFont(StandardFonts.Courier);
+    const pages = pdfDoc.getPages();
+    const firstPage = pages[0];
+    const { width, height } = firstPage.getSize();
+
+    // 3. Resolve Dynamic Text
+    const { introText, eventName: eventTitle } = parseCertificateEvent(certData);
+    const recipientName = (certData.recipient_name || "Recipient").toUpperCase();
+
+    // Right column horizontal center & width budget
+    const centerX = width * 0.75;
+    const maxTextWidth = width * 0.40;
+
+    // Dynamic prominent font-sizing for Recipient Name
+    let nameFontSize = 96;
+    if (recipientName.length > 28) {
+        nameFontSize = 64;
+    } else if (recipientName.length > 20) {
+        nameFontSize = 76;
+    } else if (recipientName.length > 14) {
+        nameFontSize = 86;
+    }
+
+    let nameTextWidth = fontMonoBold.widthOfTextAtSize(recipientName, nameFontSize);
+    while (nameTextWidth > maxTextWidth && nameFontSize > 36) {
+        nameFontSize -= 2;
+        nameTextWidth = fontMonoBold.widthOfTextAtSize(recipientName, nameFontSize);
+    }
+
+    // Dynamic prominent font-sizing for Intro Phrase
+    let introFontSize = 28;
+    if (introText.length > 40) {
+        introFontSize = 22;
+    } else if (introText.length > 30) {
+        introFontSize = 25;
+    }
+
+    let introTextWidth = fontMono.widthOfTextAtSize(introText, introFontSize);
+    while (introTextWidth > maxTextWidth && introFontSize > 16) {
+        introFontSize -= 1;
+        introTextWidth = fontMono.widthOfTextAtSize(introText, introFontSize);
+    }
+
+    // Dynamic prominent font-sizing for Event Title
+    let eventFontSize = 38;
+    if (eventTitle.length > 40) {
+        eventFontSize = 26;
+    } else if (eventTitle.length > 28) {
+        eventFontSize = 32;
+    }
+
+    let eventTextWidth = fontMonoBold.widthOfTextAtSize(eventTitle, eventFontSize);
+    while (eventTextWidth > maxTextWidth && eventFontSize > 18) {
+        eventFontSize -= 1;
+        eventTextWidth = fontMonoBold.widthOfTextAtSize(eventTitle, eventFontSize);
+    }
+
+    // Recipient Name - Bold White Monospace
+    firstPage.drawText(recipientName, {
+        x: centerX - nameTextWidth / 2,
+        y: height * 0.415,
+        size: nameFontSize,
+        font: fontMonoBold,
+        color: rgb(1, 1, 1),
+    });
+
+    // Custom Intro Text - Monospace Light White
+    firstPage.drawText(introText, {
+        x: centerX - introTextWidth / 2,
+        y: height * 0.330,
+        size: introFontSize,
+        font: fontMono,
+        color: rgb(0.9, 0.9, 0.9),
+    });
+
+    // Event Title - Bold White Monospace
+    firstPage.drawText(eventTitle, {
+        x: centerX - eventTextWidth / 2,
+        y: height * 0.285,
+        size: eventFontSize,
+        font: fontMonoBold,
+        color: rgb(1, 1, 1),
+    });
+
+    return await pdfDoc.save();
+};
+
+/**
+ * Generates a high-quality certificate PDF Blob.
+ */
+export const generateCertificatePDFBlob = async (certData) => {
+    const pdfBytes = await generateCertificatePDFBytes(certData);
+    return new Blob([pdfBytes], { type: 'application/pdf' });
+};
+
+/**
+ * Generates a high-quality certificate image (PNG Blob) by rendering onto high-res canvas.
+ */
+export const generateCertificateImageBlob = async (certData) => {
+    if (!certData) return null;
+
+    const { introText, eventName: eventTitle } = parseCertificateEvent(certData);
+    const recipientName = (certData.recipient_name || "Recipient").toUpperCase();
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 2475;
+    canvas.height = 1913;
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = '/templates/attendee_template_blue.jpg';
+
+    await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error('Failed to load certificate template image'));
+    });
+
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const centerX = canvas.width * 0.75;
+    const maxTextWidth = canvas.width * 0.40;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 1. Recipient Name
+    ctx.fillStyle = '#ffffff';
+    let nameSize = 96;
+    if (recipientName.length > 28) nameSize = 64;
+    else if (recipientName.length > 20) nameSize = 76;
+    else if (recipientName.length > 14) nameSize = 86;
+
+    ctx.font = `bold ${nameSize}px "Courier New", Courier, monospace`;
+    let nameWidth = ctx.measureText(recipientName).width;
+    while (nameWidth > maxTextWidth && nameSize > 36) {
+        nameSize -= 2;
+        ctx.font = `bold ${nameSize}px "Courier New", Courier, monospace`;
+        nameWidth = ctx.measureText(recipientName).width;
+    }
+    ctx.fillText(recipientName, centerX, canvas.height * 0.585);
+
+    // 2. Intro Text
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    let introSize = 28;
+    if (introText.length > 40) introSize = 22;
+    else if (introText.length > 30) introSize = 25;
+
+    ctx.font = `${introSize}px "Courier New", Courier, monospace`;
+    let introWidth = ctx.measureText(introText).width;
+    while (introWidth > maxTextWidth && introSize > 16) {
+        introSize -= 1;
+        ctx.font = `${introSize}px "Courier New", Courier, monospace`;
+        introWidth = ctx.measureText(introText).width;
+    }
+    ctx.fillText(introText, centerX, canvas.height * 0.670);
+
+    // 3. Event Title
+    ctx.fillStyle = '#ffffff';
+    let eventSize = 38;
+    if (eventTitle.length > 40) eventSize = 26;
+    else if (eventTitle.length > 28) eventSize = 32;
+
+    ctx.font = `bold ${eventSize}px "Courier New", Courier, monospace`;
+    let eventWidth = ctx.measureText(eventTitle).width;
+    while (eventWidth > maxTextWidth && eventSize > 18) {
+        eventSize -= 1;
+        ctx.font = `bold ${eventSize}px "Courier New", Courier, monospace`;
+        eventWidth = ctx.measureText(eventTitle).width;
+    }
+    ctx.fillText(eventTitle, centerX, canvas.height * 0.715);
+
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), 'image/png', 0.95);
+    });
+};
+
+/**
+ * Generates and downloads a high-quality certificate PDF.
  */
 export const generateCertificatePDF = async (certData) => {
     if (!certData) return;
 
     try {
-        // 1. Fetch the template PDF (Blue template)
-        const templateFile = 'attendee_template_blue.pdf';
-
-        const response = await fetch(`/templates/${templateFile}`);
-        if (!response.ok) throw new Error(`Template not found: ${templateFile}`);
-        const existingPdfBytes = await response.arrayBuffer();
-
-        // 2. Load the PDF
-        const pdfDoc = await PDFDocument.load(existingPdfBytes);
-        const fontMonoBold = await pdfDoc.embedFont(StandardFonts.CourierBold);
-        const fontMono = await pdfDoc.embedFont(StandardFonts.Courier);
-        const pages = pdfDoc.getPages();
-        const firstPage = pages[0];
-        const { width, height } = firstPage.getSize();
-
-        // 3. Draw Dynamic Text
-        const recipientName = (certData.recipient_name || "Recipient").toUpperCase();
-        const eventTitle = certData.event_name || certData.events?.title || "AWS Community Event";
-        const introText = certData.intro_text || certData.introText || certData.intro || "for successfully attending the";
-
-        // Horizontal center for right column (at 75% width)
-        const centerX = width * 0.75;
-        const maxTextWidth = width * 0.40; // 40% column width budget
-
-        // Dynamic font-sizing for Recipient Name (Monospace font - Larger prominent size)
-        let nameFontSize = 74;
-        if (recipientName.length > 25) {
-            nameFontSize = 48;
-        } else if (recipientName.length > 18) {
-            nameFontSize = 58;
-        } else if (recipientName.length > 12) {
-            nameFontSize = 66;
-        }
-
-        let nameTextWidth = fontMonoBold.widthOfTextAtSize(recipientName, nameFontSize);
-        while (nameTextWidth > maxTextWidth && nameFontSize > 22) {
-            nameFontSize -= 2;
-            nameTextWidth = fontMonoBold.widthOfTextAtSize(recipientName, nameFontSize);
-        }
-
-        // Dynamic font-sizing for Intro Phrase (Monospace font)
-        let introFontSize = 18;
-        if (introText.length > 35) {
-            introFontSize = 14;
-        } else if (introText.length > 25) {
-            introFontSize = 16;
-        }
-
-        let introTextWidth = fontMono.widthOfTextAtSize(introText, introFontSize);
-        while (introTextWidth > maxTextWidth && introFontSize > 10) {
-            introFontSize -= 1;
-            introTextWidth = fontMono.widthOfTextAtSize(introText, introFontSize);
-        }
-
-        // Dynamic font-sizing for Event Title (Monospace font - Smaller refined size)
-        let eventFontSize = 24;
-        if (eventTitle.length > 35) {
-            eventFontSize = 18;
-        } else if (eventTitle.length > 25) {
-            eventFontSize = 21;
-        }
-
-        let eventTextWidth = fontMonoBold.widthOfTextAtSize(eventTitle, eventFontSize);
-        while (eventTextWidth > maxTextWidth && eventFontSize > 14) {
-            eventFontSize -= 1;
-            eventTextWidth = fontMonoBold.widthOfTextAtSize(eventTitle, eventFontSize);
-        }
-
-        // Recipient Name - Crisp White Monospace (Centered below "Proudly present to")
-        firstPage.drawText(recipientName, {
-            x: centerX - nameTextWidth / 2,
-            y: height * 0.380,
-            size: nameFontSize,
-            font: fontMonoBold,
-            color: rgb(1, 1, 1),
-        });
-
-        // Custom Intro Text - Monospace Light White
-        firstPage.drawText(introText, {
-            x: centerX - introTextWidth / 2,
-            y: height * 0.315,
-            size: introFontSize,
-            font: fontMono,
-            color: rgb(0.9, 0.9, 0.9),
-        });
-
-        // Event Title - Crisp White Monospace Bold (Centered below intro phrase)
-        firstPage.drawText(eventTitle, {
-            x: centerX - eventTextWidth / 2,
-            y: height * 0.280,
-            size: eventFontSize,
-            font: fontMonoBold,
-            color: rgb(1, 1, 1),
-        });
-
-        // 4. Save and Download
-        const pdfBytes = await pdfDoc.save();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const blob = await generateCertificatePDFBlob(certData);
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -265,7 +396,7 @@ export const generateCertificatePDF = async (certData) => {
         link.click();
         URL.revokeObjectURL(url);
     } catch (err) {
-        console.error("Advanced PDF Generation failed:", err);
+        console.error("Certificate PDF Generation failed:", err);
         throw err;
     }
 };

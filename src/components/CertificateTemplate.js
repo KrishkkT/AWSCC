@@ -1,14 +1,17 @@
-"use client";
+import { parseCertificateEvent } from "@/utils/pdfGenerator";
 
 export default function CertificateTemplate({
     recipientName = "John Doe",
     eventName = "AWS Cloud Day",
-    introText = "for successfully attending the",
+    introText,
     date = new Date().toLocaleDateString(),
     type = "participation",
     certificateId = "CERT-12345"
 }) {
     const templateUrl = "/templates/attendee_template_blue.jpg";
+    const parsed = parseCertificateEvent(eventName, introText || "for successfully attending the");
+    const displayIntro = introText || parsed.introText || "for successfully attending the";
+    const displayEvent = parsed.eventName || eventName;
 
     return (
         <div className="w-full flex justify-center items-center py-2 bg-transparent">
@@ -61,7 +64,7 @@ export default function CertificateTemplate({
                                 fontSize: "clamp(6px, 1.05cqi, 11px)"
                             }}
                         >
-                            {introText || "for successfully attending the"}
+                            {displayIntro}
                         </p>
                         <p
                             className="text-white font-mono font-bold tracking-normal leading-snug drop-shadow-md text-center mt-0.5"
@@ -69,7 +72,7 @@ export default function CertificateTemplate({
                                 fontSize: "clamp(7px, 1.35cqi, 14px)"
                             }}
                         >
-                            {eventName}
+                            {displayEvent}
                         </p>
                     </div>
                 </div>
