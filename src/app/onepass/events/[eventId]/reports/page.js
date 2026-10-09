@@ -545,20 +545,29 @@ export default function ReportsExportPage() {
         }
     };
 
-    const handleDownloadSingle = async (type) => {
+    const handleDownloadSingle = async (type, format = 'csv', extraParams = {}) => {
+        const downloadKey = `${type}_${format}_${extraParams.trackId || extraParams.workshopId || 'all'}`;
         try {
-            setDownloading(type);
-            const res = await fetch(`/api/onepass/reports?eventId=${eventId}&type=${type}`);
-            if (!res.ok) throw new Error('Failed');
+            setDownloading(downloadKey);
+            let url = `/api/onepass/reports?eventId=${eventId}&type=${type}&format=${format}`;
+            if (extraParams.trackId) url += `&trackId=${extraParams.trackId}`;
+            if (extraParams.workshopId) url += `&workshopId=${extraParams.workshopId}`;
+
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Failed to generate report');
             const blob = await res.blob();
-            const url = window.URL.createObjectURL(blob);
+            const blobUrl = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `onepass_${type}_${Date.now()}.csv`;
+            a.href = blobUrl;
+            const ext = format === 'xlsx' ? 'xlsx' : 'csv';
+            let namePrefix = `onepass_${type}`;
+            if (extraParams.name) namePrefix = `${extraParams.name}_Attendees`;
+            a.download = `${namePrefix}_${Date.now()}.${ext}`;
             document.body.appendChild(a);
             a.click();
             a.remove();
         } catch (e) {
+            console.error(e);
             alert('Failed to download report');
         } finally {
             setDownloading(null);
@@ -566,17 +575,110 @@ export default function ReportsExportPage() {
     };
 
     const REPORTS = [
-        { type: 'checkedin',   title: '1. Checked-In Attendees Manifest',         icon: CheckCircle2, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',     desc: 'On-site verified attendee manifest with timestamps and counter numbers.' },
-        { type: 'tracks',      title: '2. Track Occupancy Report',                icon: Layers,       color: 'text-[#FF9900] bg-[#FF9900]/10 border-[#FF9900]/30',           desc: 'Track-wise attendee occupancy, capacities, and remaining seat counts.' },
-        { type: 'workshops',   title: '3. Workshop Assignments',                  icon: BookOpen,     color: 'text-purple-400 bg-purple-500/10 border-purple-500/30',        desc: 'Room assignments, speaker metadata, and hands-on lab enrollment rosters.' },
-        { type: 'food',        title: '4. Food & Meal Distribution',              icon: Coffee,       color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',           desc: 'Lunch and meal token distribution count per resource with timing windows.' },
-        { type: 'swag',        title: '5. Swag Kit Distribution & Stock',         icon: Award,        color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',     desc: 'Swag kit distribution numbers, remaining inventory, and pickup rates.' },
-        { type: 'counters',    title: '6. Badge Counter Distribution',            icon: Users,        color: 'text-[#4F8EF7] bg-[#0073BB]/10 border-[#0073BB]/30',           desc: 'Counter box 1..6 breakdown with pending and collected badge statistics.' },
-        { type: 'attribution', title: '7. Volunteer Attribution',                 icon: Users,        color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',           desc: 'Who checked in whom - volunteer names, roles, and check-in counts.' },
-        { type: 'attendees',   title: '8. Master Attendee Roster',                icon: Users,        color: 'text-blue-400 bg-blue-500/10 border-blue-500/30',             desc: 'Complete roster with IDs, QR codes, check-in statuses, and session allocations.' },
-        { type: 'claims',      title: '9. Item Claims Activity Ledger',           icon: FileText,     color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',             desc: 'Itemized claim log with attendee details, timestamps, and scanners.' },
-        { type: 'access',      title: '10. Gate Access Logs',                      icon: ShieldAlert,  color: 'text-rose-400 bg-rose-500/10 border-rose-500/30',             desc: 'Gate scans: GRANTED and DENIED attempts with volunteer scanners.' },
-        { type: 'audit',       title: '11. Audit & Governance Trail',             icon: ScrollText,   color: 'text-slate-300 bg-[#0C111D] border-[#1a2540]',              desc: 'Timestamped trail of all check-ins, overrides, claims, and state changes.' },
+        {
+            type: 'track_attendees',
+            title: '1. Track-wise Attendee Rosters',
+            icon: Layers,
+            color: 'text-[#FF9900] bg-[#FF9900]/10 border-[#FF9900]/30',
+            desc: 'Complete attendee rosters broken down per track with contact details, check-in status, and counter desk info (Excel workbook with tabs per track or CSV).',
+            supportsExcel: true
+        },
+        {
+            type: 'workshop_attendees',
+            title: '2. Workshop-wise Attendee Rosters',
+            icon: BookOpen,
+            color: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
+            desc: 'Hands-on lab attendee rosters broken down per workshop session with speaker details and enrollment check-in times.',
+            supportsExcel: true
+        },
+        {
+            type: 'checkedin',
+            title: '3. Checked-In Attendees Manifest',
+            icon: CheckCircle2,
+            color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+            desc: 'On-site verified attendee manifest with timestamps, counter numbers, and assigned track/workshop sessions.',
+            supportsExcel: true
+        },
+        {
+            type: 'attendees',
+            title: '4. Master Attendee Directory',
+            icon: Users,
+            color: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+            desc: 'Complete attendee registration database with IDs, QR codes, check-in statuses, and session allocations.',
+            supportsExcel: true
+        },
+        {
+            type: 'tracks',
+            title: '5. Track Occupancy Numbers',
+            icon: Layers,
+            color: 'text-[#FF9900] bg-[#FF9900]/10 border-[#FF9900]/30',
+            desc: 'Track-wise attendee occupancy, capacities, and remaining seat counts summary.',
+            supportsExcel: false
+        },
+        {
+            type: 'workshops',
+            title: '6. Workshop Capacity Numbers',
+            icon: BookOpen,
+            color: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
+            desc: 'Room assignments, speaker metadata, and hands-on lab capacity vs enrollment numbers.',
+            supportsExcel: false
+        },
+        {
+            type: 'food',
+            title: '7. Food & Meal Distribution',
+            icon: Coffee,
+            color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+            desc: 'Lunch and meal token distribution count per resource with timing windows.',
+            supportsExcel: false
+        },
+        {
+            type: 'swag',
+            title: '8. Swag Kit Distribution & Stock',
+            icon: Award,
+            color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+            desc: 'Swag kit distribution numbers, remaining inventory, and pickup rates.',
+            supportsExcel: false
+        },
+        {
+            type: 'counters',
+            title: '9. Badge Counter Distribution',
+            icon: Users,
+            color: 'text-[#4F8EF7] bg-[#0073BB]/10 border-[#0073BB]/30',
+            desc: 'Counter box 1..6 breakdown with pending and collected badge statistics.',
+            supportsExcel: false
+        },
+        {
+            type: 'attribution',
+            title: '10. Volunteer Attribution Leaderboard',
+            icon: Users,
+            color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+            desc: 'Who checked in whom - volunteer names, roles, and check-in counts.',
+            supportsExcel: false
+        },
+        {
+            type: 'claims',
+            title: '11. Item Claims Activity Ledger',
+            icon: FileText,
+            color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
+            desc: 'Itemized claim log with attendee details, timestamps, and scanners.',
+            supportsExcel: false
+        },
+        {
+            type: 'access',
+            title: '12. Gate Access Logs',
+            icon: ShieldAlert,
+            color: 'text-rose-400 bg-rose-500/10 border-rose-500/30',
+            desc: 'Gate scans: GRANTED and DENIED attempts with volunteer scanners.',
+            supportsExcel: false
+        },
+        {
+            type: 'audit',
+            title: '13. Audit & Governance Trail',
+            icon: ScrollText,
+            color: 'text-slate-300 bg-[#0C111D] border-[#1a2540]',
+            desc: 'Timestamped trail of all check-ins, overrides, claims, and state changes.',
+            supportsExcel: false
+        },
     ];
 
     const OBar = ({ n, max }) => {
@@ -800,88 +902,158 @@ function createAutoSyncTrigger() {
                             {/* Track-wise Attendance Table */}
                             {liveData.tracks.length > 0 && (
                                 <div className="p-5 bg-[#151c2e] border border-[#1a2540] rounded-3xl space-y-3 shadow-xl">
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <p className="text-xs font-mono font-bold uppercase text-[#FF9900] tracking-wider flex items-center gap-1.5">
                                             <Layers className="w-4 h-4 text-[#FF9900]" /> Track-wise Attendance &amp; Capacities
                                         </p>
-                                        <button
-                                            onClick={() => handleDownloadSingle('tracks')}
-                                            className="text-[11px] font-mono text-[#4F8EF7] hover:underline flex items-center gap-1"
-                                        >
-                                            <Download className="w-3 h-3" /> Export Tracks CSV
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleDownloadSingle('track_attendees', 'xlsx')}
+                                                className="px-2.5 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 rounded-lg text-[11px] font-mono flex items-center gap-1 transition"
+                                                title="Download multi-tab Excel file with dedicated sheets for each track"
+                                            >
+                                                <FileSpreadsheet className="w-3.5 h-3.5" /> All Tracks Excel (.xlsx)
+                                            </button>
+                                            <button
+                                                onClick={() => handleDownloadSingle('tracks', 'csv')}
+                                                className="text-[11px] font-mono text-slate-400 hover:text-white flex items-center gap-1 px-2 py-1 bg-[#0C111D] rounded-lg border border-[#1a2540]"
+                                                title="Export stats summary as CSV"
+                                            >
+                                                <Download className="w-3 h-3" /> Stats CSV
+                                            </button>
+                                        </div>
                                     </div>
-                                    <table className="w-full text-xs">
-                                        <thead>
-                                            <tr className="border-b border-[#1a2540] text-[10px] font-mono uppercase text-slate-400">
-                                                <th className="text-left pb-2">Track Name</th>
-                                                <th className="text-right pb-2">Capacity</th>
-                                                <th className="text-right pb-2">Checked-In</th>
-                                                <th className="text-right pb-2">Available</th>
-                                                <th className="text-left pl-4 pb-2 w-36">Occupancy</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-[#1a2540]">
-                                            {liveData.tracks.map(t => {
-                                                const n = liveData.checkedIn.filter(a => a.assigned_track_id === t.id).length;
-                                                const c = t.capacity || 150;
-                                                return (
-                                                    <tr key={t.id} className="hover:bg-[#0C111D]">
-                                                        <td className="py-2.5 font-semibold text-white">{t.name}</td>
-                                                        <td className="py-2.5 text-right font-mono text-slate-400">{c}</td>
-                                                        <td className="py-2.5 text-right font-mono font-bold text-emerald-400">{n}</td>
-                                                        <td className="py-2.5 text-right font-mono text-amber-400">{Math.max(0, c - n)}</td>
-                                                        <td className="py-2.5 pl-4"><OBar n={n} max={c} /></td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-xs min-w-[600px]">
+                                            <thead>
+                                                <tr className="border-b border-[#1a2540] text-[10px] font-mono uppercase text-slate-400">
+                                                    <th className="text-left pb-2">Track Name</th>
+                                                    <th className="text-right pb-2">Capacity</th>
+                                                    <th className="text-right pb-2">Checked-In</th>
+                                                    <th className="text-right pb-2">Available</th>
+                                                    <th className="text-left pl-4 pb-2 w-28">Occupancy</th>
+                                                    <th className="text-right pb-2 pl-4">Attendee Roster</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-[#1a2540]">
+                                                {liveData.tracks.map(t => {
+                                                    const n = liveData.checkedIn.filter(a => a.assigned_track_id === t.id).length;
+                                                    const c = t.capacity || 150;
+                                                    return (
+                                                        <tr key={t.id} className="hover:bg-[#0C111D]">
+                                                            <td className="py-2.5 font-semibold text-white">{t.name}</td>
+                                                            <td className="py-2.5 text-right font-mono text-slate-400">{c}</td>
+                                                            <td className="py-2.5 text-right font-mono font-bold text-emerald-400">{n}</td>
+                                                            <td className="py-2.5 text-right font-mono text-amber-400">{Math.max(0, c - n)}</td>
+                                                            <td className="py-2.5 pl-4"><OBar n={n} max={c} /></td>
+                                                            <td className="py-2.5 pl-4 text-right">
+                                                                <div className="inline-flex items-center gap-1.5">
+                                                                    <button
+                                                                        onClick={() => handleDownloadSingle('track_attendees', 'xlsx', { trackId: t.id, name: t.name })}
+                                                                        disabled={downloading === `track_attendees_xlsx_${t.id}`}
+                                                                        className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-mono font-bold flex items-center gap-1 transition"
+                                                                        title={`Download Excel file of attendees assigned to ${t.name}`}
+                                                                    >
+                                                                        <FileSpreadsheet className="w-3 h-3" />
+                                                                        <span>{downloading === `track_attendees_xlsx_${t.id}` ? '...' : 'Excel (.xlsx)'}</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleDownloadSingle('track_attendees', 'csv', { trackId: t.id, name: t.name })}
+                                                                        disabled={downloading === `track_attendees_csv_${t.id}`}
+                                                                        className="px-2 py-1 bg-[#0C111D] hover:bg-[#1a2540] text-slate-300 border border-[#1a2540] rounded text-[10px] font-mono flex items-center gap-1 transition"
+                                                                        title={`Download CSV of attendees assigned to ${t.name}`}
+                                                                    >
+                                                                        <Download className="w-3 h-3" />
+                                                                        <span>CSV</span>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             )}
 
                             {/* Workshop-wise Attendance Table */}
                             {liveData.workshops.length > 0 && (
                                 <div className="p-5 bg-[#151c2e] border border-[#1a2540] rounded-3xl space-y-3 shadow-xl">
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <p className="text-xs font-mono font-bold uppercase text-purple-400 tracking-wider flex items-center gap-1.5">
                                             <BookOpen className="w-4 h-4 text-purple-400" /> Workshop-wise Hands-On Labs
                                         </p>
-                                        <button
-                                            onClick={() => handleDownloadSingle('workshops')}
-                                            className="text-[11px] font-mono text-purple-300 hover:underline flex items-center gap-1"
-                                        >
-                                            <Download className="w-3 h-3" /> Export Workshops CSV
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleDownloadSingle('workshop_attendees', 'xlsx')}
+                                                className="px-2.5 py-1 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 rounded-lg text-[11px] font-mono flex items-center gap-1 transition"
+                                                title="Download multi-tab Excel file with dedicated sheets for each workshop"
+                                            >
+                                                <FileSpreadsheet className="w-3.5 h-3.5" /> All Workshops Excel (.xlsx)
+                                            </button>
+                                            <button
+                                                onClick={() => handleDownloadSingle('workshops', 'csv')}
+                                                className="text-[11px] font-mono text-slate-400 hover:text-white flex items-center gap-1 px-2 py-1 bg-[#0C111D] rounded-lg border border-[#1a2540]"
+                                                title="Export stats summary as CSV"
+                                            >
+                                                <Download className="w-3 h-3" /> Stats CSV
+                                            </button>
+                                        </div>
                                     </div>
-                                    <table className="w-full text-xs">
-                                        <thead>
-                                            <tr className="border-b border-[#1a2540] text-[10px] font-mono uppercase text-slate-400">
-                                                <th className="text-left pb-2">Workshop Name</th>
-                                                <th className="text-left pb-2">Speaker</th>
-                                                <th className="text-right pb-2">Capacity</th>
-                                                <th className="text-right pb-2">Enrolled</th>
-                                                <th className="text-right pb-2">Seats Left</th>
-                                                <th className="text-left pl-4 pb-2 w-36">Occupancy</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-[#1a2540]">
-                                            {liveData.workshops.map(w => {
-                                                const n = liveData.checkedIn.filter(a => a.assigned_workshop_id === w.id).length;
-                                                const c = w.capacity || 30;
-                                                return (
-                                                    <tr key={w.id} className="hover:bg-[#0C111D]">
-                                                        <td className="py-2.5 font-semibold text-white">{w.name}</td>
-                                                        <td className="py-2.5 text-slate-400 text-[10px] font-mono">{w.speaker || '—'}</td>
-                                                        <td className="py-2.5 text-right font-mono text-slate-400">{c}</td>
-                                                        <td className="py-2.5 text-right font-mono font-bold text-purple-400">{n}</td>
-                                                        <td className="py-2.5 text-right font-mono text-amber-400">{Math.max(0, c - n)}</td>
-                                                        <td className="py-2.5 pl-4"><OBar n={n} max={c} /></td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-xs min-w-[650px]">
+                                            <thead>
+                                                <tr className="border-b border-[#1a2540] text-[10px] font-mono uppercase text-slate-400">
+                                                    <th className="text-left pb-2">Workshop Name</th>
+                                                    <th className="text-left pb-2">Speaker</th>
+                                                    <th className="text-right pb-2">Capacity</th>
+                                                    <th className="text-right pb-2">Enrolled</th>
+                                                    <th className="text-right pb-2">Seats Left</th>
+                                                    <th className="text-left pl-4 pb-2 w-28">Occupancy</th>
+                                                    <th className="text-right pb-2 pl-4">Attendee Roster</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-[#1a2540]">
+                                                {liveData.workshops.map(w => {
+                                                    const n = liveData.checkedIn.filter(a => a.assigned_workshop_id === w.id).length;
+                                                    const c = w.capacity || 30;
+                                                    return (
+                                                        <tr key={w.id} className="hover:bg-[#0C111D]">
+                                                            <td className="py-2.5 font-semibold text-white">{w.name}</td>
+                                                            <td className="py-2.5 text-slate-400 text-[10px] font-mono">{w.speaker || '—'}</td>
+                                                            <td className="py-2.5 text-right font-mono text-slate-400">{c}</td>
+                                                            <td className="py-2.5 text-right font-mono font-bold text-purple-400">{n}</td>
+                                                            <td className="py-2.5 text-right font-mono text-amber-400">{Math.max(0, c - n)}</td>
+                                                            <td className="py-2.5 pl-4"><OBar n={n} max={c} /></td>
+                                                            <td className="py-2.5 pl-4 text-right">
+                                                                <div className="inline-flex items-center gap-1.5">
+                                                                    <button
+                                                                        onClick={() => handleDownloadSingle('workshop_attendees', 'xlsx', { workshopId: w.id, name: w.name })}
+                                                                        disabled={downloading === `workshop_attendees_xlsx_${w.id}`}
+                                                                        className="px-2 py-1 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 rounded text-[10px] font-mono font-bold flex items-center gap-1 transition"
+                                                                        title={`Download Excel file of attendees enrolled in ${w.name}`}
+                                                                    >
+                                                                        <FileSpreadsheet className="w-3 h-3" />
+                                                                        <span>{downloading === `workshop_attendees_xlsx_${w.id}` ? '...' : 'Excel (.xlsx)'}</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleDownloadSingle('workshop_attendees', 'csv', { workshopId: w.id, name: w.name })}
+                                                                        disabled={downloading === `workshop_attendees_csv_${w.id}`}
+                                                                        className="px-2 py-1 bg-[#0C111D] hover:bg-[#1a2540] text-slate-300 border border-[#1a2540] rounded text-[10px] font-mono flex items-center gap-1 transition"
+                                                                        title={`Download CSV of attendees enrolled in ${w.name}`}
+                                                                    >
+                                                                        <Download className="w-3 h-3" />
+                                                                        <span>CSV</span>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             )}
 
@@ -1010,7 +1182,9 @@ function createAutoSyncTrigger() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {REPORTS.map(r => {
                             const I = r.icon;
-                            const busy = downloading === r.type;
+                            const busyXlsx = downloading === `${r.type}_xlsx_all`;
+                            const busyCsv = downloading === `${r.type}_csv_all`;
+
                             return (
                                 <div key={r.type} className="p-6 bg-[#151c2e] border border-[#1a2540] rounded-3xl flex flex-col justify-between gap-4 shadow-xl">
                                     <div className="space-y-3">
@@ -1018,19 +1192,33 @@ function createAutoSyncTrigger() {
                                             <div className={`p-2.5 rounded-2xl border ${r.color}`}><I className="w-5 h-5" /></div>
                                             <div>
                                                 <h2 className="font-bold text-white text-sm">{r.title}</h2>
-                                                <span className="text-[10px] font-mono text-slate-400 uppercase">CSV / Excel Format</span>
+                                                <span className="text-[10px] font-mono text-slate-400 uppercase">
+                                                    {r.supportsExcel ? 'Excel (.xlsx) / CSV' : 'CSV Format'}
+                                                </span>
                                             </div>
                                         </div>
                                         <p className="text-xs text-slate-300">{r.desc}</p>
                                     </div>
-                                    <div className="pt-3 border-t border-[#1a2540] flex justify-end">
+                                    <div className="pt-3 border-t border-[#1a2540] flex items-center justify-end gap-2 flex-wrap">
+                                        {r.supportsExcel && (
+                                            <button
+                                                onClick={() => handleDownloadSingle(r.type, 'xlsx')}
+                                                disabled={busyXlsx}
+                                                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-semibold font-mono transition"
+                                                title="Download as Microsoft Excel Workbook (.xlsx)"
+                                            >
+                                                <FileSpreadsheet className="w-3.5 h-3.5" />
+                                                <span>{busyXlsx ? 'Generating...' : 'Excel (.xlsx)'}</span>
+                                            </button>
+                                        )}
                                         <button
-                                            onClick={() => handleDownloadSingle(r.type)}
-                                            disabled={busy}
-                                            className="flex items-center gap-2 px-4 py-2 bg-[#0C111D] hover:bg-[#0073BB] disabled:opacity-50 text-white rounded-xl text-xs font-semibold border border-[#1a2540] transition"
+                                            onClick={() => handleDownloadSingle(r.type, 'csv')}
+                                            disabled={busyCsv}
+                                            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#0C111D] hover:bg-[#0073BB] disabled:opacity-50 text-white rounded-xl text-xs font-semibold border border-[#1a2540] transition"
+                                            title="Download as CSV text file"
                                         >
                                             <Download className="w-3.5 h-3.5" />
-                                            {busy ? 'Generating...' : 'Download CSV'}
+                                            <span>{busyCsv ? 'Generating...' : 'Download CSV'}</span>
                                         </button>
                                     </div>
                                 </div>

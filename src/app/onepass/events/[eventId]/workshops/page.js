@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
     BookOpen, Camera, CheckCircle2, XCircle, AlertTriangle, Plus, Search,
-    RefreshCw, MapPin, Clock, User, Edit2, Trash2, X
+    RefreshCw, MapPin, Clock, User, Edit2, Trash2, X, Download, FileSpreadsheet
 } from 'lucide-react';
 import QRScannerModal from '@/components/onepass/QRScannerModal';
 import { useOnePass } from '@/components/onepass/OnePassContext';
@@ -19,6 +19,8 @@ export default function WorkshopsPage() {
     const [workshops, setWorkshops] = useState([]);
     const [selectedWorkshopId, setSelectedWorkshopId] = useState('');
     const [loading, setLoading] = useState(true);
+    const [downloadingWorkshopId, setDownloadingWorkshopId] = useState(null);
+    const [downloadingAll, setDownloadingAll] = useState(false);
 
     const [scannerOpen, setScannerOpen] = useState(false);
     const [manualCode, setManualCode] = useState('');
@@ -85,6 +87,51 @@ export default function WorkshopsPage() {
     useEffect(() => {
         fetchWorkshops();
     }, [eventId]);
+
+    const handleDownloadWorkshopAttendees = async (workshopId, workshopName, format = 'xlsx') => {
+        try {
+            setDownloadingWorkshopId(`${workshopId}_${format}`);
+            const res = await fetch(`/api/onepass/reports?eventId=${eventId}&type=workshop_attendees&workshopId=${workshopId}&format=${format}`);
+            if (!res.ok) throw new Error('Failed to export workshop attendees');
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const ext = format === 'xlsx' ? 'xlsx' : 'csv';
+            const cleanName = (workshopName || 'Workshop').replace(/[^a-zA-Z0-9_-]/g, '_');
+            a.download = `${cleanName}_Attendees_${Date.now()}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch (err) {
+            console.error(err);
+            alert('Failed to download workshop attendee file');
+        } finally {
+            setDownloadingWorkshopId(null);
+        }
+    };
+
+    const handleDownloadAllWorkshops = async (format = 'xlsx') => {
+        try {
+            setDownloadingAll(true);
+            const res = await fetch(`/api/onepass/reports?eventId=${eventId}&type=workshop_attendees&format=${format}`);
+            if (!res.ok) throw new Error('Failed to export all workshop attendees');
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const ext = format === 'xlsx' ? 'xlsx' : 'csv';
+            a.download = `All_Workshops_Attendees_Workbook_${Date.now()}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch (err) {
+            console.error(err);
+            alert('Failed to download all workshops workbook');
+        } finally {
+            setDownloadingAll(false);
+        }
+    };
 
     const lastScanRef = React.useRef({ code: '', time: 0 });
 
@@ -213,30 +260,68 @@ export default function WorkshopsPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-white tracking-tight">Workshops Access Gate</h1>
                     <p className="text-xs text-slate-400 mt-1">
-                        Scan attendees at workshop entrances to enforce seating capacity and eligibility.
+                        Scan attendees at workshop entrances, enforce room capacities, and export per-workshop attendee rosters.
                     </p>
                 </div>
 
-                {isAdmin && (
-                    <button
-                        onClick={() => setCreateModalOpen(true)}
-                        className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold shadow-md"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span>Add Workshop</span>
-                    </button>
-                )}
+                <div className="flex items-center gap-2 flex-wrap">
+                    {workshops.length > 0 && (
+                        <button
+                            onClick={() => handleDownloadAllWorkshops('xlsx')}
+                            disabled={downloadingAll}
+                            className="flex items-center space-x-1.5 px-3.5 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-md transition"
+                            title="Download multi-tab Excel file with dedicated sheets for each workshop"
+                        >
+                            <FileSpreadsheet className="w-4 h-4" />
+                            <span>{downloadingAll ? 'Exporting...' : 'Download All Workshops Excel'}</span>
+                        </button>
+                    )}
+
+                    {isAdmin && (
+                        <button
+                            onClick={() => setCreateModalOpen(true)}
+                            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold shadow-md"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>Add Workshop</span>
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Workshop Selector & Management Grid */}
             <div className="p-6 bg-[#151c2e] border border-[#1a2540] rounded-3xl space-y-4 shadow-xl">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <label className="text-xs font-mono uppercase text-slate-400 tracking-wider font-bold">
                         Select Workshop Room / Session
                     </label>
-                    <span className="text-[11px] font-mono text-purple-400">
-                        {currentWk ? currentWk.name : 'None Selected'}
-                    </span>
+                    <div className="flex items-center gap-3">
+                        {currentWk && (
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    onClick={() => handleDownloadWorkshopAttendees(currentWk.id, currentWk.name, 'xlsx')}
+                                    disabled={downloadingWorkshopId === `${currentWk.id}_xlsx`}
+                                    className="px-2.5 py-1 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 rounded-lg text-[11px] font-mono flex items-center gap-1 transition"
+                                    title="Download Excel file of attendees for this workshop"
+                                >
+                                    <Download className="w-3 h-3" />
+                                    <span>{downloadingWorkshopId === `${currentWk.id}_xlsx` ? 'Downloading...' : 'Export Excel (.xlsx)'}</span>
+                                </button>
+                                <button
+                                    onClick={() => handleDownloadWorkshopAttendees(currentWk.id, currentWk.name, 'csv')}
+                                    disabled={downloadingWorkshopId === `${currentWk.id}_csv`}
+                                    className="px-2.5 py-1 bg-[#1a2540] hover:bg-[#223050] border border-[#1a2540] text-slate-300 rounded-lg text-[11px] font-mono flex items-center gap-1 transition"
+                                    title="Download CSV file of attendees for this workshop"
+                                >
+                                    <Download className="w-3 h-3" />
+                                    <span>CSV</span>
+                                </button>
+                            </div>
+                        )}
+                        <span className="text-[11px] font-mono text-purple-400">
+                            {currentWk ? currentWk.name : 'None Selected'}
+                        </span>
+                    </div>
                 </div>
 
                 {workshops.length === 0 ? (
@@ -247,6 +332,9 @@ export default function WorkshopsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {workshops.map((w) => {
                             const isSelected = selectedWorkshopId === w.id;
+                            const isDownloadingXlsx = downloadingWorkshopId === `${w.id}_xlsx`;
+                            const isDownloadingCsv = downloadingWorkshopId === `${w.id}_csv`;
+
                             return (
                                 <div
                                     key={w.id}
@@ -268,36 +356,68 @@ export default function WorkshopsPage() {
                                         <div className="text-[11px] text-slate-400 line-clamp-2">{w.description || 'Hands-on lab session'}</div>
                                     </button>
 
-                                    <div className="flex items-center justify-between pt-2 border-t border-[#1a2540]/80">
-                                        <div className="text-[10px] font-mono text-slate-400">
-                                            {w.speaker ? `Speaker: ${w.speaker}` : ''} • {w.occupancy}/{w.capacity} seats
+                                    <div className="space-y-2 pt-2 border-t border-[#1a2540]/80">
+                                        <div className="flex items-center justify-between">
+                                            <div className="text-[10px] font-mono text-slate-400">
+                                                {w.speaker ? `Speaker: ${w.speaker}` : ''} • {w.occupancy}/{w.capacity} seats
+                                            </div>
+
+                                            {isAdmin && (
+                                                <div className="flex items-center space-x-1">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditingWorkshop(w);
+                                                            setEditModalOpen(true);
+                                                        }}
+                                                        className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-[#151c2e] transition"
+                                                        title="Edit Workshop"
+                                                    >
+                                                        <Edit2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteWorkshop(w.id, w.name);
+                                                        }}
+                                                        className="p-1.5 text-slate-400 hover:text-red-400 rounded-lg hover:bg-[#151c2e] transition"
+                                                        title="Delete Workshop"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        {isAdmin && (
-                                            <div className="flex items-center space-x-1">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setEditingWorkshop(w);
-                                                        setEditModalOpen(true);
-                                                    }}
-                                                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-[#151c2e] transition"
-                                                    title="Edit Workshop"
-                                                >
-                                                    <Edit2 className="w-3.5 h-3.5" />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeleteWorkshop(w.id, w.name);
-                                                    }}
-                                                    className="p-1.5 text-slate-400 hover:text-red-400 rounded-lg hover:bg-[#151c2e] transition"
-                                                    title="Delete Workshop"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
-                                        )}
+                                        {/* Download attendee file for this workshop */}
+                                        <div className="flex items-center gap-1.5 pt-1 border-t border-[#1a2540]/50">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDownloadWorkshopAttendees(w.id, w.name, 'xlsx');
+                                                }}
+                                                disabled={isDownloadingXlsx}
+                                                className="flex-1 py-1.5 px-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-lg text-[10px] font-mono font-bold flex items-center justify-center gap-1 transition"
+                                                title="Download Excel spreadsheet of attendees for this workshop"
+                                            >
+                                                <FileSpreadsheet className="w-3 h-3" />
+                                                <span>{isDownloadingXlsx ? '...' : 'Excel (.xlsx)'}</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDownloadWorkshopAttendees(w.id, w.name, 'csv');
+                                                }}
+                                                disabled={isDownloadingCsv}
+                                                className="py-1.5 px-2.5 bg-[#151c2e] hover:bg-[#202b44] text-slate-300 border border-[#1a2540] rounded-lg text-[10px] font-mono flex items-center justify-center gap-1 transition"
+                                                title="Download CSV of attendees for this workshop"
+                                            >
+                                                <Download className="w-3 h-3" />
+                                                <span>CSV</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             );

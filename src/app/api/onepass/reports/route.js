@@ -63,7 +63,9 @@ export async function GET(req) {
         const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
         const eventSafeName = (event.name || 'Event').replace(/\s+/g, '_');
 
-        // Helper functions to build clean datasets
+        // ═══════════════════════════════════════════════════════════════════
+        // HELPER FUNCTIONS FOR DETAILED DATASETS
+        // ═══════════════════════════════════════════════════════════════════
         const getMasterAttendeeRows = () => attendees.map((a, idx) => {
             const trk = tracks.find(t => t.id === a.assigned_track_id);
             const wk = workshops.find(w => w.id === a.assigned_workshop_id);
@@ -109,8 +111,9 @@ export async function GET(req) {
             });
         };
 
-        const getTrackRows = () => tracks.map((t, idx) => {
+        const getTrackSummaryRows = () => tracks.map((t, idx) => {
             const occ = attendees.filter(a => a.check_in_status === 'CHECKED_IN' && a.assigned_track_id === t.id).length;
+            const assignedTotal = attendees.filter(a => a.assigned_track_id === t.id).length;
             const cap = t.capacity || 150;
             const rate = cap > 0 ? ((occ / cap) * 100).toFixed(1) : '0.0';
             return {
@@ -118,6 +121,7 @@ export async function GET(req) {
                 'Track Name': t.name || '',
                 'Description': t.description || '',
                 'Maximum Capacity': cap,
+                'Total Assigned': assignedTotal,
                 'Checked-In Occupancy': occ,
                 'Remaining Available Seats': Math.max(0, cap - occ),
                 'Occupancy Rate': `${rate}%`,
@@ -125,8 +129,36 @@ export async function GET(req) {
             };
         });
 
-        const getWorkshopRows = () => workshops.map((w, idx) => {
+        const getTrackAttendeeRows = (specificTrackId = null) => {
+            let filtered = attendees;
+            if (specificTrackId) {
+                filtered = attendees.filter(a => a.assigned_track_id === specificTrackId);
+            } else {
+                filtered = attendees.filter(a => !!a.assigned_track_id);
+            }
+            return filtered.map((a, idx) => {
+                const trk = tracks.find(t => t.id === a.assigned_track_id);
+                return {
+                    'S.No': idx + 1,
+                    'Attendee Name': a.name || '',
+                    'Email Address': a.email || '',
+                    'Phone Number': a.phone || '',
+                    'Ticket Type': a.ticket_type || 'Attendee',
+                    'Booking ID': a.booking_id || '',
+                    'QR Identifier': a.qr_identifier || '',
+                    'Badge Counter': a.counter || 'Unassigned',
+                    'Counter Box #': a.counter_number || '',
+                    'Assigned Track': trk ? trk.name : (a.assigned_track_id || 'None'),
+                    'Check-in Status': a.check_in_status || 'NOT_CHECKED_IN',
+                    'Check-in Time': a.check_in_time ? new Date(a.check_in_time).toLocaleString() : 'Not Checked In',
+                    'Checked In By': a.checked_in_by_name || 'N/A'
+                };
+            });
+        };
+
+        const getWorkshopSummaryRows = () => workshops.map((w, idx) => {
             const occ = attendees.filter(a => a.check_in_status === 'CHECKED_IN' && a.assigned_workshop_id === w.id).length;
+            const assignedTotal = attendees.filter(a => a.assigned_workshop_id === w.id).length;
             const cap = w.capacity || 30;
             const rate = cap > 0 ? ((occ / cap) * 100).toFixed(1) : '0.0';
             return {
@@ -136,12 +168,42 @@ export async function GET(req) {
                 'Location / Room': w.location || w.venue || '',
                 'Timing Window': `${w.start_time || ''} - ${w.end_time || ''}`,
                 'Maximum Capacity': cap,
-                'Enrolled Occupancy': occ,
+                'Total Enrolled': assignedTotal,
+                'Checked-In Occupancy': occ,
                 'Remaining Seats': Math.max(0, cap - occ),
                 'Occupancy Rate': `${rate}%`,
                 'Status': occ >= cap ? 'FULL' : 'OPEN'
             };
         });
+
+        const getWorkshopAttendeeRows = (specificWorkshopId = null) => {
+            let filtered = attendees;
+            if (specificWorkshopId) {
+                filtered = attendees.filter(a => a.assigned_workshop_id === specificWorkshopId);
+            } else {
+                filtered = attendees.filter(a => !!a.assigned_workshop_id);
+            }
+            return filtered.map((a, idx) => {
+                const wk = workshops.find(w => w.id === a.assigned_workshop_id);
+                return {
+                    'S.No': idx + 1,
+                    'Attendee Name': a.name || '',
+                    'Email Address': a.email || '',
+                    'Phone Number': a.phone || '',
+                    'Ticket Type': a.ticket_type || 'Attendee',
+                    'Booking ID': a.booking_id || '',
+                    'QR Identifier': a.qr_identifier || '',
+                    'Badge Counter': a.counter || 'Unassigned',
+                    'Counter Box #': a.counter_number || '',
+                    'Workshop Name': wk ? wk.name : (a.assigned_workshop_id || 'None'),
+                    'Speaker': wk ? (wk.speaker || '') : '',
+                    'Location / Hall': wk ? (wk.location || wk.venue || '') : '',
+                    'Check-in Status': a.check_in_status || 'NOT_CHECKED_IN',
+                    'Check-in Time': a.check_in_time ? new Date(a.check_in_time).toLocaleString() : 'Not Checked In',
+                    'Checked In By': a.checked_in_by_name || 'N/A'
+                };
+            });
+        };
 
         const getFoodRows = () => foodResources.map((r, idx) => {
             const claims = claimsList.filter(c => c.resource_id === r.id).length;
@@ -247,7 +309,190 @@ export async function GET(req) {
         });
 
         // ═══════════════════════════════════════════════════════════════════
-        // MULTI-TAB EXCEL WORKBOOK GENERATOR (.xlsx)
+        // EXCEL SHEET UTILITIES
+        // ═══════════════════════════════════════════════════════════════════
+        const sanitizeSheetName = (name, fallback) => {
+            let clean = (name || fallback || 'Sheet').replace(/[:\\/?*\[\]]/g, '_').trim();
+            if (clean.length > 28) clean = clean.substring(0, 28);
+            return clean || fallback || 'Sheet';
+        };
+
+        const autoFitColumns = (data) => {
+            if (!data || data.length === 0) return [];
+            const keys = Object.keys(data[0]);
+            return keys.map(key => {
+                let maxLen = key.length;
+                for (let i = 0; i < Math.min(data.length, 100); i++) {
+                    const val = data[i][key];
+                    if (val != null) {
+                        const len = String(val).length;
+                        if (len > maxLen) maxLen = len;
+                    }
+                }
+                return { wch: Math.min(Math.max(maxLen + 3, 10), 45) };
+            });
+        };
+
+        const addSheetToWorkbook = (wb, sheetName, data) => {
+            const cleanData = data && data.length > 0 ? data : [{ 'Notice': `No records available for ${sheetName}` }];
+            const ws = XLSX.utils.json_to_sheet(cleanData);
+            ws['!cols'] = autoFitColumns(cleanData);
+            XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(sheetName, 'Sheet'));
+        };
+
+        const targetTrackId = searchParams.get('trackId') || searchParams.get('track_id');
+        const targetWorkshopId = searchParams.get('workshopId') || searchParams.get('workshop_id');
+
+        // ═══════════════════════════════════════════════════════════════════
+        // 1. SPECIFIC / MULTI-TRACK ATTENDEE EXCEL OR CSV EXPORT
+        // ═══════════════════════════════════════════════════════════════════
+        if (reportType === 'track_attendees' || reportType === 'tracks_attendees' || reportType === 'per_track_workbook') {
+            if (targetTrackId) {
+                const targetTrack = tracks.find(t => t.id === targetTrackId);
+                const trackName = targetTrack ? targetTrack.name : 'Track';
+                const trackSafeName = trackName.replace(/[^a-zA-Z0-9_-]/g, '_');
+                const trackData = getTrackAttendeeRows(targetTrackId);
+
+                if (format === 'xlsx') {
+                    const wb = XLSX.utils.book_new();
+                    addSheetToWorkbook(wb, trackName, trackData);
+                    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+                    const filename = `${eventSafeName}_${trackSafeName}_Attendees_${timestampStr}.xlsx`;
+                    return new Response(buffer, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'Content-Disposition': `attachment; filename="${filename}"`,
+                            'Cache-Control': 'no-store, max-age=0'
+                        }
+                    });
+                } else {
+                    const csvString = Papa.unparse(trackData.length > 0 ? trackData : [{ 'Notice': `No attendees assigned to track ${trackName}` }], { quotes: true, header: true });
+                    const filename = `${eventSafeName}_${trackSafeName}_Attendees_${timestampStr}.csv`;
+                    return new Response(csvString, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'text/csv; charset=utf-8',
+                            'Content-Disposition': `attachment; filename="${filename}"`,
+                            'Cache-Control': 'no-store, max-age=0'
+                        }
+                    });
+                }
+            } else {
+                // All Tracks Multi-Tab Excel Workbook or Combined CSV
+                if (format === 'xlsx' || reportType === 'per_track_workbook') {
+                    const wb = XLSX.utils.book_new();
+                    addSheetToWorkbook(wb, 'Tracks Overview', getTrackSummaryRows());
+                    addSheetToWorkbook(wb, 'All Track Attendees', getTrackAttendeeRows());
+
+                    // Add a dedicated tab for each track
+                    tracks.forEach(t => {
+                        const tAttendees = getTrackAttendeeRows(t.id);
+                        addSheetToWorkbook(wb, t.name, tAttendees);
+                    });
+
+                    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+                    const filename = `${eventSafeName}_Track_Wise_Attendees_${timestampStr}.xlsx`;
+                    return new Response(buffer, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'Content-Disposition': `attachment; filename="${filename}"`,
+                            'Cache-Control': 'no-store, max-age=0'
+                        }
+                    });
+                } else {
+                    const trackData = getTrackAttendeeRows();
+                    const csvString = Papa.unparse(trackData.length > 0 ? trackData : [{ 'Notice': 'No attendees assigned to tracks' }], { quotes: true, header: true });
+                    const filename = `${eventSafeName}_All_Track_Attendees_${timestampStr}.csv`;
+                    return new Response(csvString, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'text/csv; charset=utf-8',
+                            'Content-Disposition': `attachment; filename="${filename}"`,
+                            'Cache-Control': 'no-store, max-age=0'
+                        }
+                    });
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // 2. SPECIFIC / MULTI-WORKSHOP ATTENDEE EXCEL OR CSV EXPORT
+        // ═══════════════════════════════════════════════════════════════════
+        if (reportType === 'workshop_attendees' || reportType === 'workshops_attendees' || reportType === 'per_workshop_workbook') {
+            if (targetWorkshopId) {
+                const targetWk = workshops.find(w => w.id === targetWorkshopId);
+                const wkName = targetWk ? targetWk.name : 'Workshop';
+                const wkSafeName = wkName.replace(/[^a-zA-Z0-9_-]/g, '_');
+                const wkData = getWorkshopAttendeeRows(targetWorkshopId);
+
+                if (format === 'xlsx') {
+                    const wb = XLSX.utils.book_new();
+                    addSheetToWorkbook(wb, wkName, wkData);
+                    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+                    const filename = `${eventSafeName}_${wkSafeName}_Attendees_${timestampStr}.xlsx`;
+                    return new Response(buffer, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'Content-Disposition': `attachment; filename="${filename}"`,
+                            'Cache-Control': 'no-store, max-age=0'
+                        }
+                    });
+                } else {
+                    const csvString = Papa.unparse(wkData.length > 0 ? wkData : [{ 'Notice': `No attendees enrolled in workshop ${wkName}` }], { quotes: true, header: true });
+                    const filename = `${eventSafeName}_${wkSafeName}_Attendees_${timestampStr}.csv`;
+                    return new Response(csvString, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'text/csv; charset=utf-8',
+                            'Content-Disposition': `attachment; filename="${filename}"`,
+                            'Cache-Control': 'no-store, max-age=0'
+                        }
+                    });
+                }
+            } else {
+                // All Workshops Multi-Tab Excel Workbook or Combined CSV
+                if (format === 'xlsx' || reportType === 'per_workshop_workbook') {
+                    const wb = XLSX.utils.book_new();
+                    addSheetToWorkbook(wb, 'Workshops Overview', getWorkshopSummaryRows());
+                    addSheetToWorkbook(wb, 'All Workshop Attendees', getWorkshopAttendeeRows());
+
+                    // Add a dedicated tab for each workshop
+                    workshops.forEach(w => {
+                        const wAttendees = getWorkshopAttendeeRows(w.id);
+                        addSheetToWorkbook(wb, w.name, wAttendees);
+                    });
+
+                    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+                    const filename = `${eventSafeName}_Workshop_Wise_Attendees_${timestampStr}.xlsx`;
+                    return new Response(buffer, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'Content-Disposition': `attachment; filename="${filename}"`,
+                            'Cache-Control': 'no-store, max-age=0'
+                        }
+                    });
+                } else {
+                    const wkData = getWorkshopAttendeeRows();
+                    const csvString = Papa.unparse(wkData.length > 0 ? wkData : [{ 'Notice': 'No attendees enrolled in workshops' }], { quotes: true, header: true });
+                    const filename = `${eventSafeName}_All_Workshop_Attendees_${timestampStr}.csv`;
+                    return new Response(csvString, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'text/csv; charset=utf-8',
+                            'Content-Disposition': `attachment; filename="${filename}"`,
+                            'Cache-Control': 'no-store, max-age=0'
+                        }
+                    });
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // 3. MULTI-TAB MASTER EXCEL WORKBOOK GENERATOR (.xlsx)
         // ═══════════════════════════════════════════════════════════════════
         if (format === 'xlsx' || reportType === 'master' || reportType === 'workbook') {
             const wb = XLSX.utils.book_new();
@@ -276,22 +521,34 @@ export async function GET(req) {
                 { 'Metric': 'Active Volunteers', 'Value': volunteersList.length }
             ];
 
-            const addSheet = (sheetName, data) => {
-                const cleanData = data && data.length > 0 ? data : [{ 'Notice': `No records available for ${sheetName}` }];
-                const ws = XLSX.utils.json_to_sheet(cleanData);
-                XLSX.utils.book_append_sheet(wb, ws, sheetName);
-            };
+            addSheetToWorkbook(wb, 'Overview Summary', summaryData);
+            addSheetToWorkbook(wb, 'Checked-In Attendees', getCheckedInRows());
+            addSheetToWorkbook(wb, 'Tracks Attendance Stats', getTrackSummaryRows());
+            addSheetToWorkbook(wb, 'Track Attendees Roster', getTrackAttendeeRows());
+            addSheetToWorkbook(wb, 'Workshops Attendance Stats', getWorkshopSummaryRows());
+            addSheetToWorkbook(wb, 'Workshop Attendees Roster', getWorkshopAttendeeRows());
+            addSheetToWorkbook(wb, 'Lunch Distribution', getFoodRows());
+            addSheetToWorkbook(wb, 'Swag Distribution', getSwagRows());
+            addSheetToWorkbook(wb, 'Badge Counters', getCounterRows());
+            addSheetToWorkbook(wb, 'Volunteer Attribution', getVolunteerRows());
+            addSheetToWorkbook(wb, 'Master Attendees Roster', getMasterAttendeeRows());
+            addSheetToWorkbook(wb, 'Claims Ledger', getClaimsRows());
 
-            addSheet('Overview Summary', summaryData);
-            addSheet('Checked-In Attendees', getCheckedInRows());
-            addSheet('Tracks Attendance', getTrackRows());
-            addSheet('Workshops Attendance', getWorkshopRows());
-            addSheet('Lunch Distribution', getFoodRows());
-            addSheet('Swag Distribution', getSwagRows());
-            addSheet('Badge Counters', getCounterRows());
-            addSheet('Volunteer Attribution', getVolunteerRows());
-            addSheet('Master Attendees Roster', getMasterAttendeeRows());
-            addSheet('Claims Ledger', getClaimsRows());
+            // Add dedicated per-track attendee tabs
+            tracks.forEach(t => {
+                const tAttendees = getTrackAttendeeRows(t.id);
+                if (tAttendees.length > 0) {
+                    addSheetToWorkbook(wb, `Track - ${t.name}`, tAttendees);
+                }
+            });
+
+            // Add dedicated per-workshop attendee tabs
+            workshops.forEach(w => {
+                const wAttendees = getWorkshopAttendeeRows(w.id);
+                if (wAttendees.length > 0) {
+                    addSheetToWorkbook(wb, `Lab - ${w.name}`, wAttendees);
+                }
+            });
 
             const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
             const xlsxFilename = `${eventSafeName}_Master_Report_${timestampStr}.xlsx`;
@@ -307,15 +564,15 @@ export async function GET(req) {
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // SINGLE CSV EXPORT
+        // 4. SINGLE CSV EXPORT
         // ═══════════════════════════════════════════════════════════════════
         let csvData = [];
         let filename = `${eventSafeName}_${reportType}_${timestampStr}.csv`;
 
         if (reportType === 'attendees') csvData = getMasterAttendeeRows();
         else if (reportType === 'checkedin') csvData = getCheckedInRows();
-        else if (reportType === 'tracks') csvData = getTrackRows();
-        else if (reportType === 'workshops') csvData = getWorkshopRows();
+        else if (reportType === 'tracks') csvData = getTrackSummaryRows();
+        else if (reportType === 'workshops') csvData = getWorkshopSummaryRows();
         else if (reportType === 'food') csvData = getFoodRows();
         else if (reportType === 'swag') csvData = getSwagRows();
         else if (reportType === 'counters') csvData = getCounterRows();
