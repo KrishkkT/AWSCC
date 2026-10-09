@@ -40,12 +40,19 @@ export default function AdminCertificates() {
     const [useCustomEvent, setUseCustomEvent] = useState(false);
     const certificateRef = useRef(null);
 
-    // Global layout state for certificate typography and vertical positioning
+    // Global layout state for certificate typography and vertical positioning (defaults to Photo 1: 85% Name, 57% Y)
     const [certLayout, setCertLayout] = useState(() => {
         if (typeof window !== 'undefined') {
             try {
                 const saved = localStorage.getItem('awscc_cert_layout');
-                if (saved) return { ...DEFAULT_CERT_LAYOUT, ...JSON.parse(saved) };
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    // Discard stale 100% nameSize default
+                    if (parsed.nameSize === 100 && (parsed.nameY === 56.5 || parsed.nameY === 56)) {
+                        return DEFAULT_CERT_LAYOUT;
+                    }
+                    return { ...DEFAULT_CERT_LAYOUT, ...parsed };
+                }
             } catch (e) {
                 console.warn("Could not load saved certificate layout:", e);
             }
@@ -81,15 +88,15 @@ export default function AdminCertificates() {
         setCertLayout(DEFAULT_CERT_LAYOUT);
         setPreviewLayout(DEFAULT_CERT_LAYOUT);
         if (typeof window !== 'undefined') {
-            localStorage.removeItem('awscc_cert_layout');
+            localStorage.setItem('awscc_cert_layout', JSON.stringify(DEFAULT_CERT_LAYOUT));
         }
-        setFeedback({ message: "Layout reset to default standard values.", type: "info" });
+        setFeedback({ message: "Layout reset to default (85% name size, 57% Y).", type: "info" });
     };
 
     const applyLayoutPreset = (presetName, targetSetter = setCertLayout) => {
         let preset = { ...DEFAULT_CERT_LAYOUT };
         if (presetName === 'compact') {
-            // Optimized for long recipient names and 2-line intro/title
+            // Photo 1 exact parameters: 85% name, 57% Y, 100% intro 64.5% Y, 100% title 70.5% Y
             preset = {
                 nameSize: 85,
                 nameY: 57.0,
@@ -100,15 +107,15 @@ export default function AdminCertificates() {
             };
         } else if (presetName === 'standard' || presetName === 'default') {
             preset = {
-                nameSize: 90,
-                nameY: 56.5,
+                nameSize: 85,
+                nameY: 57.0,
                 introSize: 100,
                 introY: 64.5,
                 titleSize: 100,
                 titleY: 70.5
             };
         } else if (presetName === 'longText' || presetName === 'multiline') {
-            // Extra breathing room for lengthy workshop titles
+            // Extra breathing room for very lengthy workshop titles
             preset = {
                 nameSize: 80,
                 nameY: 55.0,
@@ -460,14 +467,22 @@ export default function AdminCertificates() {
                     <button
                         type="button"
                         onClick={() => applyLayoutPreset('standard', targetSetter)}
-                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-white transition-all"
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                            layoutState.nameSize === 85 && layoutState.nameY === 57.0 && layoutState.introSize === 100
+                                ? 'bg-brand-cyan/20 border border-brand-cyan text-brand-cyan shadow-[0_0_10px_rgba(0,194,255,0.2)]'
+                                : 'bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white'
+                        }`}
                     >
                         Standard
                     </button>
                     <button
                         type="button"
                         onClick={() => applyLayoutPreset('compact', targetSetter)}
-                        className="px-2.5 py-1 rounded-lg bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/30 text-[10px] font-bold text-brand-cyan transition-all"
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                            layoutState.nameSize === 85 && layoutState.nameY === 57.0 && layoutState.introSize === 100
+                                ? 'bg-brand-cyan/20 border border-brand-cyan text-brand-cyan shadow-[0_0_10px_rgba(0,194,255,0.2)]'
+                                : 'bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white'
+                        }`}
                         title="Best for 2-line names or 2-line titles"
                     >
                         Compact
@@ -475,7 +490,11 @@ export default function AdminCertificates() {
                     <button
                         type="button"
                         onClick={() => applyLayoutPreset('multiline', targetSetter)}
-                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-white transition-all"
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                            layoutState.nameSize === 80 && layoutState.nameY === 55.0
+                                ? 'bg-brand-cyan/20 border border-brand-cyan text-brand-cyan shadow-[0_0_10px_rgba(0,194,255,0.2)]'
+                                : 'bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white'
+                        }`}
                     >
                         Long Text
                     </button>
@@ -483,7 +502,7 @@ export default function AdminCertificates() {
                         type="button"
                         onClick={() => targetSetter(DEFAULT_CERT_LAYOUT)}
                         className="p-1 text-white/40 hover:text-white transition-colors"
-                        title="Reset to default"
+                        title="Reset to default (85% name size, 57% Y)"
                     >
                         <RotateCcw size={13} />
                     </button>
