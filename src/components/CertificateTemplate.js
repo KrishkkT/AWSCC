@@ -16,14 +16,14 @@ export default function CertificateTemplate({
         : (introText || parsed.introText || "for successfully attending the");
     const displayEvent = parsed.eventName || (typeof eventName === 'string' && eventName.includes(':::') ? eventName.split(':::').slice(1).join(':::').trim() : eventName);
 
-    // Merge layout configuration with defaults
+    // Merge layout configuration with defaults (and parsed layout from certificate metadata)
     const activeLayout = {
-        nameSize: layout?.nameSize ?? DEFAULT_CERT_LAYOUT.nameSize,
-        nameY: layout?.nameY ?? DEFAULT_CERT_LAYOUT.nameY,
-        introSize: layout?.introSize ?? DEFAULT_CERT_LAYOUT.introSize,
-        introY: layout?.introY ?? DEFAULT_CERT_LAYOUT.introY,
-        titleSize: layout?.titleSize ?? DEFAULT_CERT_LAYOUT.titleSize,
-        titleY: layout?.titleY ?? DEFAULT_CERT_LAYOUT.titleY
+        nameSize: layout?.nameSize ?? parsed.layout?.nameSize ?? DEFAULT_CERT_LAYOUT.nameSize,
+        nameY: layout?.nameY ?? parsed.layout?.nameY ?? DEFAULT_CERT_LAYOUT.nameY,
+        introSize: layout?.introSize ?? parsed.layout?.introSize ?? DEFAULT_CERT_LAYOUT.introSize,
+        introY: layout?.introY ?? parsed.layout?.introY ?? DEFAULT_CERT_LAYOUT.introY,
+        titleSize: layout?.titleSize ?? parsed.layout?.titleSize ?? DEFAULT_CERT_LAYOUT.titleSize,
+        titleY: layout?.titleY ?? parsed.layout?.titleY ?? DEFAULT_CERT_LAYOUT.titleY
     };
 
     return (

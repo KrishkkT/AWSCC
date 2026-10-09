@@ -6,7 +6,7 @@ export const maxDuration = 300; // Allow sufficient execution time for large bat
 export async function POST(req) {
     try {
         const supabase = await createClient();
-        const { eventId, customEventTitle, introText, recipients } = await req.json();
+        const { eventId, customEventTitle, introText, layout, recipients } = await req.json();
 
         if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
             return new Response(JSON.stringify({ error: "Invalid request. Non-empty recipients array is required." }), { status: 400 });
@@ -45,9 +45,15 @@ export async function POST(req) {
         }
 
         const defaultIntro = (introText && introText.trim()) || "for successfully attending the";
-        const storedEventName = eventName.includes(':::')
-            ? eventName
-            : (defaultIntro !== "for successfully attending the" ? `${defaultIntro}:::${eventName}` : eventName);
+        const layoutStr = (layout && typeof layout === 'object') ? JSON.stringify(layout) : '';
+        let storedEventName = eventName;
+        if (!eventName.includes(':::')) {
+            storedEventName = layoutStr 
+                ? `${defaultIntro}:::${eventName}:::${layoutStr}`
+                : (defaultIntro !== "for successfully attending the" ? `${defaultIntro}:::${eventName}` : eventName);
+        } else if (layoutStr && !eventName.endsWith('}')) {
+            storedEventName = `${eventName}:::${layoutStr}`;
+        }
 
         // 3. Prepare Data for Insertion
         const allCertData = recipients.map(item => ({
@@ -82,11 +88,17 @@ export async function POST(req) {
         }
 
         // 5. Dispatch Nodemailer Batch with 200ms interval between sends (pooled)
-        const cleanEventName = storedEventName.includes(':::') ? storedEventName.split(':::').slice(1).join(':::').trim() : storedEventName;
+        let cleanEventName = storedEventName;
+        if (storedEventName.includes(':::')) {
+            const parts = storedEventName.split(':::');
+            cleanEventName = (parts.length >= 3 && parts[parts.length - 1].trim().startsWith('{'))
+                ? parts.slice(1, parts.length - 1).join(':::').trim()
+                : parts.slice(1).join(':::').trim();
+        }
         const emailItems = insertedCertificates.map(cert => ({
             name: cert.recipient_name,
             email: cert.recipient_email,
-            eventName: cleanEventName,
+            eventName: cleanEventName || 'AWS Community Event',
             certId: cert.id
         }));
 

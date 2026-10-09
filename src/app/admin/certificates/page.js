@@ -92,30 +92,29 @@ export default function AdminCertificates() {
             // Optimized for long recipient names and 2-line intro/title
             preset = {
                 nameSize: 85,
-                nameY: 55.0,
-                introSize: 85,
-                introY: 64.0,
-                titleSize: 90,
-                titleY: 71.0
-            };
-        } else if (presetName === 'spacious') {
-            // For short names and single line events
-            preset = {
-                nameSize: 110,
                 nameY: 57.0,
-                introSize: 105,
-                introY: 66.5,
-                titleSize: 105,
-                titleY: 73.0
+                introSize: 100,
+                introY: 64.5,
+                titleSize: 100,
+                titleY: 70.5
             };
-        } else if (presetName === 'multiline') {
+        } else if (presetName === 'standard' || presetName === 'default') {
+            preset = {
+                nameSize: 90,
+                nameY: 56.5,
+                introSize: 100,
+                introY: 64.5,
+                titleSize: 100,
+                titleY: 70.5
+            };
+        } else if (presetName === 'longText' || presetName === 'multiline') {
             // Extra breathing room for lengthy workshop titles
             preset = {
-                nameSize: 88,
-                nameY: 54.0,
-                introSize: 80,
-                introY: 63.0,
-                titleSize: 85,
+                nameSize: 80,
+                nameY: 55.0,
+                introSize: 90,
+                introY: 63.5,
+                titleSize: 90,
                 titleY: 70.0
             };
         }
@@ -194,7 +193,10 @@ export default function AdminCertificates() {
             : (newCert.custom_event_title.trim() || selectedEvent?.title || 'AWS Community Event');
         const targetEventId = useCustomEvent || newCert.event_id === '__custom__' ? null : (newCert.event_id || null);
         const introPhrase = (newCert.intro_text && newCert.intro_text.trim()) || 'for successfully attending the';
-        const storedEventName = introPhrase !== 'for successfully attending the' ? `${introPhrase}:::${eventName}` : eventName;
+        const layoutStr = certLayout ? JSON.stringify(certLayout) : '';
+        const storedEventName = layoutStr
+            ? `${introPhrase}:::${eventName}:::${layoutStr}`
+            : (introPhrase !== 'for successfully attending the' ? `${introPhrase}:::${eventName}` : eventName);
 
         if (bulkData.length > 0) {
             try {
@@ -206,6 +208,7 @@ export default function AdminCertificates() {
                         eventId: targetEventId,
                         customEventTitle: storedEventName,
                         introText: introPhrase,
+                        layout: certLayout,
                         recipients: bulkData
                     })
                 });
@@ -456,7 +459,7 @@ export default function AdminCertificates() {
                 <div className="flex flex-wrap items-center gap-1.5">
                     <button
                         type="button"
-                        onClick={() => applyLayoutPreset('default', targetSetter)}
+                        onClick={() => applyLayoutPreset('standard', targetSetter)}
                         className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-white transition-all"
                     >
                         Standard
@@ -843,7 +846,8 @@ export default function AdminCertificates() {
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => {
-                                        setPreviewLayout(certLayout);
+                                        const parsed = parseCertificateEvent(cert);
+                                        setPreviewLayout(parsed.layout || certLayout || DEFAULT_CERT_LAYOUT);
                                         setShowPreview(cert);
                                     }}
                                     className="btn-crud-edit"
@@ -856,7 +860,8 @@ export default function AdminCertificates() {
                                     onClick={async () => {
                                         try {
                                             setProcessingId(cert.id);
-                                            await generateCertificatePDF(cert, certLayout);
+                                            const parsed = parseCertificateEvent(cert);
+                                            await generateCertificatePDF(cert, parsed.layout || certLayout);
                                             setFeedback({ message: `Certificate downloaded for ${cert.recipient_name}`, type: 'success' });
                                         } catch (err) {
                                             console.error("PDF download failed:", err);

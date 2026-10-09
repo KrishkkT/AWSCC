@@ -53,13 +53,14 @@ export default function VerifyClient({ params }) {
         if (id) fetchCert();
     }, [id, fetchCert]);
 
-    const { introText, eventName } = parseCertificateEvent(cert);
+    const { introText, eventName, layout: parsedLayout } = parseCertificateEvent(cert);
+    const effectiveLayout = cert?.layout || parsedLayout || certLayout || DEFAULT_CERT_LAYOUT;
 
     const handleDownloadPDF = async () => {
         if (!cert) return;
         setGenerating(true);
         try {
-            await generateCertificatePDF(cert, certLayout);
+            await generateCertificatePDF(cert, effectiveLayout);
         } catch (err) {
             console.error("PDF download failed:", err);
             alert("Error downloading PDF: " + err.message);
@@ -72,7 +73,7 @@ export default function VerifyClient({ params }) {
         if (!cert) return;
         setGenerating(true);
         try {
-            const blob = await generateCertificateImageBlob(cert, certLayout);
+            const blob = await generateCertificateImageBlob(cert, effectiveLayout);
             if (!blob) throw new Error("Failed to generate image.");
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -97,7 +98,7 @@ export default function VerifyClient({ params }) {
         const shareText = `Check out my verified certificate for "${eventName}" (${introText} ${eventName}) issued by AWS Student Builder Group DDU!\n\nVerify online: ${shareUrl}`;
 
         try {
-            const imageBlob = await generateCertificateImageBlob(cert);
+            const imageBlob = await generateCertificateImageBlob(cert, effectiveLayout);
             const imageFile = imageBlob ? new File([imageBlob], `Certificate-${cert.recipient_name.replace(/\s+/g, '_')}.png`, { type: 'image/png' }) : null;
 
             if (navigator.canShare && imageFile && navigator.canShare({ files: [imageFile] })) {
@@ -136,7 +137,7 @@ export default function VerifyClient({ params }) {
     const handleCopyImage = async () => {
         if (!cert) return;
         try {
-            const blob = await generateCertificateImageBlob(cert);
+            const blob = await generateCertificateImageBlob(cert, effectiveLayout);
             if (!blob) throw new Error("Could not create image blob");
             await navigator.clipboard.write([
                 new ClipboardItem({ 'image/png': blob })
@@ -225,7 +226,7 @@ export default function VerifyClient({ params }) {
                             type={cert.certificate_type}
                             certificateId={cert.id}
                             template={cert.template}
-                            layout={certLayout}
+                            layout={effectiveLayout}
                         />
                     </div>
 

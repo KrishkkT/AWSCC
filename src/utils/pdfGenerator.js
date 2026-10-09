@@ -154,10 +154,11 @@ export const generateProfessionalReport = async (data, title = "System Report", 
 
 /**
  * Default Certificate Typography & Layout settings
+ * Pre-tuned so long names fit single-line and multiline titles breathe nicely
  */
 export const DEFAULT_CERT_LAYOUT = {
-    nameSize: 100,     // % scale
-    nameY: 56.5,       // % from top (0-100)
+    nameSize: 85,      // % scale (85% fits long recipient names cleanly on a single line)
+    nameY: 56.0,       // % from top (0-100)
     introSize: 100,    // % scale
     introY: 64.5,      // % from top (0-100)
     titleSize: 100,    // % scale
@@ -165,44 +166,65 @@ export const DEFAULT_CERT_LAYOUT = {
 };
 
 /**
- * Parses certificate record or event string to extract intro text and event title.
- * Format support: "introText:::eventName" or separate fields.
+ * Parses certificate record or event string to extract intro text, event title, and stored layout metadata.
+ * Format support: "introText:::eventName" or "introText:::eventName:::layoutJson" or separate fields.
  */
 export function parseCertificateEvent(certOrEventName, fallbackIntro = "for successfully attending the") {
-    if (!certOrEventName) {
-        return { introText: fallbackIntro, eventName: "AWS Community Event" };
+    let raw = '';
+    let directIntro = null;
+    let explicitLayout = null;
+
+    if (certOrEventName && typeof certOrEventName === 'object') {
+        raw = certOrEventName.event_name || certOrEventName.events?.title || '';
+        directIntro = certOrEventName.intro_text || certOrEventName.introText;
+        if (certOrEventName.layout && typeof certOrEventName.layout === 'object') {
+            explicitLayout = certOrEventName.layout;
+        }
+    } else if (typeof certOrEventName === 'string') {
+        raw = certOrEventName;
     }
 
-    if (typeof certOrEventName === 'object') {
-        const rawEvent = certOrEventName.event_name || certOrEventName.events?.title || '';
-        const directIntro = certOrEventName.intro_text || certOrEventName.introText;
-        
-        if (typeof rawEvent === 'string' && rawEvent.includes(':::')) {
-            const parts = rawEvent.split(':::');
-            return {
-                introText: parts[0].trim() || fallbackIntro,
-                eventName: parts.slice(1).join(':::').trim() || "AWS Community Event"
-            };
-        }
-        
+    if (!raw) {
         return {
             introText: directIntro || fallbackIntro,
-            eventName: rawEvent || "AWS Community Event"
+            eventName: "AWS Community Event",
+            layout: explicitLayout || null
         };
     }
 
-    const raw = String(certOrEventName);
     if (raw.includes(':::')) {
         const parts = raw.split(':::');
+        let introText = parts[0].trim() || fallbackIntro;
+        let eventName = '';
+        let layout = explicitLayout || null;
+
+        if (parts.length >= 3) {
+            const lastPart = parts[parts.length - 1].trim();
+            if (lastPart.startsWith('{') && lastPart.endsWith('}')) {
+                try {
+                    layout = { ...(layout || {}), ...JSON.parse(lastPart) };
+                    eventName = parts.slice(1, parts.length - 1).join(':::').trim();
+                } catch (e) {
+                    eventName = parts.slice(1).join(':::').trim();
+                }
+            } else {
+                eventName = parts.slice(1).join(':::').trim();
+            }
+        } else {
+            eventName = parts[1].trim();
+        }
+
         return {
-            introText: parts[0].trim() || fallbackIntro,
-            eventName: parts.slice(1).join(':::').trim() || "AWS Community Event"
+            introText: directIntro || introText || fallbackIntro,
+            eventName: eventName || "AWS Community Event",
+            layout
         };
     }
 
     return {
-        introText: fallbackIntro,
-        eventName: raw || "AWS Community Event"
+        introText: directIntro || fallbackIntro,
+        eventName: raw || "AWS Community Event",
+        layout: explicitLayout || null
     };
 }
 
@@ -213,15 +235,17 @@ export function parseCertificateEvent(certOrEventName, fallbackIntro = "for succ
 export const renderCertificateCanvas = async (certData, customLayout = null) => {
     if (typeof window === 'undefined') return null;
 
-    const { introText, eventName } = parseCertificateEvent(certData);
+    const parsed = parseCertificateEvent(certData);
+    const { introText, eventName, layout: parsedLayout } = parsed;
     const recipientName = (certData.recipient_name || "Recipient").toUpperCase();
+
     const activeLayout = {
-        nameSize: customLayout?.nameSize ?? certData?.layout?.nameSize ?? DEFAULT_CERT_LAYOUT.nameSize,
-        nameY: customLayout?.nameY ?? certData?.layout?.nameY ?? DEFAULT_CERT_LAYOUT.nameY,
-        introSize: customLayout?.introSize ?? certData?.layout?.introSize ?? DEFAULT_CERT_LAYOUT.introSize,
-        introY: customLayout?.introY ?? certData?.layout?.introY ?? DEFAULT_CERT_LAYOUT.introY,
-        titleSize: customLayout?.titleSize ?? certData?.layout?.titleSize ?? DEFAULT_CERT_LAYOUT.titleSize,
-        titleY: customLayout?.titleY ?? certData?.layout?.titleY ?? DEFAULT_CERT_LAYOUT.titleY
+        nameSize: customLayout?.nameSize ?? certData?.layout?.nameSize ?? parsedLayout?.nameSize ?? DEFAULT_CERT_LAYOUT.nameSize,
+        nameY: customLayout?.nameY ?? certData?.layout?.nameY ?? parsedLayout?.nameY ?? DEFAULT_CERT_LAYOUT.nameY,
+        introSize: customLayout?.introSize ?? certData?.layout?.introSize ?? parsedLayout?.introSize ?? DEFAULT_CERT_LAYOUT.introSize,
+        introY: customLayout?.introY ?? certData?.layout?.introY ?? parsedLayout?.introY ?? DEFAULT_CERT_LAYOUT.introY,
+        titleSize: customLayout?.titleSize ?? certData?.layout?.titleSize ?? parsedLayout?.titleSize ?? DEFAULT_CERT_LAYOUT.titleSize,
+        titleY: customLayout?.titleY ?? certData?.layout?.titleY ?? parsedLayout?.titleY ?? DEFAULT_CERT_LAYOUT.titleY
     };
 
     // Off-screen full-resolution rendering container (2475 x 1912.5)
@@ -237,25 +261,25 @@ export const renderCertificateCanvas = async (certData, customLayout = null) => 
     container.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
     container.style.boxSizing = 'border-box';
 
-    const namePx = (activeLayout.nameSize / 100) * 77.9625;
-    const introPx = (activeLayout.introSize / 100) * 25.9875;
-    const titlePx = (activeLayout.titleSize / 100) * 32.175;
+    const namePx = ((activeLayout.nameSize / 100) * 3.15 * 24.75).toFixed(2);
+    const introPx = ((activeLayout.introSize / 100) * 1.05 * 24.75).toFixed(2);
+    const titlePx = ((activeLayout.titleSize / 100) * 1.30 * 24.75).toFixed(2);
 
     container.innerHTML = `
         <div style="position:relative;width:2475px;height:1912.5px;overflow:hidden;background-color:#070b12;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;box-sizing:border-box;">
             <img src="/templates/attendee_template_blue.jpg" style="position:absolute;top:0;left:0;width:2475px;height:1912.5px;object-fit:contain;z-index:0;" />
             <div style="position:absolute;inset:0;z-index:10;pointer-events:none;width:2475px;height:1912.5px;">
-                <div style="position:absolute;left:54%;top:${activeLayout.nameY}%;width:42%;text-align:center;padding:0 24px;display:flex;align-items:center;justify-content:center;transform:translateY(-50%);box-sizing:border-box;">
+                <div style="position:absolute;left:54%;top:${activeLayout.nameY}%;width:42%;text-align:center;padding:0 16px;display:flex;align-items:center;justify-content:center;transform:translateY(-50%);box-sizing:border-box;">
                     <h1 style="color:#ffffff;font-weight:700;text-transform:uppercase;letter-spacing:-0.01em;line-height:1.1;text-shadow:0 2px 4px rgba(0,0,0,0.5);text-align:center;max-width:100%;word-break:break-word;margin:0;font-size:${namePx}px;font-family:inherit;">
                         ${recipientName}
                     </h1>
                 </div>
-                <div style="position:absolute;left:54%;top:${activeLayout.introY}%;width:42%;text-align:center;padding:0 24px;display:flex;align-items:center;justify-content:center;transform:translateY(-50%);box-sizing:border-box;">
+                <div style="position:absolute;left:54%;top:${activeLayout.introY}%;width:42%;text-align:center;padding:0 16px;display:flex;align-items:center;justify-content:center;transform:translateY(-50%);box-sizing:border-box;">
                     <p style="color:rgba(255,255,255,0.9);font-weight:500;letter-spacing:0;line-height:1.25;text-shadow:0 2px 4px rgba(0,0,0,0.5);text-align:center;max-width:100%;word-break:break-word;margin:0;font-size:${introPx}px;font-family:inherit;">
                         ${introText}
                     </p>
                 </div>
-                <div style="position:absolute;left:54%;top:${activeLayout.titleY}%;width:42%;text-align:center;padding:0 24px;display:flex;align-items:center;justify-content:center;transform:translateY(-50%);box-sizing:border-box;">
+                <div style="position:absolute;left:54%;top:${activeLayout.titleY}%;width:42%;text-align:center;padding:0 16px;display:flex;align-items:center;justify-content:center;transform:translateY(-50%);box-sizing:border-box;">
                     <p style="color:#ffffff;font-weight:700;letter-spacing:0;line-height:1.25;text-shadow:0 2px 4px rgba(0,0,0,0.5);text-align:center;max-width:100%;word-break:break-word;margin:0;font-size:${titlePx}px;font-family:inherit;">
                         ${eventName}
                     </p>
