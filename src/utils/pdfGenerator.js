@@ -153,6 +153,64 @@ export const generateProfessionalReport = async (data, title = "System Report", 
 };
 
 /**
+ * Default Certificate Typography & Layout settings
+ */
+export const DEFAULT_CERT_LAYOUT = {
+    nameSize: 100,     // % scale
+    nameY: 56.5,       // % from top (0-100)
+    introSize: 100,    // % scale
+    introY: 65.5,      // % from top (0-100)
+    titleSize: 100,    // % scale
+    titleY: 71.5       // % from top (0-100)
+};
+
+/**
+ * Splits text into lines wrapped within maxWidth using pdf-lib font.
+ */
+function wrapTextPdf(text, maxWidth, font, fontSize) {
+    if (!text) return [];
+    const words = String(text).trim().split(/\s+/);
+    const lines = [];
+    let currentLine = '';
+
+    for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+        if (testWidth <= maxWidth) {
+            currentLine = testLine;
+        } else {
+            if (currentLine) lines.push(currentLine);
+            currentLine = word;
+        }
+    }
+    if (currentLine) lines.push(currentLine);
+    return lines;
+}
+
+/**
+ * Splits text into lines wrapped within maxWidth using 2D Canvas context.
+ */
+function wrapTextCanvas(ctx, text, maxWidth) {
+    if (!text) return [];
+    const words = String(text).trim().split(/\s+/);
+    const lines = [];
+    let currentLine = '';
+
+    for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const testWidth = ctx.measureText(testLine).width;
+        if (testWidth <= maxWidth) {
+            currentLine = testLine;
+        } else {
+            if (currentLine) lines.push(currentLine);
+            currentLine = word;
+        }
+    }
+    if (currentLine) lines.push(currentLine);
+    return lines;
+}
+
+/**
  * Parses certificate record or event string to extract intro text and event title.
  * Format support: "introText:::eventName" or separate fields.
  */
@@ -196,9 +254,9 @@ export function parseCertificateEvent(certOrEventName, fallbackIntro = "for succ
 }
 
 /**
- * Generates certificate PDF bytes.
+ * Generates certificate PDF bytes with customizable layout and typography.
  */
-export const generateCertificatePDFBytes = async (certData) => {
+export const generateCertificatePDFBytes = async (certData, customLayout = null) => {
     if (!certData) return null;
 
     // 1. Fetch template PDF (Blue template)
@@ -215,83 +273,87 @@ export const generateCertificatePDFBytes = async (certData) => {
     const firstPage = pages[0];
     const { width, height } = firstPage.getSize();
 
-    // 3. Resolve Dynamic Text
+    // 3. Resolve Dynamic Text and Layout
     const { introText, eventName: eventTitle } = parseCertificateEvent(certData);
     const recipientName = (certData.recipient_name || "Recipient").toUpperCase();
 
-    // Right column horizontal center & width budget
+    const activeLayout = {
+        nameSize: customLayout?.nameSize ?? certData?.layout?.nameSize ?? DEFAULT_CERT_LAYOUT.nameSize,
+        nameY: customLayout?.nameY ?? certData?.layout?.nameY ?? DEFAULT_CERT_LAYOUT.nameY,
+        introSize: customLayout?.introSize ?? certData?.layout?.introSize ?? DEFAULT_CERT_LAYOUT.introSize,
+        introY: customLayout?.introY ?? certData?.layout?.introY ?? DEFAULT_CERT_LAYOUT.introY,
+        titleSize: customLayout?.titleSize ?? certData?.layout?.titleSize ?? DEFAULT_CERT_LAYOUT.titleSize,
+        titleY: customLayout?.titleY ?? certData?.layout?.titleY ?? DEFAULT_CERT_LAYOUT.titleY
+    };
+
+    // Right column horizontal center & width budget (42% width)
     const centerX = width * 0.75;
-    const maxTextWidth = width * 0.40;
+    const maxTextWidth = width * 0.42;
 
-    // Dynamic prominent font-sizing for Recipient Name
-    let nameFontSize = 96;
-    if (recipientName.length > 28) {
-        nameFontSize = 64;
-    } else if (recipientName.length > 20) {
-        nameFontSize = 76;
-    } else if (recipientName.length > 14) {
-        nameFontSize = 86;
+    // 1. Recipient Name Layout & Multi-line Wrapping
+    let baseNameSize = Math.round(84 * (activeLayout.nameSize / 100));
+    let nameLines = wrapTextPdf(recipientName, maxTextWidth, fontMonoBold, baseNameSize);
+    while (nameLines.length > 2 && baseNameSize > 32) {
+        baseNameSize -= 4;
+        nameLines = wrapTextPdf(recipientName, maxTextWidth, fontMonoBold, baseNameSize);
     }
+    const nameLineHeight = baseNameSize * 1.15;
+    const nameCenterY = height * (1 - (activeLayout.nameY / 100));
+    const startNameY = nameCenterY + ((nameLines.length - 1) * nameLineHeight) / 2;
 
-    let nameTextWidth = fontMonoBold.widthOfTextAtSize(recipientName, nameFontSize);
-    while (nameTextWidth > maxTextWidth && nameFontSize > 36) {
-        nameFontSize -= 2;
-        nameTextWidth = fontMonoBold.widthOfTextAtSize(recipientName, nameFontSize);
-    }
-
-    // Dynamic prominent font-sizing for Intro Phrase
-    let introFontSize = 28;
-    if (introText.length > 40) {
-        introFontSize = 22;
-    } else if (introText.length > 30) {
-        introFontSize = 25;
-    }
-
-    let introTextWidth = fontMono.widthOfTextAtSize(introText, introFontSize);
-    while (introTextWidth > maxTextWidth && introFontSize > 16) {
-        introFontSize -= 1;
-        introTextWidth = fontMono.widthOfTextAtSize(introText, introFontSize);
-    }
-
-    // Dynamic prominent font-sizing for Event Title
-    let eventFontSize = 38;
-    if (eventTitle.length > 40) {
-        eventFontSize = 26;
-    } else if (eventTitle.length > 28) {
-        eventFontSize = 32;
-    }
-
-    let eventTextWidth = fontMonoBold.widthOfTextAtSize(eventTitle, eventFontSize);
-    while (eventTextWidth > maxTextWidth && eventFontSize > 18) {
-        eventFontSize -= 1;
-        eventTextWidth = fontMonoBold.widthOfTextAtSize(eventTitle, eventFontSize);
-    }
-
-    // Recipient Name - Bold White Monospace
-    firstPage.drawText(recipientName, {
-        x: centerX - nameTextWidth / 2,
-        y: height * 0.415,
-        size: nameFontSize,
-        font: fontMonoBold,
-        color: rgb(1, 1, 1),
+    nameLines.forEach((line, index) => {
+        const lineWidth = fontMonoBold.widthOfTextAtSize(line, baseNameSize);
+        firstPage.drawText(line, {
+            x: centerX - lineWidth / 2,
+            y: startNameY - index * nameLineHeight,
+            size: baseNameSize,
+            font: fontMonoBold,
+            color: rgb(1, 1, 1),
+        });
     });
 
-    // Custom Intro Text - Monospace Light White
-    firstPage.drawText(introText, {
-        x: centerX - introTextWidth / 2,
-        y: height * 0.330,
-        size: introFontSize,
-        font: fontMono,
-        color: rgb(0.9, 0.9, 0.9),
+    // 2. Custom Intro Text Layout & Multi-line Wrapping
+    let baseIntroSize = Math.round(24 * (activeLayout.introSize / 100));
+    let introLines = wrapTextPdf(introText, maxTextWidth, fontMono, baseIntroSize);
+    while (introLines.length > 3 && baseIntroSize > 14) {
+        baseIntroSize -= 2;
+        introLines = wrapTextPdf(introText, maxTextWidth, fontMono, baseIntroSize);
+    }
+    const introLineHeight = baseIntroSize * 1.25;
+    const introCenterY = height * (1 - (activeLayout.introY / 100));
+    const startIntroY = introCenterY + ((introLines.length - 1) * introLineHeight) / 2;
+
+    introLines.forEach((line, index) => {
+        const lineWidth = fontMono.widthOfTextAtSize(line, baseIntroSize);
+        firstPage.drawText(line, {
+            x: centerX - lineWidth / 2,
+            y: startIntroY - index * introLineHeight,
+            size: baseIntroSize,
+            font: fontMono,
+            color: rgb(0.9, 0.9, 0.9),
+        });
     });
 
-    // Event Title - Bold White Monospace
-    firstPage.drawText(eventTitle, {
-        x: centerX - eventTextWidth / 2,
-        y: height * 0.285,
-        size: eventFontSize,
-        font: fontMonoBold,
-        color: rgb(1, 1, 1),
+    // 3. Event Title Layout & Multi-line Wrapping
+    let baseTitleSize = Math.round(32 * (activeLayout.titleSize / 100));
+    let titleLines = wrapTextPdf(eventTitle, maxTextWidth, fontMonoBold, baseTitleSize);
+    while (titleLines.length > 3 && baseTitleSize > 16) {
+        baseTitleSize -= 2;
+        titleLines = wrapTextPdf(eventTitle, maxTextWidth, fontMonoBold, baseTitleSize);
+    }
+    const titleLineHeight = baseTitleSize * 1.25;
+    const titleCenterY = height * (1 - (activeLayout.titleY / 100));
+    const startTitleY = titleCenterY + ((titleLines.length - 1) * titleLineHeight) / 2;
+
+    titleLines.forEach((line, index) => {
+        const lineWidth = fontMonoBold.widthOfTextAtSize(line, baseTitleSize);
+        firstPage.drawText(line, {
+            x: centerX - lineWidth / 2,
+            y: startTitleY - index * titleLineHeight,
+            size: baseTitleSize,
+            font: fontMonoBold,
+            color: rgb(1, 1, 1),
+        });
     });
 
     return await pdfDoc.save();
@@ -300,19 +362,28 @@ export const generateCertificatePDFBytes = async (certData) => {
 /**
  * Generates a high-quality certificate PDF Blob.
  */
-export const generateCertificatePDFBlob = async (certData) => {
-    const pdfBytes = await generateCertificatePDFBytes(certData);
+export const generateCertificatePDFBlob = async (certData, customLayout = null) => {
+    const pdfBytes = await generateCertificatePDFBytes(certData, customLayout);
     return new Blob([pdfBytes], { type: 'application/pdf' });
 };
 
 /**
  * Generates a high-quality certificate image (PNG Blob) by rendering onto high-res canvas.
  */
-export const generateCertificateImageBlob = async (certData) => {
+export const generateCertificateImageBlob = async (certData, customLayout = null) => {
     if (!certData) return null;
 
     const { introText, eventName: eventTitle } = parseCertificateEvent(certData);
     const recipientName = (certData.recipient_name || "Recipient").toUpperCase();
+
+    const activeLayout = {
+        nameSize: customLayout?.nameSize ?? certData?.layout?.nameSize ?? DEFAULT_CERT_LAYOUT.nameSize,
+        nameY: customLayout?.nameY ?? certData?.layout?.nameY ?? DEFAULT_CERT_LAYOUT.nameY,
+        introSize: customLayout?.introSize ?? certData?.layout?.introSize ?? DEFAULT_CERT_LAYOUT.introSize,
+        introY: customLayout?.introY ?? certData?.layout?.introY ?? DEFAULT_CERT_LAYOUT.introY,
+        titleSize: customLayout?.titleSize ?? certData?.layout?.titleSize ?? DEFAULT_CERT_LAYOUT.titleSize,
+        titleY: customLayout?.titleY ?? certData?.layout?.titleY ?? DEFAULT_CERT_LAYOUT.titleY
+    };
 
     const canvas = document.createElement('canvas');
     canvas.width = 2475;
@@ -331,55 +402,63 @@ export const generateCertificateImageBlob = async (certData) => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
     const centerX = canvas.width * 0.75;
-    const maxTextWidth = canvas.width * 0.40;
+    const maxTextWidth = canvas.width * 0.42;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
     // 1. Recipient Name
     ctx.fillStyle = '#ffffff';
-    let nameSize = 96;
-    if (recipientName.length > 28) nameSize = 64;
-    else if (recipientName.length > 20) nameSize = 76;
-    else if (recipientName.length > 14) nameSize = 86;
-
-    ctx.font = `bold ${nameSize}px "Courier New", Courier, monospace`;
-    let nameWidth = ctx.measureText(recipientName).width;
-    while (nameWidth > maxTextWidth && nameSize > 36) {
-        nameSize -= 2;
-        ctx.font = `bold ${nameSize}px "Courier New", Courier, monospace`;
-        nameWidth = ctx.measureText(recipientName).width;
+    let baseNameSize = Math.round((canvas.width * 0.035) * (activeLayout.nameSize / 100));
+    ctx.font = `bold ${baseNameSize}px "Courier New", Courier, monospace`;
+    let nameLines = wrapTextCanvas(ctx, recipientName, maxTextWidth);
+    while (nameLines.length > 2 && baseNameSize > 32) {
+        baseNameSize -= 4;
+        ctx.font = `bold ${baseNameSize}px "Courier New", Courier, monospace`;
+        nameLines = wrapTextCanvas(ctx, recipientName, maxTextWidth);
     }
-    ctx.fillText(recipientName, centerX, canvas.height * 0.585);
+    const nameLineHeight = baseNameSize * 1.15;
+    const nameCenterY = canvas.height * (activeLayout.nameY / 100);
+    const startNameY = nameCenterY - ((nameLines.length - 1) * nameLineHeight) / 2;
+
+    nameLines.forEach((line, index) => {
+        ctx.fillText(line, centerX, startNameY + index * nameLineHeight);
+    });
 
     // 2. Intro Text
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    let introSize = 28;
-    if (introText.length > 40) introSize = 22;
-    else if (introText.length > 30) introSize = 25;
-
-    ctx.font = `${introSize}px "Courier New", Courier, monospace`;
-    let introWidth = ctx.measureText(introText).width;
-    while (introWidth > maxTextWidth && introSize > 16) {
-        introSize -= 1;
-        ctx.font = `${introSize}px "Courier New", Courier, monospace`;
-        introWidth = ctx.measureText(introText).width;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+    let baseIntroSize = Math.round((canvas.width * 0.010) * (activeLayout.introSize / 100));
+    ctx.font = `${baseIntroSize}px "Courier New", Courier, monospace`;
+    let introLines = wrapTextCanvas(ctx, introText, maxTextWidth);
+    while (introLines.length > 3 && baseIntroSize > 14) {
+        baseIntroSize -= 2;
+        ctx.font = `${baseIntroSize}px "Courier New", Courier, monospace`;
+        introLines = wrapTextCanvas(ctx, introText, maxTextWidth);
     }
-    ctx.fillText(introText, centerX, canvas.height * 0.670);
+    const introLineHeight = baseIntroSize * 1.25;
+    const introCenterY = canvas.height * (activeLayout.introY / 100);
+    const startIntroY = introCenterY - ((introLines.length - 1) * introLineHeight) / 2;
+
+    introLines.forEach((line, index) => {
+        ctx.fillText(line, centerX, startIntroY + index * introLineHeight);
+    });
 
     // 3. Event Title
     ctx.fillStyle = '#ffffff';
-    let eventSize = 38;
-    if (eventTitle.length > 40) eventSize = 26;
-    else if (eventTitle.length > 28) eventSize = 32;
-
-    ctx.font = `bold ${eventSize}px "Courier New", Courier, monospace`;
-    let eventWidth = ctx.measureText(eventTitle).width;
-    while (eventWidth > maxTextWidth && eventSize > 18) {
-        eventSize -= 1;
-        ctx.font = `bold ${eventSize}px "Courier New", Courier, monospace`;
-        eventWidth = ctx.measureText(eventTitle).width;
+    let baseTitleSize = Math.round((canvas.width * 0.013) * (activeLayout.titleSize / 100));
+    ctx.font = `bold ${baseTitleSize}px "Courier New", Courier, monospace`;
+    let titleLines = wrapTextCanvas(ctx, eventTitle, maxTextWidth);
+    while (titleLines.length > 3 && baseTitleSize > 16) {
+        baseTitleSize -= 2;
+        ctx.font = `bold ${baseTitleSize}px "Courier New", Courier, monospace`;
+        titleLines = wrapTextCanvas(ctx, eventTitle, maxTextWidth);
     }
-    ctx.fillText(eventTitle, centerX, canvas.height * 0.715);
+    const titleLineHeight = baseTitleSize * 1.25;
+    const titleCenterY = canvas.height * (activeLayout.titleY / 100);
+    const startTitleY = titleCenterY - ((titleLines.length - 1) * titleLineHeight) / 2;
+
+    titleLines.forEach((line, index) => {
+        ctx.fillText(line, centerX, startTitleY + index * titleLineHeight);
+    });
 
     return new Promise((resolve) => {
         canvas.toBlob((blob) => resolve(blob), 'image/png', 0.95);
@@ -389,11 +468,11 @@ export const generateCertificateImageBlob = async (certData) => {
 /**
  * Generates and downloads a high-quality certificate PDF.
  */
-export const generateCertificatePDF = async (certData) => {
+export const generateCertificatePDF = async (certData, customLayout = null) => {
     if (!certData) return;
 
     try {
-        const blob = await generateCertificatePDFBlob(certData);
+        const blob = await generateCertificatePDFBlob(certData, customLayout);
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -405,3 +484,4 @@ export const generateCertificatePDF = async (certData) => {
         throw err;
     }
 };
+

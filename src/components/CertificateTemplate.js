@@ -1,4 +1,4 @@
-import { parseCertificateEvent } from "@/utils/pdfGenerator";
+import { parseCertificateEvent, DEFAULT_CERT_LAYOUT } from "@/utils/pdfGenerator";
 
 export default function CertificateTemplate({
     recipientName = "John Doe",
@@ -6,7 +6,8 @@ export default function CertificateTemplate({
     introText,
     date = new Date().toLocaleDateString(),
     type = "participation",
-    certificateId = "CERT-12345"
+    certificateId = "CERT-12345",
+    layout = {}
 }) {
     const templateUrl = "/templates/attendee_template_blue.jpg";
     const parsed = parseCertificateEvent(eventName, introText || "for successfully attending the");
@@ -14,6 +15,16 @@ export default function CertificateTemplate({
         ? parsed.introText
         : (introText || parsed.introText || "for successfully attending the");
     const displayEvent = parsed.eventName || (typeof eventName === 'string' && eventName.includes(':::') ? eventName.split(':::').slice(1).join(':::').trim() : eventName);
+
+    // Merge layout configuration with defaults
+    const activeLayout = {
+        nameSize: layout?.nameSize ?? DEFAULT_CERT_LAYOUT.nameSize,
+        nameY: layout?.nameY ?? DEFAULT_CERT_LAYOUT.nameY,
+        introSize: layout?.introSize ?? DEFAULT_CERT_LAYOUT.introSize,
+        introY: layout?.introY ?? DEFAULT_CERT_LAYOUT.introY,
+        titleSize: layout?.titleSize ?? DEFAULT_CERT_LAYOUT.titleSize,
+        titleY: layout?.titleY ?? DEFAULT_CERT_LAYOUT.titleY
+    };
 
     return (
         <div className="w-full flex justify-center items-center py-2 bg-transparent">
@@ -45,12 +56,15 @@ export default function CertificateTemplate({
 
                 {/* Dynamic Content Layers - Monospace font matching the certificate text */}
                 <div className="absolute inset-0 z-10 font-mono pointer-events-none">
-                    {/* Recipient Name - Precision Centered in Right Column (Increased size) */}
-                    <div className="absolute top-[57.5%] left-[55%] w-[40%] text-center px-1 flex items-center justify-center">
+                    {/* Recipient Name - Independently positioned and sized */}
+                    <div
+                        className="absolute left-[54%] w-[42%] text-center px-2 flex items-center justify-center -translate-y-1/2 transition-all duration-150"
+                        style={{ top: `${activeLayout.nameY}%` }}
+                    >
                         <h1
-                            className="text-white font-bold font-mono uppercase tracking-tight leading-tight drop-shadow-md text-center"
+                            className="text-white font-bold font-mono uppercase tracking-tight leading-[1.1] drop-shadow-md text-center max-w-full break-words"
                             style={{
-                                fontSize: "clamp(12px, 3.4cqi, 32px)",
+                                fontSize: `clamp(10px, ${(activeLayout.nameSize / 100) * 3.2}cqi, 34px)`,
                                 letterSpacing: "-0.01em"
                             }}
                         >
@@ -58,20 +72,30 @@ export default function CertificateTemplate({
                         </h1>
                     </div>
 
-                    {/* Event Section - Custom Intro Phrase + Event Title */}
-                    <div className="absolute top-[67%] left-[55%] w-[40%] text-center px-1 flex flex-col items-center justify-center">
+                    {/* Custom Intro Phrase - Independently positioned and sized */}
+                    <div
+                        className="absolute left-[54%] w-[42%] text-center px-2 flex items-center justify-center -translate-y-1/2 transition-all duration-150"
+                        style={{ top: `${activeLayout.introY}%` }}
+                    >
                         <p
-                            className="text-white/80 font-mono font-medium tracking-normal leading-tight drop-shadow-md text-center"
+                            className="text-white/85 font-mono font-medium tracking-normal leading-[1.25] drop-shadow-md text-center max-w-full break-words"
                             style={{
-                                fontSize: "clamp(6px, 1.05cqi, 11px)"
+                                fontSize: `clamp(5px, ${(activeLayout.introSize / 100) * 1.05}cqi, 13px)`
                             }}
                         >
                             {displayIntro}
                         </p>
+                    </div>
+
+                    {/* Event Title - Independently positioned and sized */}
+                    <div
+                        className="absolute left-[54%] w-[42%] text-center px-2 flex items-center justify-center -translate-y-1/2 transition-all duration-150"
+                        style={{ top: `${activeLayout.titleY}%` }}
+                    >
                         <p
-                            className="text-white font-mono font-bold tracking-normal leading-snug drop-shadow-md text-center mt-0.5"
+                            className="text-white font-mono font-bold tracking-normal leading-[1.25] drop-shadow-md text-center max-w-full break-words"
                             style={{
-                                fontSize: "clamp(7px, 1.35cqi, 14px)"
+                                fontSize: `clamp(6px, ${(activeLayout.titleSize / 100) * 1.3}cqi, 15px)`
                             }}
                         >
                             {displayEvent}
@@ -82,3 +106,4 @@ export default function CertificateTemplate({
         </div>
     );
 }
+

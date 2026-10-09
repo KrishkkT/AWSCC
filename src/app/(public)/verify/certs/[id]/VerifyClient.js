@@ -5,7 +5,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import CertificateTemplate from "@/components/CertificateTemplate";
 import { Download, Share2, ShieldCheck, Printer, ExternalLink, AlertCircle, Award, Image as ImageIcon, Copy, Check, Sparkles } from "lucide-react";
-import { generateCertificatePDF, generateCertificateImageBlob, parseCertificateEvent } from "@/utils/pdfGenerator";
+import { generateCertificatePDF, generateCertificateImageBlob, parseCertificateEvent, DEFAULT_CERT_LAYOUT } from "@/utils/pdfGenerator";
 
 export default function VerifyClient({ params }) {
     const { id } = React.use(params);
@@ -16,8 +16,20 @@ export default function VerifyClient({ params }) {
     const [copiedLink, setCopiedLink] = useState(false);
     const [copiedImage, setCopiedImage] = useState(false);
     const [error, setError] = useState(null);
+    const [certLayout, setCertLayout] = useState(DEFAULT_CERT_LAYOUT);
     const supabase = createClient();
     const certRef = useRef();
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const saved = localStorage.getItem('awscc_cert_layout');
+                if (saved) setCertLayout({ ...DEFAULT_CERT_LAYOUT, ...JSON.parse(saved) });
+            } catch (e) {
+                // fallback to default
+            }
+        }
+    }, []);
 
     const fetchCert = useCallback(async () => {
         try {
@@ -47,7 +59,7 @@ export default function VerifyClient({ params }) {
         if (!cert) return;
         setGenerating(true);
         try {
-            await generateCertificatePDF(cert);
+            await generateCertificatePDF(cert, certLayout);
         } catch (err) {
             console.error("PDF download failed:", err);
             alert("Error downloading PDF: " + err.message);
@@ -60,7 +72,7 @@ export default function VerifyClient({ params }) {
         if (!cert) return;
         setGenerating(true);
         try {
-            const blob = await generateCertificateImageBlob(cert);
+            const blob = await generateCertificateImageBlob(cert, certLayout);
             if (!blob) throw new Error("Failed to generate image.");
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -75,6 +87,7 @@ export default function VerifyClient({ params }) {
             setGenerating(false);
         }
     };
+
 
     const handleShareMedia = async () => {
         if (!cert) return;
@@ -212,6 +225,7 @@ export default function VerifyClient({ params }) {
                             type={cert.certificate_type}
                             certificateId={cert.id}
                             template={cert.template}
+                            layout={certLayout}
                         />
                     </div>
 
