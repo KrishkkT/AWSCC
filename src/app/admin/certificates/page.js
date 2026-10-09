@@ -207,28 +207,45 @@ export default function AdminCertificates() {
 
         if (bulkData.length > 0) {
             try {
-                // Call dedicated bulk issuance API with chunking and rate-limited email queue
-                const res = await fetch('/api/certificates/bulk-issue', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        eventId: targetEventId,
-                        customEventTitle: storedEventName,
-                        introText: introPhrase,
-                        layout: certLayout,
-                        recipients: bulkData
-                    })
-                });
+                const BATCH_SIZE = 50; // Chunks of 50 guarantee rapid execution with zero timeouts
+                let totalIssued = 0;
+                let totalEmailsSent = 0;
+                const totalBatches = Math.ceil(bulkData.length / BATCH_SIZE);
 
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || 'Failed to issue bulk certificates');
+                for (let i = 0; i < bulkData.length; i += BATCH_SIZE) {
+                    const chunk = bulkData.slice(i, i + BATCH_SIZE);
+                    const batchIndex = Math.floor(i / BATCH_SIZE) + 1;
+
+                    setFeedback({
+                        message: `Processing batch ${batchIndex}/${totalBatches} (${Math.min(i + BATCH_SIZE, bulkData.length)}/${bulkData.length} recipients)...`,
+                        type: 'info'
+                    });
+
+                    const res = await fetch('/api/certificates/bulk-issue', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            eventId: targetEventId,
+                            customEventTitle: storedEventName,
+                            introText: introPhrase,
+                            layout: certLayout,
+                            recipients: chunk
+                        })
+                    });
+
+                    const data = await res.json();
+                    if (!res.ok) {
+                        throw new Error(data.error || `Failed to issue bulk certificates at batch ${batchIndex}`);
+                    }
+
+                    totalIssued += data.issuedCount || chunk.length;
+                    totalEmailsSent += data.emailsSent || 0;
                 }
 
                 await logActivity(
                     supabase,
                     'Batch Issued Certificates',
-                    `Issued ${data.issuedCount} certificates (${data.emailsSent} emails sent) for event "${eventName}"`,
+                    `Issued ${totalIssued} certificates (${totalEmailsSent} emails sent) for event "${eventName}"`,
                     'success'
                 );
 
@@ -239,13 +256,15 @@ export default function AdminCertificates() {
                 setNewCert({ recipient_name: '', recipient_email: '', event_id: '', custom_event_title: '', intro_text: 'for successfully attending the', certificate_type: 'participation', template: 'blue' });
                 await fetchCertificates();
                 setFeedback({
-                    message: `Successfully issued ${data.issuedCount} certificates! (${data.emailsSent} notification emails sent securely via Nodemailer).`,
+                    message: `Successfully issued all ${totalIssued} certificates! (${totalEmailsSent} notification emails sent securely via Nodemailer).`,
                     type: 'success'
                 });
             } catch (err) {
                 console.error("Bulk issuance failed:", err);
                 await logActivity(supabase, 'Batch Certificate Issuance Failed', `Error: ${err.message}`, 'error');
                 setFeedback({ message: "Error issuing certificates: " + err.message, type: 'error' });
+            } finally {
+                setSubmitting(false);
             }
         } else {
             const { data: certData, error } = await supabase

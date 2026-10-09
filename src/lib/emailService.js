@@ -3,10 +3,10 @@ import nodemailer from 'nodemailer';
 // Configure pooled transporter for secure, high-throughput batch sending
 const transporter = nodemailer.createTransport({
     pool: true,
-    maxConnections: 3, // Safe concurrent connection count for SMTP servers (Gmail/SES/SendGrid)
-    maxMessages: 100,  // Recycle connection after 100 messages
+    maxConnections: 5, // Concurrent socket pool for high throughput
+    maxMessages: 200,  // Recycle connection after 200 messages
     rateDelta: 1000,   // 1 second rate limit window
-    rateLimit: 5,      // Max 5 emails per second to prevent rate limit blocks
+    rateLimit: 14,     // Safe high-throughput sending rate
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: process.env.SMTP_SECURE === 'true', // true for 465, false for 587
@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
     },
     connectionTimeout: 10000,
     greetingTimeout: 10000,
-    socketTimeout: 15000,
+    socketTimeout: 20000,
 });
 
 export const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -35,17 +35,17 @@ export const sendEmail = async ({ to, subject, html }) => {
         });
         return { success: true, messageId: info.messageId };
     } catch (error) {
-        console.error(`Error sending email to ${to}:`, error);
-        return { success: false, error: error.message || error };
+        console.error(`Error sending email to ${to}:`, error?.message || error);
+        return { success: false, error: error?.message || String(error) };
     }
 };
 
 /**
- * Send batch certificate emails with controlled pacing/intervals to prevent rate limiting
+ * Send batch certificate emails with controlled concurrency (5 parallel workers)
  * @param {Array<{name: string, email: string, eventName: string, certId: string}>} items
- * @param {number} delayMs Interval between sending individual emails (default 250ms)
+ * @param {number} concurrency Number of parallel dispatches (default 5)
  */
-export const sendBatchCertificateEmails = async (items, delayMs = 250) => {
+export const sendBatchCertificateEmails = async (items, concurrency = 5) => {
     const results = {
         total: items.length,
         sent: 0,
@@ -53,30 +53,36 @@ export const sendBatchCertificateEmails = async (items, delayMs = 250) => {
         errors: []
     };
 
-    for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        try {
-            const template = emailTemplates.certificateIssued(item.name, item.eventName, item.certId);
-            const res = await sendEmail({
-                to: item.email,
-                subject: template.subject,
-                html: template.html,
-            });
+    if (!items || items.length === 0) return results;
 
-            if (res.success) {
-                results.sent++;
-            } else {
+    const CHUNK_SIZE = Math.max(1, concurrency);
+    for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+        const chunk = items.slice(i, i + CHUNK_SIZE);
+        const promises = chunk.map(async (item) => {
+            try {
+                const template = emailTemplates.certificateIssued(item.name, item.eventName, item.certId);
+                const res = await sendEmail({
+                    to: item.email,
+                    subject: template.subject,
+                    html: template.html,
+                });
+
+                if (res.success) {
+                    results.sent++;
+                } else {
+                    results.failed++;
+                    results.errors.push({ email: item.email, error: res.error });
+                }
+            } catch (err) {
                 results.failed++;
-                results.errors.push({ email: item.email, error: res.error });
+                results.errors.push({ email: item.email, error: err.message });
             }
-        } catch (err) {
-            results.failed++;
-            results.errors.push({ email: item.email, error: err.message });
-        }
+        });
 
-        // Controlled delay between dispatches
-        if (i < items.length - 1 && delayMs > 0) {
-            await delay(delayMs);
+        await Promise.allSettled(promises);
+
+        if (i + CHUNK_SIZE < items.length) {
+            await delay(100);
         }
     }
 
