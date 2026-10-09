@@ -31,7 +31,10 @@ export default function CertificateTemplate({
             {/* Responsive certificate canvas with container query scaling */}
             <div
                 id="certificate-content"
-                className="w-full max-w-[760px] aspect-[3300/2550] bg-[#070b12] relative overflow-hidden shadow-2xl rounded-2xl select-none border border-white/10 [container-type:inline-size]"
+                className="w-full max-w-[760px] aspect-[2475/1912.5] bg-[#070b12] relative overflow-hidden shadow-2xl rounded-2xl select-none border border-white/10 [container-type:inline-size]"
+                style={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+                }}
             >
                 {/* Template Image Layer */}
                 <img
@@ -54,17 +57,17 @@ export default function CertificateTemplate({
                     </div>
                 </div>
 
-                {/* Dynamic Content Layers - Monospace font matching the certificate text */}
-                <div className="absolute inset-0 z-10 font-mono pointer-events-none">
+                {/* Dynamic Content Layers */}
+                <div className="absolute inset-0 z-10 pointer-events-none">
                     {/* Recipient Name - Independently positioned and sized */}
                     <div
-                        className="absolute left-[54%] w-[42%] text-center px-2 flex items-center justify-center -translate-y-1/2 transition-all duration-150"
+                        className="absolute left-[54%] w-[42%] text-center px-3 flex items-center justify-center -translate-y-1/2 transition-all duration-150 box-border"
                         style={{ top: `${activeLayout.nameY}%` }}
                     >
                         <h1
-                            className="text-white font-bold font-mono uppercase tracking-tight leading-[1.1] drop-shadow-md text-center max-w-full break-words"
+                            className="text-white font-bold uppercase tracking-tight leading-[1.1] drop-shadow-md text-center max-w-full break-words m-0"
                             style={{
-                                fontSize: `clamp(10px, ${(activeLayout.nameSize / 100) * 3.2}cqi, 34px)`,
+                                fontSize: `${(activeLayout.nameSize / 100) * 3.15}cqi`,
                                 letterSpacing: "-0.01em"
                             }}
                         >
@@ -74,13 +77,13 @@ export default function CertificateTemplate({
 
                     {/* Custom Intro Phrase - Independently positioned and sized */}
                     <div
-                        className="absolute left-[54%] w-[42%] text-center px-2 flex items-center justify-center -translate-y-1/2 transition-all duration-150"
+                        className="absolute left-[54%] w-[42%] text-center px-3 flex items-center justify-center -translate-y-1/2 transition-all duration-150 box-border"
                         style={{ top: `${activeLayout.introY}%` }}
                     >
                         <p
-                            className="text-white/85 font-mono font-medium tracking-normal leading-[1.25] drop-shadow-md text-center max-w-full break-words"
+                            className="text-white/90 font-medium tracking-normal leading-[1.25] drop-shadow-md text-center max-w-full break-words m-0"
                             style={{
-                                fontSize: `clamp(5px, ${(activeLayout.introSize / 100) * 1.05}cqi, 13px)`
+                                fontSize: `${(activeLayout.introSize / 100) * 1.05}cqi`
                             }}
                         >
                             {displayIntro}
@@ -89,13 +92,13 @@ export default function CertificateTemplate({
 
                     {/* Event Title - Independently positioned and sized */}
                     <div
-                        className="absolute left-[54%] w-[42%] text-center px-2 flex items-center justify-center -translate-y-1/2 transition-all duration-150"
+                        className="absolute left-[54%] w-[42%] text-center px-3 flex items-center justify-center -translate-y-1/2 transition-all duration-150 box-border"
                         style={{ top: `${activeLayout.titleY}%` }}
                     >
                         <p
-                            className="text-white font-mono font-bold tracking-normal leading-[1.25] drop-shadow-md text-center max-w-full break-words"
+                            className="text-white font-bold tracking-normal leading-[1.25] drop-shadow-md text-center max-w-full break-words m-0"
                             style={{
-                                fontSize: `clamp(6px, ${(activeLayout.titleSize / 100) * 1.3}cqi, 15px)`
+                                fontSize: `${(activeLayout.titleSize / 100) * 1.30}cqi`
                             }}
                         >
                             {displayEvent}
@@ -106,4 +109,5 @@ export default function CertificateTemplate({
         </div>
     );
 }
+
 
