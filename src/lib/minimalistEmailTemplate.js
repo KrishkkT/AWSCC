@@ -295,10 +295,10 @@ export function buildMinimalistEmailHtml({
           <td height="3" bgcolor="${accentColor}" style="background-color: ${accentColor}; line-height: 3px; font-size: 3px;">&nbsp;</td>
         </tr>
         <tr>
-          <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg}); padding: 24px 28px 18px 28px; border-bottom: 1px solid ${borderColor};">
-            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg});">
+          <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%); padding: 24px 28px 18px 28px; border-bottom: 1px solid ${borderColor};">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%);">
               <tr>
-                <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg});">
+                <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%);">
                   <span style="font-size: 11px; font-weight: 700; color: ${accentColor}; text-transform: uppercase; letter-spacing: 0.12em; font-family: monospace;">
                     ${headerConfig.badgeText || 'AWS SBG DDU'}
                   </span>
@@ -306,7 +306,7 @@ export function buildMinimalistEmailHtml({
               </tr>
               ${headerConfig.title ? `
               <tr>
-                <td colspan="2" bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg}); padding-top: 10px;">
+                <td colspan="2" bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%); padding-top: 10px;">
                   <h1 style="margin: 0; color: ${textColor}; font-size: 20px; font-weight: 800; line-height: 1.35; letter-spacing: -0.01em;">
                     ${headerConfig.title}
                   </h1>
@@ -324,10 +324,10 @@ export function buildMinimalistEmailHtml({
       headerHtml = `
         <!-- Minimal Badge Header -->
         <tr>
-          <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg}); padding: 24px 28px 18px 28px; border-bottom: 1px solid ${borderColor};">
-            <table role="presentation" border="0" cellpadding="0" cellspacing="0" bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg});">
+          <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%); padding: 24px 28px 18px 28px; border-bottom: 1px solid ${borderColor};">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%);">
               <tr>
-                <td bgcolor="${badgeBg}" style="background-color: ${badgeBg}; background-image: linear-gradient(${badgeBg}, ${badgeBg}); border: 1px solid ${borderColor}; border-radius: 9999px; padding: 4px 14px;">
+                <td bgcolor="${badgeBg}" style="background-color: ${badgeBg}; background-image: -webkit-linear-gradient(top, ${badgeBg} 0%, ${badgeBg} 100%); background-image: linear-gradient(to bottom, ${badgeBg} 0%, ${badgeBg} 100%); border: 1px solid ${borderColor}; border-radius: 9999px; padding: 4px 14px;">
                   <span style="font-size: 11px; font-weight: 700; color: ${accentColor}; letter-spacing: 0.06em; text-transform: uppercase; font-family: monospace;">
                     ● ${headerConfig.badgeText || 'ANNOUNCEMENT'}
                   </span>
@@ -348,10 +348,10 @@ export function buildMinimalistEmailHtml({
       headerHtml = `
         <!-- Sleek Monoline Header -->
         <tr>
-          <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg}); padding: 24px 28px 16px 28px;">
-            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg});">
+          <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%); padding: 24px 28px 16px 28px;">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%);">
               <tr>
-                <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg}); border-bottom: 2px solid ${accentColor}; padding-bottom: 12px;">
+                <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%); border-bottom: 2px solid ${accentColor}; padding-bottom: 12px;">
                   <h1 style="margin: 0; color: ${textColor}; font-size: 19px; font-weight: 800; letter-spacing: -0.01em;">
                     ${headerConfig.title || 'AWS Community'}
                   </h1>
@@ -366,7 +366,7 @@ export function buildMinimalistEmailHtml({
       // Pure Text
       headerHtml = `
         <tr>
-          <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg}); padding: 24px 28px 12px 28px;">
+          <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%); padding: 24px 28px 12px 28px;">
             <h1 style="margin: 0; color: ${textColor}; font-size: 20px; font-weight: 800;">
               ${headerConfig.title}
             </h1>
@@ -390,7 +390,7 @@ export function buildMinimalistEmailHtml({
     buttonHtml = `
       <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 24px 0 16px 0;">
         <tr>
-          <td align="center" bgcolor="${btnBg}" style="background-color: ${btnBg}; background-image: linear-gradient(${btnBg}, ${btnBg}); border: ${btnBorder}; border-radius: ${borderRadius};">
+          <td align="center" bgcolor="${btnBg}" style="background-color: ${btnBg}; background-image: -webkit-linear-gradient(top, ${btnBg} 0%, ${btnBg} 100%); background-image: linear-gradient(to bottom, ${btnBg} 0%, ${btnBg} 100%); border: ${btnBorder}; border-radius: ${borderRadius};">
             <a href="${buttonConfig.url}" target="_blank" style="display: inline-block; padding: 12px 28px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; font-weight: 700; color: ${btnTextColor}; text-decoration: none; border-radius: ${borderRadius}; letter-spacing: 0.02em;">
               ${buttonConfig.text} &rarr;
             </a>
@@ -406,9 +406,9 @@ export function buildMinimalistEmailHtml({
     const count = attachments.length;
     const names = attachments.map(a => a.filename).join(', ');
     attachmentsHtml = `
-      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${attachmentBg}" style="background-color: ${attachmentBg}; background-image: linear-gradient(${attachmentBg}, ${attachmentBg}); border: 1px dashed ${borderColor}; border-radius: 8px; margin-top: 24px;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${attachmentBg}" style="background-color: ${attachmentBg}; background-image: -webkit-linear-gradient(top, ${attachmentBg} 0%, ${attachmentBg} 100%); background-image: linear-gradient(to bottom, ${attachmentBg} 0%, ${attachmentBg} 100%); border: 1px dashed ${borderColor}; border-radius: 8px; margin-top: 24px;">
         <tr>
-          <td bgcolor="${attachmentBg}" style="background-color: ${attachmentBg}; background-image: linear-gradient(${attachmentBg}, ${attachmentBg}); padding: 12px 16px; font-size: 12px; color: ${mutedColor}; font-family: monospace;">
+          <td bgcolor="${attachmentBg}" style="background-color: ${attachmentBg}; background-image: -webkit-linear-gradient(top, ${attachmentBg} 0%, ${attachmentBg} 100%); background-image: linear-gradient(to bottom, ${attachmentBg} 0%, ${attachmentBg} 100%); padding: 12px 16px; font-size: 12px; color: ${mutedColor}; font-family: monospace;">
             📎 <strong style="color: ${textColor}; font-weight: 700;">${count} Attached File${count > 1 ? 's' : ''}:</strong> ${names}
           </td>
         </tr>
@@ -422,7 +422,7 @@ export function buildMinimalistEmailHtml({
     if (footerConfig.style === 'signoff') {
       footerHtml = `
         <tr>
-          <td bgcolor="${footerSubBg}" style="background-color: ${footerSubBg}; background-image: linear-gradient(${footerSubBg}, ${footerSubBg}); padding: 20px 28px; border-top: 1px solid ${borderColor};">
+          <td bgcolor="${footerSubBg}" style="background-color: ${footerSubBg}; background-image: -webkit-linear-gradient(top, ${footerSubBg} 0%, ${footerSubBg} 100%); background-image: linear-gradient(to bottom, ${footerSubBg} 0%, ${footerSubBg} 100%); padding: 20px 28px; border-top: 1px solid ${borderColor};">
             <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 700; color: ${textColor};">
               ${footerConfig.customText || 'Warm regards,'}
             </p>
@@ -435,7 +435,7 @@ export function buildMinimalistEmailHtml({
     } else if (footerConfig.style === 'detailed') {
       footerHtml = `
         <tr>
-          <td bgcolor="${footerSubBg}" style="background-color: ${footerSubBg}; background-image: linear-gradient(${footerSubBg}, ${footerSubBg}); padding: 22px 28px; border-top: 1px solid ${borderColor}; text-align: center;">
+          <td bgcolor="${footerSubBg}" style="background-color: ${footerSubBg}; background-image: -webkit-linear-gradient(top, ${footerSubBg} 0%, ${footerSubBg} 100%); background-image: linear-gradient(to bottom, ${footerSubBg} 0%, ${footerSubBg} 100%); padding: 22px 28px; border-top: 1px solid ${borderColor}; text-align: center;">
             <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; color: ${textColor};">
               ${footerConfig.customText || 'AWS Student Builder Group at DDU'}
             </p>
@@ -449,7 +449,7 @@ export function buildMinimalistEmailHtml({
       // Default: Minimal Line
       footerHtml = `
         <tr>
-          <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg}); padding: 18px 28px; border-top: 1px solid ${borderColor}; text-align: center;">
+          <td bgcolor="${cardBg}" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%); padding: 18px 28px; border-top: 1px solid ${borderColor}; text-align: center;">
             <p style="margin: 0; font-size: 11px; color: ${mutedColor}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
               ${footerConfig.customText || 'AWS Student Builder Group • DDU Chapter'}
             </p>
@@ -465,13 +465,13 @@ export function buildMinimalistEmailHtml({
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="light dark" />
-  <meta name="supported-color-schemes" content="light dark" />
+  <meta name="color-scheme" content="light only" />
+  <meta name="supported-color-schemes" content="light only" />
   <title>${title}</title>
   <style type="text/css">
     :root {
-      color-scheme: light dark;
-      supported-color-schemes: light dark;
+      color-scheme: light only;
+      supported-color-schemes: light only;
     }
     body, table, td, a, p { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
     table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
@@ -487,7 +487,7 @@ export function buildMinimalistEmailHtml({
       color: ${textColor} !important;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
-    /* Force email clients not to invert background */
+    /* Force mobile and desktop clients to retain intended dark palette */
     u + .body .email-wrapper {
       background: ${bg} !important;
       background-color: ${bg} !important;
@@ -504,6 +504,21 @@ export function buildMinimalistEmailHtml({
       background: ${cardBg} !important;
       background-color: ${cardBg} !important;
     }
+    @media (prefers-color-scheme: dark) {
+      body, .body, .email-wrapper, .email-bg {
+        background-color: ${bg} !important;
+        background: ${bg} !important;
+      }
+      .email-card, .email-shell {
+        background-color: ${cardBg} !important;
+        background: ${cardBg} !important;
+      }
+      .content-cell {
+        background-color: ${cardBg} !important;
+        background: ${cardBg} !important;
+        color: ${textColor} !important;
+      }
+    }
     @media screen and (max-width: 600px) {
       .email-shell { width: 100% !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; }
       .content-cell { padding: 22px 18px !important; }
@@ -515,17 +530,17 @@ export function buildMinimalistEmailHtml({
   </style>
   <![endif]-->
 </head>
-<body class="body" bgcolor="${bg}" style="background-color: ${bg}; background-image: linear-gradient(${bg}, ${bg}); margin: 0; padding: 0; -webkit-font-smoothing: antialiased;">
+<body class="body" bgcolor="${bg}" style="background-color: ${bg}; background-image: -webkit-linear-gradient(top, ${bg} 0%, ${bg} 100%); background-image: linear-gradient(to bottom, ${bg} 0%, ${bg} 100%); margin: 0; padding: 0; -webkit-font-smoothing: antialiased;">
   <!-- Hidden Preheader -->
   <div style="display: none; font-size: 1px; color: ${bg}; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all;">
     ${preheader || title} &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
   </div>
 
-  <!-- Full-Width Background Wrapper Div & Table for Gmail -->
-  <div class="email-wrapper" style="background-color: ${bg}; background-image: linear-gradient(${bg}, ${bg}); width: 100%; min-width: 100%; margin: 0; padding: 0;">
-    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${bg}" class="email-wrapper email-bg" style="width: 100%; min-width: 100%; table-layout: fixed; background-color: ${bg}; background-image: linear-gradient(${bg}, ${bg}); margin: 0; padding: 0;">
+  <!-- Full-Width Background Wrapper Div & Table for Mobile & Desktop -->
+  <div class="email-wrapper" style="background-color: ${bg}; background-image: -webkit-linear-gradient(top, ${bg} 0%, ${bg} 100%); background-image: linear-gradient(to bottom, ${bg} 0%, ${bg} 100%); width: 100%; min-width: 100%; margin: 0; padding: 0;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${bg}" class="email-wrapper email-bg" style="width: 100%; min-width: 100%; table-layout: fixed; background-color: ${bg}; background-image: -webkit-linear-gradient(top, ${bg} 0%, ${bg} 100%); background-image: linear-gradient(to bottom, ${bg} 0%, ${bg} 100%); margin: 0; padding: 0;">
       <tr>
-        <td align="center" bgcolor="${bg}" class="email-wrapper email-bg" style="background-color: ${bg}; background-image: linear-gradient(${bg}, ${bg}); padding: 24px 12px; margin: 0;">
+        <td align="center" bgcolor="${bg}" class="email-wrapper email-bg" style="background-color: ${bg}; background-image: -webkit-linear-gradient(top, ${bg} 0%, ${bg} 100%); background-image: linear-gradient(to bottom, ${bg} 0%, ${bg} 100%); padding: 24px 12px; margin: 0;">
           
           <!--[if (gte mso 9)|(IE)]>
           <table width="600" align="center" cellpadding="0" cellspacing="0" border="0">
@@ -534,13 +549,13 @@ export function buildMinimalistEmailHtml({
           <![endif]-->
 
           <!-- Email Container Card (600px Max) -->
-          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${cardBg}" class="email-card email-shell" style="max-width: 600px; width: 100%; background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg}); border-radius: 14px; border: 1px solid ${borderColor}; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.35);">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${cardBg}" class="email-card email-shell" style="max-width: 600px; width: 100%; background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%); border-radius: 14px; border: 1px solid ${borderColor}; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.35);">
             
             ${headerHtml}
 
             <!-- Main Content Area -->
             <tr>
-              <td bgcolor="${cardBg}" class="email-card content-cell" style="background-color: ${cardBg}; background-image: linear-gradient(${cardBg}, ${cardBg}); padding: 28px 28px 24px 28px; color: ${textColor}; font-size: 15px; line-height: 1.7;">
+              <td bgcolor="${cardBg}" class="email-card content-cell" style="background-color: ${cardBg}; background-image: -webkit-linear-gradient(top, ${cardBg} 0%, ${cardBg} 100%); background-image: linear-gradient(to bottom, ${cardBg} 0%, ${cardBg} 100%); padding: 28px 28px 24px 28px; color: ${textColor}; font-size: 15px; line-height: 1.7;">
                 ${renderedBody}
                 ${buttonHtml}
                 ${attachmentsHtml}
