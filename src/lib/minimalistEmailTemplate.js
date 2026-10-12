@@ -80,7 +80,38 @@ export const THEME_PRESETS = {
 };
 
 /**
- * Universally interpolates any {{variable}} inside text using row data and context
+ * Safely extracts a clean, human-readable name from an email address
+ * Examples:
+ * - "krishthakker508@gmail.com" -> "Krishthakker"
+ * - "krish.thakker@gmail.com"    -> "Krish Thakker"
+ * - "john_doe_99@gmail.com"     -> "John Doe"
+ * - "alex-miller@domain.com"    -> "Alex Miller"
+ * - "ce058@ddu.ac.in"           -> "Ce058"
+ */
+export function extractNameFromEmail(email) {
+  if (!email || typeof email !== 'string') return '';
+  const localPart = email.split('@')[0]?.trim() || '';
+  if (!localPart) return '';
+
+  // Remove aliases like "+newsletter"
+  const cleanLocal = localPart.split('+')[0];
+
+  // Split by common separators (. _ -)
+  const rawParts = cleanLocal.split(/[._\-]+/).filter(Boolean);
+  if (rawParts.length === 0) return localPart;
+
+  const words = rawParts.map(part => {
+    // Strip trailing digits if remaining text has at least 3 letters (e.g. "thakker508" -> "thakker")
+    const withoutTrailingDigits = part.replace(/\d+$/, '');
+    const cleanWord = (withoutTrailingDigits.length >= 3) ? withoutTrailingDigits : part;
+    return cleanWord.charAt(0).toUpperCase() + cleanWord.slice(1);
+  });
+
+  return words.join(' ');
+}
+
+/**
+ * Universally interpolates any {{variable}} or ${variable} inside text using row data and context
  */
 export function interpolateVariables(template, data = {}, context = {}) {
   if (!template) return '';
@@ -110,15 +141,38 @@ export function interpolateVariables(template, data = {}, context = {}) {
     }
   }
 
-  // Derive first_name if name is present
-  if (combined.name && !combined.first_name) {
-    combined.first_name = String(combined.name).trim().split(' ')[0] || combined.name;
+  // If email is provided, and name is missing, identical to email, or a generic placeholder
+  const rawEmail = combined.email ? String(combined.email).trim() : '';
+  const currentName = combined.name ? String(combined.name).trim() : '';
+  const isGenericName = !currentName ||
+    currentName.toLowerCase() === rawEmail.toLowerCase() ||
+    /^(recipient|participant|member|sample recipient|sample|user|attendee|attendee name|full name|\$\{\s*name\s*\}|\{\{\s*name\s*\}\})$/i.test(currentName);
+
+  if (rawEmail && isGenericName) {
+    const derivedName = extractNameFromEmail(rawEmail);
+    if (derivedName) {
+      combined.name = derivedName;
+    }
   }
 
-  // Replace {{ tag }} pattern
-  return str.replace(/\{\{\s*([a-zA-Z0-9_\-\.\s]+?)\s*\}\}/g, (match, key) => {
-    const trimmedKey = key.trim();
-    
+  // Derive first_name if name is present
+  if (combined.name) {
+    const currentFirstName = combined.first_name ? String(combined.first_name).trim() : '';
+    const isGenericFirstName = !currentFirstName ||
+      currentFirstName.toLowerCase() === rawEmail.toLowerCase() ||
+      /^(recipient|participant|member|sample)$/i.test(currentFirstName);
+
+    if (isGenericFirstName) {
+      combined.first_name = String(combined.name).trim().split(' ')[0] || combined.name;
+    }
+  }
+
+  // Replace both {{ tag }} and ${ tag } patterns
+  return str.replace(/(?:\{\{\s*([a-zA-Z0-9_\-\.\s]+?)\s*\}\}|\$\{\s*([a-zA-Z0-9_\-\.\s]+?)\s*\})/g, (match, p1, p2) => {
+    const rawKey = p1 || p2;
+    if (!rawKey) return match;
+    const trimmedKey = rawKey.trim();
+
     // Direct match
     if (combined[trimmedKey] !== undefined && combined[trimmedKey] !== null) {
       return String(combined[trimmedKey]);
@@ -142,7 +196,7 @@ export function interpolateVariables(template, data = {}, context = {}) {
  */
 export function formatContentToHtml(rawText, textColor = '#FFFFFF') {
   if (!rawText) return '';
-  
+
   // If already full HTML with tags
   if (rawText.includes('<p>') || rawText.includes('<div') || rawText.includes('<table')) {
     return rawText;
@@ -189,14 +243,19 @@ export function buildMinimalistEmailHtml({
   };
 
   const {
-    bg = '#090D16',
-    cardBg = '#0F172A',
-    borderColor = '#1E293B',
-    accentColor = '#38BDF8',
-    textColor = '#F8FAFC',
+    bg = '#080E1A',
+    cardBg = '#0D1527',
+    borderColor = '#1B2A4A',
+    accentColor = '#FF9900',
+    textColor = '#F1F5F9',
     mutedColor = '#94A3B8',
     isDark = true
   } = activeTheme;
+
+  // Solid sub-panel backgrounds (avoid rgba() which is stripped by Gmail/Outlook)
+  const badgeBg = isDark ? '#141E34' : '#F1F5F9';
+  const footerSubBg = isDark ? '#080E1C' : '#F8FAFC';
+  const attachmentBg = isDark ? '#111A2E' : '#F1F5F9';
 
   const headerConfig = {
     enabled: true,
@@ -233,31 +292,26 @@ export function buildMinimalistEmailHtml({
       headerHtml = `
         <!-- Top Accent Bar Header -->
         <tr>
-          <td height="3" style="background: ${accentColor}; line-height: 3px; font-size: 3px;">&nbsp;</td>
+          <td height="3" bgcolor="${accentColor}" style="background-color: ${accentColor} !important; line-height: 3px; font-size: 3px;">&nbsp;</td>
         </tr>
         <tr>
-          <td style="padding: 24px 28px 18px 28px; border-bottom: 1px solid ${borderColor};">
-            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <td bgcolor="${cardBg}" style="background-color: ${cardBg} !important; padding: 24px 28px 18px 28px; border-bottom: 1px solid ${borderColor};">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${cardBg}" style="background-color: ${cardBg} !important;">
               <tr>
-                <td>
-                  <span style="font-size: 11px; font-weight: 700; color: ${accentColor}; text-transform: uppercase; letter-spacing: 0.12em; font-family: monospace;">
+                <td bgcolor="${cardBg}" style="background-color: ${cardBg} !important;">
+                  <span style="font-size: 11px; font-weight: 700; color: ${accentColor} !important; text-transform: uppercase; letter-spacing: 0.12em; font-family: monospace;">
                     ${headerConfig.badgeText || 'AWS SBG DDU'}
-                  </span>
-                </td>
-                <td align="right">
-                  <span style="font-size: 11px; color: ${mutedColor}; font-family: monospace; letter-spacing: 0.05em;">
-                    OFFICIAL DISPATCH
                   </span>
                 </td>
               </tr>
               ${headerConfig.title ? `
               <tr>
-                <td colspan="2" style="padding-top: 10px;">
+                <td colspan="2" bgcolor="${cardBg}" style="background-color: ${cardBg} !important; padding-top: 10px;">
                   <h1 style="margin: 0; color: ${textColor} !important; font-size: 20px; font-weight: 800; line-height: 1.35; letter-spacing: -0.01em;">
                     ${headerConfig.title}
                   </h1>
                   ${headerConfig.subtitle ? `
-                  <p style="margin: 4px 0 0 0; color: ${mutedColor}; font-size: 13px; line-height: 1.4;">
+                  <p style="margin: 4px 0 0 0; color: ${mutedColor} !important; font-size: 13px; line-height: 1.4;">
                     ${headerConfig.subtitle}
                   </p>` : ''}
                 </td>
@@ -270,11 +324,11 @@ export function buildMinimalistEmailHtml({
       headerHtml = `
         <!-- Minimal Badge Header -->
         <tr>
-          <td style="padding: 24px 28px 18px 28px; border-bottom: 1px solid ${borderColor};">
-            <table border="0" cellpadding="0" cellspacing="0">
+          <td bgcolor="${cardBg}" style="background-color: ${cardBg} !important; padding: 24px 28px 18px 28px; border-bottom: 1px solid ${borderColor};">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" bgcolor="${cardBg}" style="background-color: ${cardBg} !important;">
               <tr>
-                <td style="background-color: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}; border: 1px solid ${borderColor}; border-radius: 9999px; padding: 4px 14px;">
-                  <span style="font-size: 11px; font-weight: 700; color: ${accentColor}; letter-spacing: 0.06em; text-transform: uppercase; font-family: monospace;">
+                <td bgcolor="${badgeBg}" style="background-color: ${badgeBg} !important; border: 1px solid ${borderColor}; border-radius: 9999px; padding: 4px 14px;">
+                  <span style="font-size: 11px; font-weight: 700; color: ${accentColor} !important; letter-spacing: 0.06em; text-transform: uppercase; font-family: monospace;">
                     ● ${headerConfig.badgeText || 'ANNOUNCEMENT'}
                   </span>
                 </td>
@@ -285,7 +339,7 @@ export function buildMinimalistEmailHtml({
               <h1 style="margin: 0; color: ${textColor} !important; font-size: 20px; font-weight: 800; line-height: 1.35; letter-spacing: -0.01em;">
                 ${headerConfig.title}
               </h1>
-              ${headerConfig.subtitle ? `<p style="margin: 4px 0 0 0; color: ${mutedColor}; font-size: 13px;">${headerConfig.subtitle}</p>` : ''}
+              ${headerConfig.subtitle ? `<p style="margin: 4px 0 0 0; color: ${mutedColor} !important; font-size: 13px;">${headerConfig.subtitle}</p>` : ''}
             </div>` : ''}
           </td>
         </tr>
@@ -294,14 +348,14 @@ export function buildMinimalistEmailHtml({
       headerHtml = `
         <!-- Sleek Monoline Header -->
         <tr>
-          <td style="padding: 24px 28px 16px 28px;">
-            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <td bgcolor="${cardBg}" style="background-color: ${cardBg} !important; padding: 24px 28px 16px 28px;">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${cardBg}" style="background-color: ${cardBg} !important;">
               <tr>
-                <td style="border-bottom: 2px solid ${accentColor}; padding-bottom: 12px;">
+                <td bgcolor="${cardBg}" style="background-color: ${cardBg} !important; border-bottom: 2px solid ${accentColor}; padding-bottom: 12px;">
                   <h1 style="margin: 0; color: ${textColor} !important; font-size: 19px; font-weight: 800; letter-spacing: -0.01em;">
                     ${headerConfig.title || 'AWS Community'}
                   </h1>
-                  ${headerConfig.subtitle ? `<span style="display: block; margin-top: 2px; color: ${mutedColor}; font-size: 12px;">${headerConfig.subtitle}</span>` : ''}
+                  ${headerConfig.subtitle ? `<span style="display: block; margin-top: 2px; color: ${mutedColor} !important; font-size: 12px;">${headerConfig.subtitle}</span>` : ''}
                 </td>
               </tr>
             </table>
@@ -312,11 +366,11 @@ export function buildMinimalistEmailHtml({
       // Pure Text
       headerHtml = `
         <tr>
-          <td style="padding: 24px 28px 12px 28px;">
+          <td bgcolor="${cardBg}" style="background-color: ${cardBg} !important; padding: 24px 28px 12px 28px;">
             <h1 style="margin: 0; color: ${textColor} !important; font-size: 20px; font-weight: 800;">
               ${headerConfig.title}
             </h1>
-            ${headerConfig.subtitle ? `<p style="margin: 4px 0 0 0; color: ${mutedColor}; font-size: 13px;">${headerConfig.subtitle}</p>` : ''}
+            ${headerConfig.subtitle ? `<p style="margin: 4px 0 0 0; color: ${mutedColor} !important; font-size: 13px;">${headerConfig.subtitle}</p>` : ''}
           </td>
         </tr>
       `;
@@ -334,9 +388,9 @@ export function buildMinimalistEmailHtml({
     const borderRadius = isPill ? '9999px' : '8px';
 
     buttonHtml = `
-      <table border="0" cellpadding="0" cellspacing="0" style="margin: 24px 0 16px 0;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 24px 0 16px 0;">
         <tr>
-          <td align="center" style="background-color: ${btnBg}; border: ${btnBorder}; border-radius: ${borderRadius};">
+          <td align="center" bgcolor="${btnBg}" style="background-color: ${btnBg} !important; border: ${btnBorder}; border-radius: ${borderRadius};">
             <a href="${buttonConfig.url}" target="_blank" style="display: inline-block; padding: 12px 28px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; font-weight: 700; color: ${btnTextColor} !important; text-decoration: none; border-radius: ${borderRadius}; letter-spacing: 0.02em;">
               ${buttonConfig.text} &rarr;
             </a>
@@ -352,10 +406,10 @@ export function buildMinimalistEmailHtml({
     const count = attachments.length;
     const names = attachments.map(a => a.filename).join(', ');
     attachmentsHtml = `
-      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: ${isDark ? 'rgba(255,255,255,0.03)' : '#F1F5F9'}; border: 1px dashed ${borderColor}; border-radius: 8px; margin-top: 24px; padding: 12px 16px;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${attachmentBg}" style="background-color: ${attachmentBg} !important; border: 1px dashed ${borderColor}; border-radius: 8px; margin-top: 24px;">
         <tr>
-          <td style="font-size: 12px; color: ${mutedColor}; font-family: monospace;">
-            📎 <strong style="color: ${textColor}; font-weight: 700;">${count} Attached File${count > 1 ? 's' : ''}:</strong> ${names}
+          <td bgcolor="${attachmentBg}" style="background-color: ${attachmentBg} !important; padding: 12px 16px; font-size: 12px; color: ${mutedColor} !important; font-family: monospace;">
+            📎 <strong style="color: ${textColor} !important; font-weight: 700;">${count} Attached File${count > 1 ? 's' : ''}:</strong> ${names}
           </td>
         </tr>
       </table>
@@ -368,11 +422,11 @@ export function buildMinimalistEmailHtml({
     if (footerConfig.style === 'signoff') {
       footerHtml = `
         <tr>
-          <td style="padding: 20px 28px; border-top: 1px solid ${borderColor}; background-color: ${isDark ? 'rgba(0,0,0,0.2)' : '#F8FAFC'};">
-            <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 700; color: ${textColor};">
+          <td bgcolor="${footerSubBg}" style="background-color: ${footerSubBg} !important; padding: 20px 28px; border-top: 1px solid ${borderColor};">
+            <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 700; color: ${textColor} !important;">
               ${footerConfig.customText || 'Warm regards,'}
             </p>
-            <p style="margin: 0; font-size: 12px; color: ${mutedColor};">
+            <p style="margin: 0; font-size: 12px; color: ${mutedColor} !important;">
               AWS Student Builder Group • DDU Chapter
             </p>
           </td>
@@ -381,11 +435,11 @@ export function buildMinimalistEmailHtml({
     } else if (footerConfig.style === 'detailed') {
       footerHtml = `
         <tr>
-          <td style="padding: 22px 28px; border-top: 1px solid ${borderColor}; background-color: ${isDark ? 'rgba(0,0,0,0.25)' : '#F8FAFC'}; text-align: center;">
-            <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; color: ${textColor};">
+          <td bgcolor="${footerSubBg}" style="background-color: ${footerSubBg} !important; padding: 22px 28px; border-top: 1px solid ${borderColor}; text-align: center;">
+            <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; color: ${textColor} !important;">
               ${footerConfig.customText || 'AWS Student Builder Group at DDU'}
             </p>
-            <p style="margin: 0; font-size: 11px; color: ${mutedColor}; line-height: 1.5;">
+            <p style="margin: 0; font-size: 11px; color: ${mutedColor} !important; line-height: 1.5;">
               You received this message because you are a registered participant or member. If you have any inquiries, reach us at contact@aws.ddu.ac.in.
             </p>
           </td>
@@ -395,8 +449,8 @@ export function buildMinimalistEmailHtml({
       // Default: Minimal Line
       footerHtml = `
         <tr>
-          <td style="padding: 18px 28px; border-top: 1px solid ${borderColor}; text-align: center;">
-            <p style="margin: 0; font-size: 11px; color: ${mutedColor}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <td bgcolor="${cardBg}" style="background-color: ${cardBg} !important; padding: 18px 28px; border-top: 1px solid ${borderColor}; text-align: center;">
+            <p style="margin: 0; font-size: 11px; color: ${mutedColor} !important; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
               ${footerConfig.customText || 'AWS Student Builder Group • DDU Chapter'}
             </p>
           </td>
@@ -415,6 +469,10 @@ export function buildMinimalistEmailHtml({
   <meta name="supported-color-schemes" content="${isDark ? 'dark' : 'light'}" />
   <title>${title}</title>
   <style type="text/css">
+    :root {
+      color-scheme: ${isDark ? 'dark' : 'light'};
+      supported-color-schemes: ${isDark ? 'dark' : 'light'};
+    }
     body, table, td, a, p { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
     table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
     img { -ms-interpolation-mode: bicubic; border: 0; height: auto; outline: none; text-decoration: none; }
@@ -424,33 +482,44 @@ export function buildMinimalistEmailHtml({
       margin: 0 !important;
       padding: 0 !important;
       width: 100% !important;
-      background-color: ${bg};
+      background-color: ${bg} !important;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      color: ${textColor};
+      color: ${textColor} !important;
     }
+    /* Enforce dark colors in Gmail, Apple Mail and Outlook */
+    u + .body .email-bg { background-color: ${bg} !important; }
+    u + .body .email-card { background-color: ${cardBg} !important; }
+    [data-ogsc] .email-bg { background-color: ${bg} !important; }
+    [data-ogsc] .email-card { background-color: ${cardBg} !important; }
     @media screen and (max-width: 600px) {
       .email-shell { width: 100% !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; }
       .content-cell { padding: 22px 18px !important; }
     }
   </style>
+  <!--[if mso]>
+  <style type="text/css">
+    table, td, p, h1, span, a { font-family: Arial, sans-serif !important; }
+  </style>
+  <![endif]-->
 </head>
-<body style="background-color: ${bg}; margin: 0; padding: 24px 0; -webkit-font-smoothing: antialiased;">
+<body class="body" bgcolor="${bg}" style="background-color: ${bg} !important; margin: 0; padding: 0; -webkit-font-smoothing: antialiased;">
   <!-- Hidden Preheader -->
   <div style="display: none; font-size: 1px; color: ${bg}; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all;">
     ${preheader || title} &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
   </div>
 
-  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: ${bg};">
+  <!-- Full-Width Email Wrapper Table (ensures background never defaults to Gmail white) -->
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${bg}" class="email-bg" style="background-color: ${bg} !important; width: 100% !important; min-width: 100%; margin: 0; padding: 0;">
     <tr>
-      <td align="center" style="padding: 12px;">
+      <td align="center" bgcolor="${bg}" class="email-bg" style="background-color: ${bg} !important; padding: 24px 12px;">
         <!-- Email Container Card (600px Max) -->
-        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: ${cardBg}; border-radius: 14px; border: 1px solid ${borderColor}; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.35);" class="email-shell">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${cardBg}" style="max-width: 600px; width: 100%; background-color: ${cardBg} !important; border-radius: 14px; border: 1px solid ${borderColor}; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.35);" class="email-card email-shell">
           
           ${headerHtml}
 
           <!-- Main Content Area -->
           <tr>
-            <td style="padding: 28px 28px 24px 28px; color: ${textColor} !important; font-size: 15px; line-height: 1.7;" class="content-cell">
+            <td bgcolor="${cardBg}" style="background-color: ${cardBg} !important; padding: 28px 28px 24px 28px; color: ${textColor} !important; font-size: 15px; line-height: 1.7;" class="content-cell">
               ${renderedBody}
               ${buttonHtml}
               ${attachmentsHtml}

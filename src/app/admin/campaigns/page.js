@@ -11,7 +11,7 @@ import {
     FileArchive, FileCheck, ArrowRight, Smartphone, Monitor,
     Code, ShieldCheck, Trash2, Plus, Info, Palette, ExternalLink
 } from 'lucide-react';
-import { THEME_PRESETS, interpolateVariables, buildMinimalistEmailHtml } from '@/lib/minimalistEmailTemplate';
+import { THEME_PRESETS, interpolateVariables, buildMinimalistEmailHtml, extractNameFromEmail } from '@/lib/minimalistEmailTemplate';
 
 export default function AdminCampaignStudioPage() {
     const supabase = createClient();
@@ -236,20 +236,21 @@ export default function AdminCampaignStudioPage() {
 
         if (recipientSource === 'UPLOAD') {
             list = uploadedData.map((row, idx) => {
-                const email = emailColumnKey ? String(row[emailColumnKey] || '').trim() : '';
-                const name = nameColumnKey ? String(row[nameColumnKey] || '').trim() : '';
+                const rawEmail = emailColumnKey ? String(row[emailColumnKey] || '').trim() : (row.email || row.Email || '');
+                const rawName = nameColumnKey ? String(row[nameColumnKey] || '').trim() : (row.name || row.Name || '');
+                const derivedName = rawName || (rawEmail ? extractNameFromEmail(rawEmail) : '') || `Recipient #${idx + 1}`;
                 return {
                     ...row,
-                    email: email || row.email || row.Email || '',
-                    name: name || row.name || row.Name || `Recipient #${idx + 1}`,
-                    first_name: (name || row.name || row.Name || 'Recipient').split(' ')[0]
+                    email: rawEmail,
+                    name: derivedName,
+                    first_name: derivedName.split(' ')[0]
                 };
             });
         } else if (recipientSource === 'MEMBERS') {
             list = dbMembers.map(m => ({
                 ...m,
-                name: m.name || m.full_name || 'Member',
-                first_name: (m.name || m.full_name || 'Member').split(' ')[0],
+                name: m.name || m.full_name || (m.email ? extractNameFromEmail(m.email) : 'Member'),
+                first_name: (m.name || m.full_name || (m.email ? extractNameFromEmail(m.email) : 'Member')).split(' ')[0],
                 email: m.email
             }));
         } else if (recipientSource === 'EVENTS') {
@@ -264,11 +265,14 @@ export default function AdminCampaignStudioPage() {
                 .split(/[\n,;]+/)
                 .map(s => s.trim())
                 .filter(s => s && s.includes('@'));
-            list = raw.map((em, idx) => ({
-                email: em,
-                name: em.split('@')[0],
-                first_name: em.split('@')[0]
-            }));
+            list = raw.map((em) => {
+                const derivedName = extractNameFromEmail(em);
+                return {
+                    email: em,
+                    name: derivedName || em.split('@')[0],
+                    first_name: (derivedName || em.split('@')[0]).split(' ')[0]
+                };
+            });
         }
 
         // Filter valid emails
@@ -300,16 +304,18 @@ export default function AdminCampaignStudioPage() {
         if (resolvedRecipients.length > 0) {
             return resolvedRecipients[Math.min(previewIndex, resolvedRecipients.length - 1)];
         }
+        const effectiveEmail = (testEmail && testEmail.includes('@')) ? testEmail.trim() : (profile?.email || 'alex@example.com');
+        const derivedName = extractNameFromEmail(effectiveEmail) || profile?.full_name || 'Alex Mercer';
         return {
-            name: profile?.full_name || 'Alex Mercer',
-            first_name: (profile?.full_name || 'Alex').split(' ')[0],
-            email: profile?.email || 'alex@example.com',
+            name: derivedName,
+            first_name: derivedName.split(' ')[0],
+            email: effectiveEmail,
             role: 'Student Delegate',
             company: 'Dharmsinh Desai University',
             event_name: 'AWS Cloud Day 2026',
             venue: 'Main Campus Auditorium'
         };
-    }, [resolvedRecipients, previewIndex, profile]);
+    }, [resolvedRecipients, previewIndex, profile, testEmail]);
 
     // ─────────────────────────────────────────────────────────────
     // 3. Dynamic Tag Suggestions List
@@ -530,13 +536,24 @@ export default function AdminCampaignStudioPage() {
         setTestResult(null);
 
         try {
+            const effectiveTestEmail = testEmail.trim();
+            const derivedTestName = extractNameFromEmail(effectiveTestEmail);
+            const testContext = (resolvedRecipients.length > 0)
+                ? { ...sampleRecipient, email: effectiveTestEmail }
+                : {
+                    ...sampleRecipient,
+                    email: effectiveTestEmail,
+                    name: derivedTestName || sampleRecipient.name,
+                    first_name: (derivedTestName || sampleRecipient.name).split(' ')[0]
+                };
+
             const res = await fetch('/api/admin/campaigns', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     mode: 'test',
-                    testEmail: testEmail.trim(),
-                    recipients: [sampleRecipient],
+                    testEmail: effectiveTestEmail,
+                    recipients: [testContext],
                     subject,
                     messageBody,
                     header: headerConfig,

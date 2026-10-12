@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { sendEmail, delay } from '@/lib/emailService';
-import { buildMinimalistEmailHtml, interpolateVariables } from '@/lib/minimalistEmailTemplate';
+import { buildMinimalistEmailHtml, interpolateVariables, extractNameFromEmail } from '@/lib/minimalistEmailTemplate';
 import { logActivity } from '@/utils/logger';
 
 export const dynamic = 'force-dynamic';
@@ -142,13 +142,28 @@ export async function POST(req) {
                 return NextResponse.json({ error: 'Test recipient email is required' }, { status: 400 });
             }
 
-            const sampleContext = (recipients && recipients[0]) ? recipients[0] : {
-                name: profile.full_name || 'Sample Recipient',
-                first_name: (profile.full_name || 'Sample').split(' ')[0],
-                email: targetTestEmail,
-                role: profile.role || 'Administrator',
-                organization: 'AWS Cloud Club DDU'
-            };
+            const derivedTestName = extractNameFromEmail(targetTestEmail);
+            let sampleContext = (recipients && recipients[0]) ? { ...recipients[0] } : null;
+
+            if (!sampleContext) {
+                sampleContext = {
+                    name: derivedTestName || profile.full_name || 'Sample Recipient',
+                    first_name: (derivedTestName || profile.full_name || 'Sample').split(' ')[0],
+                    email: targetTestEmail,
+                    role: profile.role || 'Administrator',
+                    organization: 'AWS Cloud Club DDU'
+                };
+            } else {
+                sampleContext.email = targetTestEmail;
+                const isGeneric = !sampleContext.name ||
+                    sampleContext.name.toLowerCase() === targetTestEmail.toLowerCase() ||
+                    /^(sample recipient|recipient|member|participant|\$\{\s*name\s*\}|\{\{\s*name\s*\}\})$/i.test(String(sampleContext.name).trim());
+
+                if (isGeneric && derivedTestName) {
+                    sampleContext.name = derivedTestName;
+                    sampleContext.first_name = derivedTestName.split(' ')[0];
+                }
+            }
 
             const interpolatedSubject = `[TEST] ` + interpolateVariables(subject, sampleContext);
             const interpolatedBody = interpolateVariables(messageBody, sampleContext);
@@ -206,7 +221,19 @@ export async function POST(req) {
             const email = (r.email || r['Email'] || r['email address'] || '').trim().toLowerCase();
             if (email && email.includes('@') && !seenEmails.has(email)) {
                 seenEmails.add(email);
-                uniqueRecipients.push({ ...r, email });
+                const derivedName = extractNameFromEmail(email);
+                const currentName = r.name ? String(r.name).trim() : '';
+                const isGeneric = !currentName ||
+                    currentName.toLowerCase() === email.toLowerCase() ||
+                    /^(sample recipient|recipient|member|participant|\$\{\s*name\s*\}|\{\{\s*name\s*\}\})$/i.test(currentName);
+
+                const finalName = !isGeneric ? currentName : (derivedName || currentName || 'Recipient');
+                uniqueRecipients.push({
+                    ...r,
+                    email,
+                    name: finalName,
+                    first_name: r.first_name || finalName.split(' ')[0]
+                });
             }
         }
 
