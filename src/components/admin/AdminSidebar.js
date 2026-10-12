@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
     LayoutDashboard, Users, Calendar, Settings,
-    LogOut, FileText, Activity, Award, Menu, X, Image as ImageIcon
+    LogOut, FileText, Activity, Award, Menu, X, Image as ImageIcon, Mail
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useState, useEffect } from "react";
@@ -14,19 +14,19 @@ import { motion, AnimatePresence } from "framer-motion";
 const ROLE_PERMISSIONS = {
     faculty: {
         sections: ['core', 'management', 'system'],
-        features: ['analytics', 'hod_export', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
+        features: ['analytics', 'hod_export', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day', 'email_campaign'],
     },
     Leader: {
         sections: ['core', 'management', 'system'],
-        features: ['analytics', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
+        features: ['analytics', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day', 'email_campaign'],
     },
     captain: {
         sections: ['core', 'management', 'system'],
-        features: ['analytics', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
+        features: ['analytics', 'certificates', 'manage_members', 'manage_roles', 'settings', 'manage_team', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day', 'email_campaign'],
     },
     core: {
         sections: ['core', 'management'],
-        features: ['analytics', 'manage_events', 'attendance', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day'],
+        features: ['analytics', 'manage_events', 'attendance', 'manage_resources', 'manage_knowledge', 'manage_gallery', 'manage_community_day', 'email_campaign'],
     },
     member: {
         sections: ['core', 'management'],
@@ -95,6 +95,7 @@ export default function AdminSidebar() {
                 { name: "Knowledge", href: "/admin/knowledge", icon: FileText },
                 { name: "Gallery", href: "/admin/gallery", icon: ImageIcon },
                 ...(perms.features.includes('certificates') ? [{ name: "Certificates", href: "/admin/certificates", icon: Award }] : []),
+                ...(perms.features.includes('email_campaign') ? [{ name: "Email Campaign", href: "/admin/campaigns", icon: Mail }] : []),
             ]
         },
         {

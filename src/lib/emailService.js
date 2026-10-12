@@ -24,15 +24,29 @@ export const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 /**
  * Send a single email with error handling
  */
-export const sendEmail = async ({ to, subject, html }) => {
+export const sendEmail = async ({ to, subject, html, text, attachments }) => {
     try {
         const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
-        const info = await transporter.sendMail({
+        const mailOptions = {
             from: `"AWS SBG DDU" <${fromEmail}>`,
             to,
             subject,
             html,
-        });
+        };
+        if (text) mailOptions.text = text;
+        if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+            mailOptions.attachments = attachments.map(att => {
+                if (att.content && typeof att.content === 'string' && (att.isBase64 || att.encoding === 'base64')) {
+                    return {
+                        filename: att.filename,
+                        content: Buffer.from(att.content, 'base64'),
+                        contentType: att.contentType
+                    };
+                }
+                return att;
+            });
+        }
+        const info = await transporter.sendMail(mailOptions);
         return { success: true, messageId: info.messageId };
     } catch (error) {
         console.error(`Error sending email to ${to}:`, error?.message || error);

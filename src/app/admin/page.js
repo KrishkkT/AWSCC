@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Shield, Zap, Users, Calendar, Award, FileText, Bookmark, Plus, Trash2, Edit2, Save, X, Loader2, Upload, Image as ImageIcon } from "lucide-react";
+import { Shield, Zap, Users, Calendar, Award, FileText, Bookmark, Plus, Trash2, Edit2, Save, X, Loader2, Upload, Image as ImageIcon, Mail } from "lucide-react";
 import Toast from "@/components/Toast";
 import { uploadFile } from "@/lib/storage";
 
@@ -40,6 +40,7 @@ export default function AdminDashboard() {
     const [stats, setStats] = useState([
         { label: "Active Events", value: "...", icon: <Calendar size={20} />, color: "cyan", link: "/admin/events" },
         { label: "Total Certificates", value: "...", icon: <Award size={20} />, color: "teal", link: "/admin/certificates" },
+        { label: "Email Campaigns", value: "Studio", icon: <Mail size={20} />, color: "cyan", link: "/admin/campaigns" },
         { label: "System Health", value: "Optimal", icon: <Zap size={20} />, color: "white", link: "/admin/logs" },
     ]);
 
@@ -65,6 +66,7 @@ export default function AdminDashboard() {
             setStats([
                 { label: "Active Events", value: eventsCount.count || 0, icon: <Calendar size={20} />, color: "cyan", link: "/admin/events" },
                 { label: "Total Certificates", value: certsCount.count || 0, icon: <Award size={20} />, color: "teal", link: "/admin/certificates" },
+                { label: "Email Campaigns", value: "Studio", icon: <Mail size={20} />, color: "cyan", link: "/admin/campaigns" },
                 { label: "System Health", value: "Optimal", icon: <Zap size={20} />, color: "white", link: "/admin/logs" },
             ]);
         }
@@ -245,7 +247,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Metrics Visualization */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {stats.map((stat, i) => (
                     <motion.div
                         key={stat.label}
