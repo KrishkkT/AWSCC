@@ -53,20 +53,20 @@ export default function AdminCampaignStudioPage() {
     // ─────────────────────────────────────────────────────────────
     // Customization & Minimalist Styling
     // ─────────────────────────────────────────────────────────────
-    const [activeThemeKey, setActiveThemeKey] = useState('slate');
+    const [activeThemeKey, setActiveThemeKey] = useState('aws');
     const [customThemeColors, setCustomThemeColors] = useState({
-        bg: '#090D16',
-        cardBg: '#0F172A',
-        borderColor: '#1E293B',
-        accentColor: '#38BDF8',
-        textColor: '#F8FAFC',
+        bg: '#080E1A',
+        cardBg: '#0D1527',
+        borderColor: '#1B2A4A',
+        accentColor: '#FF9900',
+        textColor: '#F1F5F9',
         mutedColor: '#94A3B8',
         isDark: true
     });
 
     const activeTheme = useMemo(() => {
         if (activeThemeKey === 'custom') return customThemeColors;
-        return THEME_PRESETS[activeThemeKey] || THEME_PRESETS.slate;
+        return THEME_PRESETS[activeThemeKey] || THEME_PRESETS.aws;
     }, [activeThemeKey, customThemeColors]);
 
     // Header Customization
@@ -74,7 +74,6 @@ export default function AdminCampaignStudioPage() {
         enabled: true,
         style: 'accent_bar', // 'accent_bar' | 'clean_badge' | 'monoline' | 'pure_text' | 'none'
         title: 'AWS Cloud Community',
-        subtitle: 'Official Member & Participant Notice',
         badgeText: 'AWS SBG DDU'
     });
 
@@ -641,7 +640,7 @@ export default function AdminCampaignStudioPage() {
 
     return (
         <div className="space-y-8 pb-16">
-            
+
             {/* ══════════════════════════════════════════════════════
                 STUDIO HEADER
             ══════════════════════════════════════════════════════ */}
@@ -687,7 +686,7 @@ export default function AdminCampaignStudioPage() {
                 MAIN WORKSPACE GRID
             ══════════════════════════════════════════════════════ */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-                
+
                 {/* ──────────────────────────────────────────────────
                     LEFT COLUMN: Recipient Source & Editor (7 Cols)
                 ────────────────────────────────────────────────── */}
@@ -712,11 +711,10 @@ export default function AdminCampaignStudioPage() {
                                         key={tab.id}
                                         type="button"
                                         onClick={() => setRecipientSource(tab.id)}
-                                        className={`px-3 py-1.5 rounded-lg text-[11px] transition-all cursor-pointer ${
-                                            recipientSource === tab.id
+                                        className={`px-3 py-1.5 rounded-lg text-[11px] transition-all cursor-pointer ${recipientSource === tab.id
                                                 ? 'bg-brand-cyan text-brand-dark font-black shadow-xs'
                                                 : 'text-white/60 hover:text-white'
-                                        }`}
+                                            }`}
                                     >
                                         {tab.label}
                                     </button>
@@ -897,11 +895,10 @@ export default function AdminCampaignStudioPage() {
                                             key={th.id}
                                             type="button"
                                             onClick={() => setActiveThemeKey(th.id)}
-                                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                                                isSelected
+                                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${isSelected
                                                     ? 'bg-white/10 border-brand-cyan ring-1 ring-brand-cyan shadow-md'
                                                     : 'bg-white/[0.02] border-white/10 hover:border-white/20'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-center justify-between mb-2">
                                                 <span className="text-xs font-bold text-white">{th.name}</span>
@@ -1228,10 +1225,10 @@ export default function AdminCampaignStudioPage() {
                     RIGHT COLUMN: Live Interactive Preview & Send (5 Cols)
                 ────────────────────────────────────────────────── */}
                 <div className="xl:col-span-5 space-y-6 xl:sticky xl:top-24">
-                    
+
                     {/* PREVIEW CONTAINER */}
                     <div className="bg-[#0b101b] border border-white/10 rounded-2xl p-6 shadow-xl space-y-4">
-                        
+
                         {/* Preview Top Bar */}
                         <div className="flex items-center justify-between pb-3 border-b border-white/5">
                             <div className="flex items-center gap-2">
@@ -1245,9 +1242,8 @@ export default function AdminCampaignStudioPage() {
                                     <button
                                         type="button"
                                         onClick={() => setPreviewDevice('desktop')}
-                                        className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                                            previewDevice === 'desktop' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white'
-                                        }`}
+                                        className={`p-1.5 rounded-md transition-all cursor-pointer ${previewDevice === 'desktop' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white'
+                                            }`}
                                         title="Desktop View"
                                     >
                                         <Monitor size={14} />
@@ -1255,9 +1251,8 @@ export default function AdminCampaignStudioPage() {
                                     <button
                                         type="button"
                                         onClick={() => setPreviewDevice('mobile')}
-                                        className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                                            previewDevice === 'mobile' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white'
-                                        }`}
+                                        className={`p-1.5 rounded-md transition-all cursor-pointer ${previewDevice === 'mobile' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white'
+                                            }`}
                                         title="Mobile View"
                                     >
                                         <Smartphone size={14} />
@@ -1268,11 +1263,10 @@ export default function AdminCampaignStudioPage() {
                                 <button
                                     type="button"
                                     onClick={() => setPreviewMode(previewMode === 'visual' ? 'code' : 'visual')}
-                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all border cursor-pointer ${
-                                        previewMode === 'code'
+                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all border cursor-pointer ${previewMode === 'code'
                                             ? 'bg-brand-cyan/20 border-brand-cyan text-brand-cyan'
                                             : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
-                                    }`}
+                                        }`}
                                 >
                                     {previewMode === 'code' ? 'HTML Code' : 'Visual'}
                                 </button>
@@ -1368,11 +1362,10 @@ export default function AdminCampaignStudioPage() {
                             </div>
 
                             {testResult && (
-                                <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${
-                                    testResult.success
+                                <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${testResult.success
                                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                         : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                                }`}>
+                                    }`}>
                                     {testResult.success ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
                                     <span>{testResult.message || testResult.error}</span>
                                 </div>
@@ -1553,11 +1546,10 @@ export default function AdminCampaignStudioPage() {
                                 <>
                                     {/* BROADCAST RESULTS */}
                                     <div className="text-center space-y-3">
-                                        <div className={`w-16 h-16 rounded-3xl mx-auto flex items-center justify-center ${
-                                            broadcastResult.success && broadcastResult.failed === 0
+                                        <div className={`w-16 h-16 rounded-3xl mx-auto flex items-center justify-center ${broadcastResult.success && broadcastResult.failed === 0
                                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                                 : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                        }`}>
+                                            }`}>
                                             {broadcastResult.success && broadcastResult.failed === 0 ? (
                                                 <CheckCircle2 size={32} />
                                             ) : (
