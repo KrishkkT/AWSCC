@@ -12,8 +12,7 @@ import jsPDF from 'jspdf';
 
 const TABS = [
     { id: 'live', label: 'Live Stats Sheet', icon: BarChart3 },
-    { id: 'export', label: 'Export Reports (Excel / CSV)', icon: FileSpreadsheet },
-    { id: 'googlesheets', label: 'Google Sheets Auto-Sync', icon: FileSpreadsheet }
+    { id: 'export', label: 'Export Reports (Excel / CSV)', icon: FileSpreadsheet }
 ];
 
 export default function ReportsExportPage() {
@@ -26,16 +25,8 @@ export default function ReportsExportPage() {
     const [liveData, setLiveData] = useState(null);
     const [liveLoading, setLiveLoading] = useState(true);
     const [lastRefreshed, setLastRefreshed] = useState(null);
-    const [copiedScript, setCopiedScript] = useState(false);
-    const [originUrl, setOriginUrl] = useState('');
 
     const printableRef = useRef(null);
-
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            setOriginUrl(window.location.origin);
-        }
-    }, []);
 
     const fetchLiveData = useCallback(async () => {
         if (!eventId) return;
@@ -74,7 +65,12 @@ export default function ReportsExportPage() {
 
     useEffect(() => {
         fetchLiveData();
-        const id = setInterval(fetchLiveData, 8000);
+        // 30s polling, paused when tab is inactive to preserve Vercel CPU
+        const id = setInterval(() => {
+            if (typeof document !== 'undefined' && !document.hidden) {
+                fetchLiveData();
+            }
+        }, 30000);
         return () => clearInterval(id);
     }, [fetchLiveData]);
 
@@ -704,97 +700,6 @@ export default function ReportsExportPage() {
         </div>
     );
 
-    const generatedScript = `/**
- * AWS Community Day - OnePass Live Google Sheets Auto-Sync
- * Automatically creates & syncs 8 dedicated tabs with live Supabase data:
- * Executive Summary, Check-Ins, Tracks, Workshops, Lunch, Swag, Counters, Leaderboard.
- */
-function syncOnePassLiveToGoogleSheets() {
-  var SYNC_URL = "${originUrl || 'https://aws.ddu.ac.in'}/api/onepass/sync/googlesheet?eventId=${eventId || ''}&token=onepass_gs_${eventId || ''}";
-  
-  var response = UrlFetchApp.fetch(SYNC_URL, {
-    method: "GET",
-    muteHttpExceptions: true
-  });
-
-  var statusCode = response.getResponseCode();
-  var rawText = response.getContentText();
-
-  if (statusCode !== 200) {
-    Logger.log("Error (" + statusCode + ") syncing from OnePass: " + rawText.substring(0, 300));
-    return;
-  }
-
-  var data;
-  try {
-    data = JSON.parse(rawText);
-  } catch (e) {
-    Logger.log("Failed to parse JSON response. Ensure your OnePass deployment is updated and accessible. Response preview: " + rawText.substring(0, 300));
-    return;
-  }
-
-  if (!data || !data.sheets) {
-    Logger.log("Invalid response payload from OnePass: missing 'sheets' object.");
-    return;
-  }
-
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheetsMap = data.sheets;
-
-  for (var sheetName in sheetsMap) {
-    var rows = sheetsMap[sheetName];
-    if (!rows || rows.length === 0) continue;
-
-    var sheet = ss.getSheetByName(sheetName);
-    if (!sheet) {
-      sheet = ss.insertSheet(sheetName);
-    }
-
-    sheet.clearContents();
-    var numRows = rows.length;
-    var numCols = rows[0].length;
-    
-    // Write full matrix in a single batch operation
-    sheet.getRange(1, 1, numRows, numCols).setValues(rows);
-
-    // Format Header Row
-    var headerRange = sheet.getRange(1, 1, 1, numCols);
-    headerRange.setFontWeight("bold");
-    headerRange.setBackground("#0073BB");
-    headerRange.setFontColor("#FFFFFF");
-    sheet.setFrozenRows(1);
-    sheet.autoResizeColumns(1, numCols);
-  }
-
-  Logger.log("OnePass Live Sync Successful! Refreshed at " + new Date());
-}
-
-/**
- * Setup recurring trigger (Runs automatically every 1 minute)
- * Note: Google Apps Script valid intervals for everyMinutes are: 1, 5, 10, 15, or 30.
- */
-function createAutoSyncTrigger() {
-  // Delete old triggers
-  var triggers = ScriptApp.getProjectTriggers();
-  for (var i = 0; i < triggers.length; i++) {
-    ScriptApp.deleteTrigger(triggers[i]);
-  }
-
-  // Create fresh 1-minute trigger
-  ScriptApp.newTrigger("syncOnePassLiveToGoogleSheets")
-    .timeBased()
-    .everyMinutes(1)
-    .create();
-
-  Logger.log("1-Minute Auto-Sync Trigger Created Successfully!");
-}`;
-
-    const handleCopyScript = () => {
-        navigator.clipboard.writeText(generatedScript);
-        setCopiedScript(true);
-        setTimeout(() => setCopiedScript(false), 3000);
-    };
-
     return (
         <div className="max-w-6xl mx-auto space-y-6">
             {/* Header & Quick Action Buttons */}
@@ -802,7 +707,7 @@ function createAutoSyncTrigger() {
                 <div>
                     <h1 className="text-2xl font-bold text-white">Event Reports &amp; Cloud Analytics</h1>
                     <p className="text-xs text-slate-400 mt-1">
-                        Live real-time data across tracks, workshops, lunch, swag, counter boxes, and Google Sheets.
+                        Live real-time data across tracks, workshops, lunch, swag, and counter boxes.
                     </p>
                 </div>
 
@@ -1224,104 +1129,6 @@ function createAutoSyncTrigger() {
                                 </div>
                             );
                         })}
-                    </div>
-                </div>
-            )}
-
-            {/* TAB 3: GOOGLE SHEETS AUTO-SYNC */}
-            {activeTab === 'googlesheets' && (
-                <div className="space-y-6">
-                    {/* Hero Setup Card */}
-                    <div className="p-6 bg-gradient-to-r from-[#0073BB]/20 via-[#151c2e] to-[#0C111D] border-2 border-[#0073BB]/60 rounded-3xl space-y-4 shadow-2xl">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-[#0073BB]/20 border border-[#0073BB]/40 rounded-2xl text-[#4F8EF7]">
-                                <FileSpreadsheet className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-black text-white">Automated Google Sheets Live Synchronization</h2>
-                                <p className="text-xs text-slate-300">
-                                    Keep your Google Sheet automatically up-to-date with Supabase cloud on event day (refreshes automatically every 2 minutes).
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* 4-Step Visual Instructions */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2">
-                            <div className="p-4 bg-[#0C111D] border border-[#1a2540] rounded-2xl space-y-2">
-                                <div className="w-6 h-6 rounded-full bg-[#0073BB]/20 border border-[#0073BB]/40 text-[#4F8EF7] font-bold text-xs flex items-center justify-center font-mono">1</div>
-                                <p className="font-bold text-white text-xs">Create Sheet</p>
-                                <p className="text-[11px] text-slate-400 leading-relaxed">
-                                    Open a blank spreadsheet at <a href="https://sheets.new" target="_blank" rel="noreferrer" className="text-[#4F8EF7] underline">sheets.new</a>
-                                </p>
-                            </div>
-
-                            <div className="p-4 bg-[#0C111D] border border-[#1a2540] rounded-2xl space-y-2">
-                                <div className="w-6 h-6 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-400 font-bold text-xs flex items-center justify-center font-mono">2</div>
-                                <p className="font-bold text-white text-xs">Open Apps Script</p>
-                                <p className="text-[11px] text-slate-400 leading-relaxed">
-                                    In Google Sheets menu, click <strong>Extensions &rarr; Apps Script</strong>.
-                                </p>
-                            </div>
-
-                            <div className="p-4 bg-[#0C111D] border border-[#1a2540] rounded-2xl space-y-2">
-                                <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-bold text-xs flex items-center justify-center font-mono">3</div>
-                                <p className="font-bold text-white text-xs">Paste &amp; Run</p>
-                                <p className="text-[11px] text-slate-400 leading-relaxed">
-                                    Delete any template code, paste the script below, and click <strong>Save 💾</strong> then <strong>Run ▶️</strong>.
-                                </p>
-                            </div>
-
-                            <div className="p-4 bg-[#0C111D] border border-[#1a2540] rounded-2xl space-y-2">
-                                <div className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-bold text-xs flex items-center justify-center font-mono">4</div>
-                                <p className="font-bold text-white text-xs">Auto 2-Min Refresh</p>
-                                <p className="text-[11px] text-slate-400 leading-relaxed">
-                                    Select function <code className="text-amber-300 font-mono">createAutoSyncTrigger</code> in dropdown &amp; click <strong>Run</strong> once!
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Copyable Apps Script Code Box */}
-                    <div className="p-6 bg-[#151c2e] border border-[#1a2540] rounded-3xl space-y-4 shadow-xl">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <h3 className="font-bold text-white text-sm">Pre-Configured Google Apps Script (Ready to Copy)</h3>
-                                <p className="text-xs text-slate-400">
-                                    Your event ID and cloud sync endpoint are already pre-filled.
-                                </p>
-                            </div>
-
-                            <button
-                                onClick={handleCopyScript}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-lg ${
-                                    copiedScript ? 'bg-emerald-500 text-slate-950' : 'bg-[#0073BB] hover:bg-[#0073BB]/90 text-white'
-                                }`}
-                            >
-                                {copiedScript ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                                <span>{copiedScript ? 'Copied to Clipboard!' : 'Copy Apps Script Code'}</span>
-                            </button>
-                        </div>
-
-                        <pre className="p-4 bg-[#0C111D] rounded-2xl text-[11px] font-mono text-emerald-300 overflow-x-auto max-h-96 border border-[#1a2540] leading-relaxed">
-                            {generatedScript}
-                        </pre>
-
-                        <div className="p-4 bg-[#0C111D] border border-amber-500/30 rounded-2xl flex items-start gap-3 text-xs text-slate-300">
-                            <Sparkles className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                            <div>
-                                <strong className="text-white">Tabs Automatically Created in Your Google Sheet:</strong>
-                                <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-mono">
-                                    <span className="px-2 py-1 bg-[#151c2e] border border-[#1a2540] rounded-lg text-slate-200">📌 Executive Summary</span>
-                                    <span className="px-2 py-1 bg-[#151c2e] border border-[#1a2540] rounded-lg text-emerald-300">🎟️ Check-Ins</span>
-                                    <span className="px-2 py-1 bg-[#151c2e] border border-[#1a2540] rounded-lg text-amber-300">🚀 Tracks Stats</span>
-                                    <span className="px-2 py-1 bg-[#151c2e] border border-[#1a2540] rounded-lg text-purple-300">🧪 Workshops Stats</span>
-                                    <span className="px-2 py-1 bg-[#151c2e] border border-[#1a2540] rounded-lg text-[#FF9900]">🍱 Lunch Distribution</span>
-                                    <span className="px-2 py-1 bg-[#151c2e] border border-[#1a2540] rounded-lg text-emerald-400">🎁 Swag Kits</span>
-                                    <span className="px-2 py-1 bg-[#151c2e] border border-[#1a2540] rounded-lg text-[#4F8EF7]">🏷️ Badge Counters</span>
-                                    <span className="px-2 py-1 bg-[#151c2e] border border-[#1a2540] rounded-lg text-cyan-300">👥 Volunteer Leaderboard</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             )}
